@@ -1,0 +1,6 @@
+{
+  "schema_version": 1,
+  "sla_hours": 72,
+  "required_consecutive_passes": 2,
+  "events": []
+}

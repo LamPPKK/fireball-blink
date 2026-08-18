@@ -51,12 +51,31 @@ class PatchToolTests(unittest.TestCase):
         with self.assertRaisesRegex(ManifestError, "below patches"):
             validate_manifest(self.manifest, self.repo)
 
+    def test_automatic_import_is_rejected(self) -> None:
+        document = json.loads(self.manifest.read_text(encoding="utf-8"))
+        document["automatic_import"] = True
+        self.manifest.write_text(json.dumps(document), encoding="utf-8")
+        with self.assertRaisesRegex(ManifestError, "automatic patch import"):
+            validate_manifest(self.manifest, self.repo)
+
+    def test_source_path_traversal_is_rejected(self) -> None:
+        document = json.loads(self.manifest.read_text(encoding="utf-8"))
+        document["patches"][0]["source"]["path"] = "../stolen.patch"
+        self.manifest.write_text(json.dumps(document), encoding="utf-8")
+        with self.assertRaisesRegex(ManifestError, "repository-relative"):
+            validate_manifest(self.manifest, self.repo)
+
+    def test_stale_chromium_verification_is_rejected(self) -> None:
+        with self.assertRaisesRegex(ManifestError, "pinned Chromium commit"):
+            validate_manifest(self.manifest, self.repo, "b" * 40)
+
     def checksum(self) -> str:
         return hashlib.sha256((self.repo / "patches/sample.patch").read_bytes()).hexdigest()
 
     def write_manifest(self, checksum: str, path: str = "patches/sample.patch") -> None:
         document = {
-            "schema_version": 1,
+            "schema_version": 2,
+            "automatic_import": False,
             "patches": [
                 {
                     "id": "sample_patch",
@@ -64,11 +83,14 @@ class PatchToolTests(unittest.TestCase):
                     "sha256": checksum,
                     "source": {
                         "project": "example",
-                        "url": "https://example.invalid/source",
+                        "repository": "https://example.invalid/source.git",
+                        "path": "patches/sample.patch",
                         "commit": "a" * 40,
                         "license": "BSD-3-Clause",
+                        "license_url": "https://example.invalid/LICENSE",
                     },
                     "chromium_range": {"minimum": 140, "maximum": 145},
+                    "verified_against": "a" * 40,
                     "security_impact": "fixture only; no production impact",
                     "required_tests": ["tests.test_patch_tool"],
                 }

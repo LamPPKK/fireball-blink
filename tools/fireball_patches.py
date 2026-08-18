@@ -19,8 +19,17 @@ REQUIRED_PATCH_FIELDS = {
     "sha256",
     "source",
     "chromium_range",
+    "verified_against",
     "security_impact",
     "required_tests",
+}
+REQUIRED_SOURCE_FIELDS = {
+    "project",
+    "repository",
+    "path",
+    "commit",
+    "license",
+    "license_url",
 }
 
 
@@ -31,12 +40,30 @@ class ManifestError(ValueError):
 def load_manifest(path: pathlib.Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as handle:
         document = json.load(handle)
-    if document.get("schema_version") != 1 or not isinstance(document.get("patches"), list):
-        raise ManifestError("manifest must use schema_version 1 and contain a patches array")
+    if (
+        set(document) != {"schema_version", "automatic_import", "patches"}
+        or document.get("schema_version") != 2
+        or not isinstance(document.get("patches"), list)
+    ):
+        raise ManifestError("manifest must use the exact schema_version 2 shape")
+    if document["automatic_import"] is not False:
+        raise ManifestError("automatic patch import must remain disabled")
     return document
 
 
-def validate_manifest(manifest_path: pathlib.Path, repository_root: pathlib.Path) -> None:
+def _validate_source_path(value: object, patch_id: str) -> None:
+    if not isinstance(value, str) or not value:
+        raise ManifestError(f"{patch_id}: source path is required")
+    source_path = pathlib.PurePosixPath(value)
+    if source_path.is_absolute() or ".." in source_path.parts or source_path.as_posix() != value:
+        raise ManifestError(f"{patch_id}: source path must be repository-relative")
+
+
+def validate_manifest(
+    manifest_path: pathlib.Path,
+    repository_root: pathlib.Path,
+    expected_chromium_revision: str | None = None,
+) -> None:
     document = load_manifest(manifest_path)
     patch_root = (repository_root / "patches").resolve()
     seen_ids: set[str] = set()
@@ -58,12 +85,22 @@ def validate_manifest(manifest_path: pathlib.Path, repository_root: pathlib.Path
             raise ManifestError(f"{patch_id}: checksum mismatch")
 
         source = patch["source"]
-        if not isinstance(source, dict) or set(source) != {"project", "url", "commit", "license"}:
+        if not isinstance(source, dict) or set(source) != REQUIRED_SOURCE_FIELDS:
             raise ManifestError(f"{patch_id}: incomplete source provenance")
-        if not all(isinstance(source[field], str) and source[field] for field in ("project", "url", "license")):
+        text_fields = ("project", "repository", "license", "license_url")
+        if not all(isinstance(source[field], str) and source[field] for field in text_fields):
             raise ManifestError(f"{patch_id}: source text fields may not be empty")
-        if not str(source["url"]).startswith("https://") or not SHA_PATTERN.fullmatch(source["commit"]):
-            raise ManifestError(f"{patch_id}: source requires HTTPS URL and exact commit")
+        if not source["repository"].startswith("https://") or not source["license_url"].startswith("https://"):
+            raise ManifestError(f"{patch_id}: source repository and license require HTTPS URLs")
+        if not SHA_PATTERN.fullmatch(source["commit"]):
+            raise ManifestError(f"{patch_id}: source requires an exact commit")
+        _validate_source_path(source["path"], patch_id)
+
+        verified_against = patch["verified_against"]
+        if not isinstance(verified_against, str) or not SHA_PATTERN.fullmatch(verified_against):
+            raise ManifestError(f"{patch_id}: verified_against must be an exact Chromium commit")
+        if expected_chromium_revision is not None and verified_against != expected_chromium_revision:
+            raise ManifestError(f"{patch_id}: patch was not verified against the pinned Chromium commit")
 
         chromium_range = patch["chromium_range"]
         if not isinstance(chromium_range, dict) or set(chromium_range) != {"minimum", "maximum"}:
@@ -116,7 +153,11 @@ def main() -> int:
     repository_root = arguments.repo_root.resolve()
     manifest = (arguments.manifest or repository_root / "patches/manifest.json").resolve()
     try:
-        validate_manifest(manifest, repository_root)
+        expected_revision = None
+        upstream_pin = repository_root / "pins/upstream.json"
+        if upstream_pin.is_file():
+            expected_revision = json.loads(upstream_pin.read_text(encoding="utf-8"))["chromium"]["revision"]
+        validate_manifest(manifest, repository_root, expected_revision)
         if arguments.command != "validate":
             if arguments.checkout is None:
                 raise ManifestError("--checkout is required for apply/reverse")
