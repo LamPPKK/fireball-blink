@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-08-18T23:06:00+07:00",
+  "chromium": {
+    "url": "https://chromium.googlesource.com/chromium/src.git",
+    "ref": "refs/heads/main",
+    "revision": "d3f14d8767f57363c2966a67da328974b870525e"
+  },
+  "depot_tools": {
+    "url": "https://chromium.googlesource.com/chromium/tools/depot_tools.git",
+    "ref": "refs/heads/main",
+    "revision": "4d4577a3e18dfe943c317232d6318ed5bb7a3ea1"
+  }
+}
