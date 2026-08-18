@@ -18,23 +18,33 @@ def main() -> int:
         print("fireball-cpp-tests: no C++ compiler found", file=sys.stderr)
         return 1
     with tempfile.TemporaryDirectory(prefix="fireball-blink-tests-") as temporary:
-        binary = pathlib.Path(temporary) / "network_audit_test"
-        subprocess.run(
-            [
-                compiler,
-                "-std=c++20",
-                "-Wall",
-                "-Wextra",
-                "-Werror",
-                f"-I{root}",
-                str(root / "fireball/components/privacy/network_audit.cc"),
-                str(root / "tests/network_audit_test.cc"),
-                "-o",
-                str(binary),
+        cases = {
+            "network_audit_test": [
+                "fireball/components/privacy/network_audit.cc",
+                "tests/network_audit_test.cc",
             ],
-            check=True,
-        )
-        subprocess.run([str(binary)], check=True)
+            "browser_domain_test": [
+                "fireball/browser/domain_model.cc",
+                "tests/browser_domain_test.cc",
+            ],
+        }
+        for name, sources in cases.items():
+            binary = pathlib.Path(temporary) / name
+            subprocess.run(
+                [
+                    compiler,
+                    "-std=c++20",
+                    "-Wall",
+                    "-Wextra",
+                    "-Werror",
+                    f"-I{root}",
+                    *(str(root / source) for source in sources),
+                    "-o",
+                    str(binary),
+                ],
+                check=True,
+            )
+            subprocess.run([str(binary)], check=True)
     return 0
 
 

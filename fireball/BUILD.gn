@@ -1,3 +1,6 @@
 group("fireball_overlay") {
-  public_deps = [ "//fireball/components/privacy" ]
+  public_deps = [
+    "//fireball/browser:domain",
+    "//fireball/components/privacy",
+  ]
 }

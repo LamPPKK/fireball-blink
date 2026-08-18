@@ -26,3 +26,7 @@ Compiler optimization ideas from Thorium stay in a separate benchmark lane. Gene
 ## Security rebase gate
 
 `security/rebases.json` is the evidence ledger for the 72-hour Chromium security-rebase SLA. Passing and failed attempts are both recorded so a failure breaks the consecutive-pass streak. A pass requires ordered release/triage/build/promotion timestamps, a promoted-artifact checksum, completion within 72 hours, and passing control build, overlay build, smoke tests and startup-network audit. `python3 tools/security_rebases.py status` reports the gate; it remains closed until two consecutive real passes are recorded. No placeholder success is checked in.
+
+## Profiles, Spaces and Burner state
+
+`fireball/browser/domain_model.*` establishes the B2 ownership boundary without replacing Chromium objects: Profile owns persistent or off-the-record storage identity, Space owns a tab collection and points to exactly one Profile, and Tab has a stable UUID. Multiple regular Spaces can share a persistent Profile; Burner Spaces require an off-the-record Profile and cannot be restored. The four tab layouts are presentation state, so switching layout preserves every domain tab. Chromium Profile/WebContents adapters and the full isolation test remain blocked on the B0 checkout/build.

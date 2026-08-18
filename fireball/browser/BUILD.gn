@@ -1,0 +1,6 @@
+source_set("domain") {
+  sources = [
+    "domain_model.cc",
+    "domain_model.h",
+  ]
+}
