@@ -5,9 +5,21 @@
 
 namespace fireball::privacy {
 
-// Returns true only for startup traffic with an explicit Fireball owner.
-// F0 deliberately defaults to deny until the network audit is populated.
-bool IsStartupRequestAllowed(std::string_view owner);
+enum class NetworkPhase {
+  kStartup,
+  kPostStartup,
+};
+
+// Traffic is allowed only when an owner and phase appear in the generated
+// policy and the caller supplies any consent required by that rule.
+bool IsNetworkRequestAllowed(std::string_view owner,
+                             NetworkPhase phase,
+                             bool has_user_consent);
+
+inline bool IsStartupRequestAllowed(std::string_view owner) {
+  return IsNetworkRequestAllowed(owner, NetworkPhase::kStartup,
+                                 /*has_user_consent=*/false);
+}
 
 }  // namespace fireball::privacy
 

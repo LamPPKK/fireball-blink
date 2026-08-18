@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-08-19T03:51:46+07:00",
+  "automatic_patch_import": false,
+  "references": [
+    {
+      "name": "brave-core",
+      "url": "https://github.com/brave/brave-core.git",
+      "ref": "refs/heads/master",
+      "revision": "724b099256e79f8fc3c5e0d395574590331705da",
+      "license": "MPL-2.0",
+      "observed_product_version": "1.95.81",
+      "observed_chromium_version": "152.0.7977.42",
+      "roles": [
+        "overlay-before-override-before-direct-patch",
+        "chromium-src-override-seams",
+        "security-rebase-discipline"
+      ]
+    },
+    {
+      "name": "helium",
+      "url": "https://github.com/imputnet/helium.git",
+      "ref": "refs/heads/main",
+      "revision": "0ae15ad649e65e51500fee23ef08394433add8b7",
+      "license": "GPL-3.0",
+      "observed_product_version": "revision-5",
+      "observed_chromium_version": "151.0.7922.137",
+      "roles": [
+        "vendor-sorted-patch-provenance",
+        "ordered-patch-series",
+        "pinned-download-checksums"
+      ]
+    }
+  ]
+}
