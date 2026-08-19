@@ -8,6 +8,7 @@ import re
 from typing import Any
 
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 VERSION_PATTERN = re.compile(r"^(\d+)\.\d+\.\d+\.\d+$")
 ROLE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{2,63}$")
 
@@ -144,9 +145,53 @@ def validate_references(document: dict[str, Any]) -> None:
         raise PinError("reference browsers: missing required reference")
 
 
+def validate_runtime_dependencies(document: dict[str, Any]) -> None:
+    if set(document) != {"schema_version", "dependencies"} or document.get("schema_version") != 1:
+        raise PinError("runtime dependencies must use the exact schema_version 1 shape")
+    dependencies = document["dependencies"]
+    if not isinstance(dependencies, list) or len(dependencies) != 1:
+        raise PinError("runtime dependencies: aria2 is required exactly once")
+    aria2 = dependencies[0]
+    expected_fields = {
+        "name",
+        "version",
+        "license",
+        "integration",
+        "bundled",
+        "source_url",
+        "source_sha256",
+        "rpc_scope",
+        "required_features",
+    }
+    if not isinstance(aria2, dict) or set(aria2) != expected_fields:
+        raise PinError("aria2 runtime dependency: unexpected entry shape")
+    expected_values = {
+        "name": "aria2",
+        "version": "1.37.0",
+        "license": "GPL-2.0-or-later",
+        "integration": "external-process-json-rpc",
+        "bundled": False,
+        "source_url": (
+            "https://github.com/aria2/aria2/releases/download/"
+            "release-1.37.0/aria2-1.37.0.tar.xz"
+        ),
+        "rpc_scope": "ipv4-loopback",
+    }
+    for field, expected in expected_values.items():
+        if aria2[field] != expected:
+            raise PinError(f"aria2 runtime dependency: unexpected {field}")
+    if not SHA256_PATTERN.fullmatch(str(aria2["source_sha256"])):
+        raise PinError("aria2 runtime dependency: source SHA-256 is required")
+    if aria2["required_features"] != ["https", "bittorrent", "json-rpc"]:
+        raise PinError("aria2 runtime dependency: required features changed")
+
+
 def validate_repository(repository_root: pathlib.Path) -> None:
     validate_upstream(load_json(repository_root / "pins/upstream.json"))
     validate_references(load_json(repository_root / "pins/reference-browsers.json"))
+    validate_runtime_dependencies(
+        load_json(repository_root / "pins/runtime_dependencies.json")
+    )
 
 
 def main() -> int:

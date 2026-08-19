@@ -1,5 +1,13 @@
 {
   "schema_version": 1,
   "default_action": "deny",
-  "rules": []
+  "rules": [
+    {
+      "id": "user_transfer_sidecar",
+      "owner": "fireball.transfer.aria2",
+      "phase": "post_startup",
+      "requires_user_consent": true,
+      "purpose": "Download a URI or torrent after an explicit user action."
+    }
+  ]
 }

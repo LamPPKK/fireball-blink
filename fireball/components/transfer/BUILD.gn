@@ -1,0 +1,12 @@
+source_set("transfer") {
+  sources = [
+    "aria2_rpc_client.cc",
+    "aria2_rpc_client.h",
+    "aria2_sidecar.cc",
+    "aria2_sidecar.h",
+    "transfer_types.cc",
+    "transfer_types.h",
+  ]
+
+  deps = [ "//fireball/components/privacy" ]
+}

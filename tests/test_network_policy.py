@@ -24,7 +24,9 @@ class NetworkPolicyTests(unittest.TestCase):
             ROOT / "fireball/components/privacy/startup_network_policy.inc"
         ).read_text(encoding="utf-8")
         self.assertEqual(generated, checked_in)
-        self.assertIn("NetworkPolicyEntry, 0", generated)
+        self.assertIn("NetworkPolicyEntry, 1", generated)
+        self.assertIn('"fireball.transfer.aria2"', generated)
+        self.assertIn("NetworkPhase::kPostStartup", generated)
 
     def test_default_allow_is_rejected(self) -> None:
         policy = copy.deepcopy(self.policy)

@@ -58,7 +58,7 @@ Compiler optimization ideas from Thorium stay in a separate benchmark lane. Gene
 
 ## Startup network policy
 
-`policies/startup_network.json` is default-deny and currently contains no allowed background traffic. `tools/network_policy.py` generates the C++ table used by the overlay and CI rejects stale generated output, unknown schema fields, implicit consent or a default-allow policy. Future services must declare a stable owner, phase, user-visible purpose and explicit opt-in before a rule can be added.
+`policies/startup_network.json` is default-deny and contains no allowed startup traffic. Its sole post-startup rule is the user-initiated aria2 transfer sidecar, which still requires explicit consent. `tools/network_policy.py` generates the C++ table used by the overlay and CI rejects stale generated output, unknown schema fields, implicit consent or a default-allow policy. Future services must declare a stable owner, phase, user-visible purpose and explicit opt-in before a rule can be added.
 
 ## Security rebase gate
 
@@ -67,3 +67,32 @@ Compiler optimization ideas from Thorium stay in a separate benchmark lane. Gene
 ## Profiles, Spaces and Burner state
 
 `fireball/browser/domain_model.*` establishes the B2 ownership boundary without replacing Chromium objects: Profile owns persistent or off-the-record storage identity, Space owns a tab collection and points to exactly one Profile, and Tab has a stable UUID. Multiple regular Spaces can share a persistent Profile; Burner Spaces require an off-the-record Profile and cannot be restored. The four tab layouts are presentation state, so switching layout preserves every domain tab. Chromium Profile/WebContents adapters and the full isolation test remain blocked on the B0 checkout/build.
+
+## Download and torrent foundation
+
+`fireball/components/transfer` now contains the first production transfer
+vertical slice. It accepts bounded HTTP(S), canonical BitTorrent v1 magnet
+links and bounded `.torrent` metainfo; classifies direct audio/video and
+HLS/DASH candidates; and controls a foreground aria2 sidecar through typed
+JSON-RPC. HTTP transfers use four range connections by default, support
+pause/resume and never overwrite an existing file.
+
+The sidecar cannot launch until the network policy observes an explicit user
+transfer action, and its RPC binds only to IPv4 loopback. A fresh 256-bit secret is placed
+in a mode-0600 file inside a private runtime directory—not in process
+arguments—and is unlinked after authenticated RPC becomes ready. Uploaded
+torrent metadata is not retained, DHT/LPD/peer exchange and post-download
+seeding are disabled in this initial privacy lane, and an ephemeral request is
+rejected unless its download directory is a strict descendant of that private
+runtime directory. WARP/Tor routing is not claimed yet; the later egress
+adapter must place the entire sidecar process under the selected network
+policy before those modes can be enabled.
+
+`make check` requires `aria2c` (1.37.0 is the development control), launches
+the real sidecar, downloads and byte-verifies an 8 MiB local fixture through
+multiple HTTP Range requests, exercises pause/resume, submits valid torrent
+metainfo, verifies no uploaded `.torrent` is retained, and proves clean child
+process shutdown. Install the dependency with `brew install aria2` on macOS or
+`apt install aria2` on Ubuntu. HLS/DASH assembly, Chromium download interception
+and the user-facing transfer shelf remain follow-up work; the candidate model
+does not present those streams as completed downloads.
