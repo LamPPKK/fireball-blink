@@ -6,8 +6,10 @@ output_root=${1:-"$repo_root/out/macos-preview"}
 app="$output_root/Fireball Blink Preview.app"
 executable="$app/Contents/MacOS/FireballBlinkPreview"
 
-mkdir -p "$app/Contents/MacOS"
+mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
 cp "$repo_root/preview/macos/Info.plist" "$app/Contents/Info.plist"
+cp "$repo_root/Brand/FireballMeteorMark.png" \
+  "$app/Contents/Resources/FireballMeteorMark.png"
 
 DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer} \
   xcrun --sdk macosx clang++ \

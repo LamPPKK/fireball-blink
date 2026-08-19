@@ -2,6 +2,13 @@
 
 Buildable B0/B1 tooling foundation for the Chromium-based Fireball Browser.
 
+<img src="Brand/FireballMeteorMark.png" width="104" alt="Fireball meteor brand mark">
+
+The detached meteor mark is the shared Fireball identity: an obsidian core,
+ember-orange flight surfaces and one electric-lime trail. Blink applies it to
+an **orbital command deck**—dense desktop chrome, explicit Profile/Space
+boundaries and visible provenance—without pretending this preview is a browser.
+
 ![Fireball Blink macOS tab-grid model preview](docs/assets/fireball-blink-macos-grid.png)
 
 ## macOS model preview
@@ -24,6 +31,13 @@ This is deliberately a **model/UI preview, not a Chromium browser build**. It
 contains no Chromium checkout, WebContents, renderer, sandbox, extensions,
 adblock engine, or URL cleaner. The executable and every screenshot repeat that
 boundary. See [the reproducible preview and promotion rules](docs/MACOS_PREVIEW.md).
+
+The product-specific UI tokens and component rules live in
+[`design-system/fireball-blink/MASTER.md`](design-system/fireball-blink/MASTER.md),
+with preview overrides in
+[`pages/browser-shell.md`](design-system/fireball-blink/pages/browser-shell.md).
+They adapt UI/UX Pro Max guidance to a desktop browser surface while keeping the
+Brave overlay order and Helium provenance model visible in the interface.
 
 ## Architecture boundary
 

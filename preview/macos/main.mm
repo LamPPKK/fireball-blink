@@ -52,6 +52,32 @@ NSFont* MonoFont(CGFloat size) {
       [NSFont monospacedSystemFontOfSize:size weight:NSFontWeightBold];
 }
 
+NSImage* BrandMark() {
+  static NSImage* image = nil;
+  static dispatch_once_t once;
+  dispatch_once(&once, ^{
+    NSString* path = [[NSBundle mainBundle] pathForResource:@"FireballMeteorMark"
+                                                     ofType:@"png"];
+    if (path != nil) {
+      image = [[NSImage alloc] initWithContentsOfFile:path];
+    }
+  });
+  return image;
+}
+
+void DrawBrandMark(NSRect rect) {
+  NSImage* image = BrandMark();
+  if (image == nil) {
+    return;
+  }
+  [image drawInRect:rect
+           fromRect:NSZeroRect
+          operation:NSCompositingOperationSourceOver
+           fraction:1.0
+     respectFlipped:YES
+              hints:@{NSImageHintInterpolation : @(NSImageInterpolationHigh)}];
+}
+
 void RoundedRect(NSRect rect,
                  CGFloat radius,
                  NSColor* fill,
@@ -231,7 +257,7 @@ class PreviewModel final {
                   yBy:self.bounds.size.height / kCanvasHeight];
   [transform concat];
 
-  [RGB(0x070B09) setFill];
+  [RGB(0x060806) setFill];
   NSRectFill(NSMakeRect(0, 0, kCanvasWidth, kCanvasHeight));
   [self drawAtmosphere];
   [self drawHeader];
@@ -243,9 +269,9 @@ class PreviewModel final {
   NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
   point.x *= kCanvasWidth / self.bounds.size.width;
   point.y *= kCanvasHeight / self.bounds.size.height;
-  const CGFloat segment_x = 514.0;
-  const CGFloat segment_width = 111.0;
-  if (point.y >= 17.0 && point.y <= 53.0 && point.x >= segment_x &&
+  const CGFloat segment_x = 493.0;
+  const CGFloat segment_width = 116.0;
+  if (point.y >= 20.0 && point.y <= 58.0 && point.x >= segment_x &&
       point.x < segment_x + segment_width * 4.0) {
     NSInteger index = (NSInteger)((point.x - segment_x) / segment_width);
     const TabLayout layouts[] = {
@@ -261,35 +287,47 @@ class PreviewModel final {
 }
 
 - (void)drawAtmosphere {
-  NSColor* grid = RGB(0x183025, 0.18);
-  for (CGFloat x = 0; x < kCanvasWidth; x += 40) {
+  NSColor* grid = RGB(0x2A3129, 0.15);
+  for (CGFloat x = 0; x < kCanvasWidth; x += 48) {
     Line(NSMakePoint(x, 0), NSMakePoint(x, kCanvasHeight), grid, 0.5);
   }
-  for (CGFloat y = 0; y < kCanvasHeight; y += 40) {
+  for (CGFloat y = 0; y < kCanvasHeight; y += 48) {
     Line(NSMakePoint(0, y), NSMakePoint(kCanvasWidth, y), grid, 0.5);
   }
 
   NSGradient* glow = [[NSGradient alloc]
-      initWithStartingColor:RGB(0x53F587, 0.10)
-             endingColor:RGB(0x53F587, 0.0)];
-  [glow drawFromCenter:NSMakePoint(1170, 710)
-                radius:20
-              toCenter:NSMakePoint(1170, 710)
-                radius:360
+      initWithStartingColor:RGB(0xFF5A1F, 0.11)
+             endingColor:RGB(0xFF5A1F, 0.0)];
+  [glow drawFromCenter:NSMakePoint(1140, 120)
+                radius:18
+              toCenter:NSMakePoint(1140, 120)
+                radius:420
                options:0];
+
+  NSBezierPath* trajectory = [NSBezierPath bezierPath];
+  [trajectory moveToPoint:NSMakePoint(80, 856)];
+  [trajectory curveToPoint:NSMakePoint(1320, 82)
+             controlPoint1:NSMakePoint(470, 720)
+             controlPoint2:NSMakePoint(920, 226)];
+  [trajectory setLineWidth:1.0];
+  CGFloat dash[] = {6, 10};
+  [trajectory setLineDash:dash count:2 phase:0];
+  [RGB(0xFF5A1F, 0.17) setStroke];
+  [trajectory stroke];
 }
 
 - (void)drawHeader {
-  [RGB(0x0A100D, 0.96) setFill];
-  NSRectFill(NSMakeRect(0, 0, kCanvasWidth, 70));
-  Line(NSMakePoint(0, 69), NSMakePoint(kCanvasWidth, 69), RGB(0x25342B));
+  [RGB(0x090C09, 0.98) setFill];
+  NSRectFill(NSMakeRect(0, 0, kCanvasWidth, 78));
+  Line(NSMakePoint(0, 77), NSMakePoint(kCanvasWidth, 77), RGB(0x283128));
 
-  Text(@"FIREBALL", NSMakeRect(28, 18, 165, 36), DisplayFont(27),
-       RGB(0xF4F6F2));
-  Text(@"// BLINK", NSMakeRect(190, 21, 150, 32), MonoFont(17),
-       RGB(0x53F587));
-  Text(@"MACOS MODEL PREVIEW", NSMakeRect(330, 23, 185, 28), MonoFont(12),
-       RGB(0x849188));
+  DrawBrandMark(NSMakeRect(20, 10, 58, 58));
+  Text(@"FIREBALL", NSMakeRect(86, 16, 150, 30), DisplayFont(25),
+       RGB(0xF4F1E8));
+  Text(@"BLINK / ORBITAL", NSMakeRect(88, 45, 168, 18), MonoFont(9),
+       RGB(0xB8FF3D));
+  Text(@"MACOS MODEL PREVIEW", NSMakeRect(286, 28, 188, 24), MonoFont(10),
+       RGB(0x7F887F));
 
   const TabLayout layouts[] = {
       TabLayout::kChromiumClassic,
@@ -298,81 +336,84 @@ class PreviewModel final {
       TabLayout::kTabGrid,
   };
   for (NSInteger index = 0; index < 4; ++index) {
-    NSRect segment = NSMakeRect(514 + index * 111, 17, 105, 36);
+    NSRect segment = NSMakeRect(493 + index * 116, 20, 108, 38);
     const bool selected = layouts[index] == _layout;
-    RoundedRect(segment, 10, selected ? RGB(0x53F587) : RGB(0x101813),
-                selected ? RGB(0x53F587) : RGB(0x2C3A31));
+    RoundedRect(segment, 9, selected ? RGB(0xB8FF3D) : RGB(0x101510),
+                selected ? RGB(0xB8FF3D) : RGB(0x2B342B));
     Text(LayoutName(layouts[index]), NSInsetRect(segment, 4, 9), MonoFont(10),
-         selected ? RGB(0x07100A) : RGB(0xAAB4AD), NSTextAlignmentCenter);
+         selected ? RGB(0x071007) : RGB(0xA8B0A6), NSTextAlignmentCenter);
   }
 
-  RoundedRect(NSMakeRect(1000, 17, 185, 36), 18, RGB(0x111A15),
-              RGB(0x2C3A31));
-  RoundedRect(NSMakeRect(1014, 30, 8, 8), 4, RGB(0x53F587));
-  Text(@"MODEL CONNECTED", NSMakeRect(1030, 25, 145, 22), MonoFont(10),
-       RGB(0xC8D0CA));
+  RoundedRect(NSMakeRect(974, 20, 190, 38), 9, RGB(0x121812),
+              RGB(0x303A30));
+  RoundedRect(NSMakeRect(988, 35, 8, 8), 4, RGB(0xB8FF3D));
+  Text(@"DOMAIN MODEL READY", NSMakeRect(1004, 30, 150, 22), MonoFont(9),
+       RGB(0xD1D5CE));
 
-  RoundedRect(NSMakeRect(1196, 17, 216, 36), 18, RGB(0x251713),
-              RGB(0x6E3A29));
-  Text(@"NO CHROMIUM ENGINE", NSMakeRect(1208, 25, 192, 22), MonoFont(10),
-       RGB(0xFFAE73), NSTextAlignmentCenter);
+  RoundedRect(NSMakeRect(1176, 20, 236, 38), 9, RGB(0x21110B),
+              RGB(0x813513));
+  Text(@"NO CHROMIUM ENGINE", NSMakeRect(1188, 30, 212, 22), MonoFont(9),
+       RGB(0xFF9A6A), NSTextAlignmentCenter);
 }
 
 - (void)drawNavigationRail {
-  const NSRect rail = NSMakeRect(22, 92, 238, 780);
-  RoundedRect(rail, 18, RGB(0x0D1410, 0.98), RGB(0x27352C));
+  const NSRect rail = NSMakeRect(22, 98, 250, 774);
+  RoundedRect(rail, 16, RGB(0x0B0F0C, 0.98), RGB(0x283128));
 
-  Text(@"01 / PROFILE", NSMakeRect(42, 116, 180, 22), MonoFont(11),
-       RGB(0x53F587));
-  RoundedRect(NSMakeRect(40, 148, 202, 82), 13, RGB(0x141D17),
-              RGB(0x34443A));
-  Text(@"PRIMARY", NSMakeRect(56, 164, 130, 25), MonoFont(15),
-       RGB(0xF4F6F2));
-  Text(@"PERSISTENT / ISOLATED", NSMakeRect(56, 194, 170, 18), MonoFont(9),
-       RGB(0x909C94));
+  Text(@"01 / FLIGHT PROFILE", NSMakeRect(42, 120, 190, 22), MonoFont(10),
+       RGB(0xFF7A3D));
+  RoundedRect(NSMakeRect(40, 150, 214, 86), 12, RGB(0x151A14),
+              RGB(0x394239));
+  Text(@"PRIMARY", NSMakeRect(56, 166, 130, 25), MonoFont(14),
+       RGB(0xF4F1E8));
+  Text(@"PERSISTENT · ISOLATED", NSMakeRect(56, 197, 180, 18), MonoFont(8),
+       RGB(0xA8B0A6));
+  Text(@"01", NSMakeRect(202, 165, 34, 24), MonoFont(12), RGB(0xB8FF3D),
+       NSTextAlignmentRight);
 
-  Text(@"02 / SPACES", NSMakeRect(42, 256, 180, 22), MonoFont(11),
-       RGB(0x53F587));
+  Text(@"02 / ORBITS", NSMakeRect(42, 260, 180, 22), MonoFont(10),
+       RGB(0xFF7A3D));
   const Space* main = _preview.model().FindSpace(_preview.main_space());
   const Space* research =
       _preview.model().FindSpace(_preview.research_space());
   const Space* burner = _preview.model().FindSpace(_preview.burner_space());
   [self drawSpace:@"MAIN"
             count:main == nullptr ? 0 : main->tab_order.size()
-                y:288
+                y:290
          selected:YES
            burner:NO];
   [self drawSpace:@"RESEARCH"
             count:research == nullptr ? 0 : research->tab_order.size()
-                y:342
+                y:344
          selected:NO
            burner:NO];
   [self drawSpace:@"BURNER"
             count:burner == nullptr ? 0 : burner->tab_order.size()
-                y:396
+                y:398
          selected:NO
            burner:YES];
 
-  Text(@"03 / STARTUP NETWORK", NSMakeRect(42, 486, 185, 22), MonoFont(11),
-       RGB(0x53F587));
-  RoundedRect(NSMakeRect(40, 518, 202, 102), 13, RGB(0x101814),
-              RGB(0x34443A));
-  Text(@"DEFAULT DENY", NSMakeRect(56, 538, 170, 25), MonoFont(14),
-       RGB(0xF4F6F2));
-  Text(@"Every request needs\nan owner + policy.",
-       NSMakeRect(56, 574, 165, 42), BodyFont(12), RGB(0x98A49C));
+  Text(@"03 / NETWORK LAUNCH", NSMakeRect(42, 486, 190, 22), MonoFont(10),
+       RGB(0xFF7A3D));
+  RoundedRect(NSMakeRect(40, 518, 214, 108), 12, RGB(0x111611),
+              RGB(0x394239));
+  Text(@"DEFAULT DENY", NSMakeRect(56, 538, 170, 25), MonoFont(13),
+       RGB(0xF4F1E8));
+  Text(@"Every startup request needs\nan owner, purpose and opt-in.",
+       NSMakeRect(56, 573, 182, 48), BodyFont(11), RGB(0xA8B0A6));
 
-  Line(NSMakePoint(40, 666), NSMakePoint(242, 666), RGB(0x28362D));
-  Text(@"REFERENCE DISCIPLINE", NSMakeRect(42, 686, 190, 20), MonoFont(9),
-       RGB(0x6E7D73));
-  Text(@"BRAVE", NSMakeRect(42, 718, 82, 22), MonoFont(13), RGB(0xF4F6F2));
-  Text(@"overlay → override → patch", NSMakeRect(42, 742, 185, 20),
-       BodyFont(10), RGB(0x87938B));
-  Text(@"HELIUM", NSMakeRect(42, 782, 82, 22), MonoFont(13), RGB(0xF4F6F2));
-  Text(@"pin → checksum → provenance", NSMakeRect(42, 806, 188, 20),
-       BodyFont(10), RGB(0x87938B));
-  Text(@"PREVIEW • NOT A BROWSER BUILD", NSMakeRect(42, 846, 190, 16),
-       MonoFont(8), RGB(0xFFAE73));
+  Line(NSMakePoint(40, 660), NSMakePoint(254, 660), RGB(0x303830));
+  Text(@"REFERENCE FLIGHT PLAN", NSMakeRect(42, 680, 196, 20), MonoFont(8),
+       RGB(0x727C72));
+  Text(@"BRAVE", NSMakeRect(42, 712, 82, 22), MonoFont(12), RGB(0xF4F1E8));
+  Text(@"overlay → override → patch", NSMakeRect(42, 736, 198, 20),
+       BodyFont(10), RGB(0xA8B0A6));
+  Text(@"HELIUM", NSMakeRect(42, 772, 82, 22), MonoFont(12), RGB(0xF4F1E8));
+  Text(@"pin → checksum → provenance", NSMakeRect(42, 796, 202, 20),
+       BodyFont(10), RGB(0xA8B0A6));
+  RoundedRect(NSMakeRect(40, 832, 214, 26), 6, RGB(0x21110B), RGB(0x813513));
+  Text(@"PREVIEW · NOT A BROWSER BUILD", NSMakeRect(48, 839, 198, 14),
+       MonoFont(7), RGB(0xFF9A6A), NSTextAlignmentCenter);
 }
 
 - (void)drawSpace:(NSString*)name
@@ -380,41 +421,41 @@ class PreviewModel final {
                 y:(CGFloat)y
          selected:(BOOL)selected
            burner:(BOOL)burner {
-  NSRect rect = NSMakeRect(40, y, 202, 44);
-  RoundedRect(rect, 11, selected ? RGB(0x19241D) : RGB(0x0D1410),
-              selected ? RGB(0x53F587, 0.7) : RGB(0x26342B));
+  NSRect rect = NSMakeRect(40, y, 214, 44);
+  RoundedRect(rect, 9, selected ? RGB(0x1A241A) : RGB(0x0D120D),
+              selected ? RGB(0xB8FF3D, 0.75) : RGB(0x2B342B));
   RoundedRect(NSMakeRect(54, y + 16, 8, 8), 4,
-              burner ? RGB(0xFF7B48) : RGB(0x53F587));
+              burner ? RGB(0xFF5A1F) : RGB(0xB8FF3D));
   Text(name, NSMakeRect(72, y + 12, 100, 22), MonoFont(11),
-       selected ? RGB(0xF4F6F2) : RGB(0xAAB4AD));
-  Text([NSString stringWithFormat:@"%zu", count], NSMakeRect(178, y + 12, 44, 22),
-       MonoFont(11), RGB(0xAAB4AD), NSTextAlignmentRight);
+       selected ? RGB(0xF4F1E8) : RGB(0xA8B0A6));
+  Text([NSString stringWithFormat:@"%zu", count], NSMakeRect(190, y + 12, 44, 22),
+       MonoFont(11), RGB(0xA8B0A6), NSTextAlignmentRight);
 }
 
 - (void)drawBrowserStage {
-  const NSRect stage = NSMakeRect(280, 92, 1138, 780);
-  RoundedRect(stage, 20, RGB(0x0B110E, 0.98), RGB(0x2A3930));
+  const NSRect stage = NSMakeRect(292, 98, 1126, 774);
+  RoundedRect(stage, 16, RGB(0x0B0F0C, 0.985), RGB(0x293229));
 
   Text(@"‹", NSMakeRect(306, 108, 26, 34), BodyFont(27), RGB(0x657168));
   Text(@"›", NSMakeRect(344, 108, 26, 34), BodyFont(27), RGB(0x657168));
   Text(@"↻", NSMakeRect(388, 110, 28, 30), BodyFont(22), RGB(0xD5DAD6));
 
-  RoundedRect(NSMakeRect(432, 106, 706, 42), 12, RGB(0x121B16),
-              RGB(0x33433A));
-  RoundedRect(NSMakeRect(448, 123, 8, 8), 4, RGB(0x53F587));
-  Text(@"fireball://architecture", NSMakeRect(468, 117, 560, 24),
-       MonoFont(12), RGB(0xC0C9C2));
-  Text(@"LOCAL MODEL", NSMakeRect(1018, 118, 102, 22), MonoFont(9),
-       RGB(0x708077), NSTextAlignmentRight);
+  RoundedRect(NSMakeRect(432, 106, 696, 42), 10, RGB(0x151A14),
+              RGB(0x3A4339));
+  RoundedRect(NSMakeRect(448, 123, 8, 8), 4, RGB(0xB8FF3D));
+  Text(@"fireball://architecture", NSMakeRect(468, 117, 540, 24),
+       MonoFont(12), RGB(0xD1D5CE));
+  Text(@"LOCAL MODEL", NSMakeRect(1006, 118, 102, 22), MonoFont(8),
+       RGB(0x727C72), NSTextAlignmentRight);
 
-  RoundedRect(NSMakeRect(1152, 106, 104, 42), 12, RGB(0x152019),
-              RGB(0x3B5043));
+  RoundedRect(NSMakeRect(1142, 106, 108, 42), 10, RGB(0x182117),
+              RGB(0x455542));
   Text(@"SHIELDS", NSMakeRect(1160, 118, 88, 20), MonoFont(9),
-       RGB(0x53F587), NSTextAlignmentCenter);
-  RoundedRect(NSMakeRect(1268, 106, 126, 42), 12, RGB(0x251713),
-              RGB(0x71402E));
-  Text(@"B0 BLOCKED", NSMakeRect(1278, 118, 106, 20), MonoFont(9),
-       RGB(0xFFAE73), NSTextAlignmentCenter);
+       RGB(0xB8FF3D), NSTextAlignmentCenter);
+  RoundedRect(NSMakeRect(1262, 106, 132, 42), 10, RGB(0x21110B),
+              RGB(0x813513));
+  Text(@"B0 / GATED", NSMakeRect(1272, 118, 112, 20), MonoFont(9),
+       RGB(0xFF9A6A), NSTextAlignmentCenter);
 
   switch (_layout) {
     case TabLayout::kChromiumClassic:
@@ -461,9 +502,9 @@ class PreviewModel final {
     const BOOL active = [tab[@"active"] isEqualToString:@"1"];
     NSRect rect = NSMakeRect(x, 174, 236, 36);
     RoundedRect(rect, 9, active ? RGB(0x1A2820) : RGB(0x101713),
-                active ? RGB(0x53F587) : nil);
+                active ? RGB(0xB8FF3D) : nil);
     Text(tab[@"title"], NSInsetRect(rect, 14, 9), BodyFont(11),
-         active ? RGB(0xF4F6F2) : RGB(0x89958D));
+         active ? RGB(0xF4F1E8) : RGB(0x89958D));
     x += 246;
   }
   [self drawEngineBoundary:NSMakeRect(300, 230, 1098, 620)
@@ -478,7 +519,7 @@ class PreviewModel final {
   for (NSDictionary* tab in tabs) {
     const BOOL active = [tab[@"active"] isEqualToString:@"1"];
     NSRect rect = NSMakeRect(x, 174, 220, 40);
-    RoundedRect(rect, 20, active ? RGB(0x53F587) : RGB(0x151F19, 0.95),
+    RoundedRect(rect, 20, active ? RGB(0xB8FF3D) : RGB(0x151F19, 0.95),
                 active ? nil : RGB(0x3A4A40));
     Text(tab[@"title"], NSInsetRect(rect, 16, 11), MonoFont(9),
          active ? RGB(0x07100A) : RGB(0xC3CBC5));
@@ -497,9 +538,9 @@ class PreviewModel final {
     const BOOL active = [tab[@"active"] isEqualToString:@"1"];
     NSRect rect = NSMakeRect(316, y, 216, 72);
     RoundedRect(rect, 12, active ? RGB(0x19251E) : RGB(0x101713),
-                active ? RGB(0x53F587) : RGB(0x243129));
+                active ? RGB(0xB8FF3D) : RGB(0x243129));
     Text(tab[@"title"], NSMakeRect(332, y + 14, 182, 22), BodyFont(12),
-         active ? RGB(0xF4F6F2) : RGB(0xA0AAA3));
+         active ? RGB(0xF4F1E8) : RGB(0xA0AAA3));
     Text(tab[@"url"], NSMakeRect(332, y + 42, 182, 16), MonoFont(8),
          RGB(0x657168));
     y += 82;
@@ -512,7 +553,7 @@ class PreviewModel final {
   RoundedRect(NSMakeRect(300, 164, 1098, 686), 15, RGB(0x09100C),
               RGB(0x29382F));
   Text(@"TAB GRID / MAIN SPACE", NSMakeRect(328, 190, 260, 26), MonoFont(12),
-       RGB(0x53F587));
+       RGB(0xB8FF3D));
   Text(@"One domain model. Four presentations. No WebContents reload.",
        NSMakeRect(328, 220, 520, 24), BodyFont(12), RGB(0x929D95));
   NSArray* tabs = [self tabs];
@@ -523,15 +564,15 @@ class PreviewModel final {
     const BOOL active = [tab[@"active"] isEqualToString:@"1"];
     NSRect card = NSMakeRect(x, y, 498, 236);
     RoundedRect(card, 16, active ? RGB(0x14241A) : RGB(0x101713),
-                active ? RGB(0x53F587) : RGB(0x2C3931), active ? 2 : 1);
+                active ? RGB(0xB8FF3D) : RGB(0x2C3931), active ? 2 : 1);
     Text([NSString stringWithFormat:@"0%ld", (long)index + 1],
          NSMakeRect(x + 22, y + 22, 54, 24), MonoFont(11),
-         active ? RGB(0x53F587) : RGB(0x657168));
+         active ? RGB(0xB8FF3D) : RGB(0x657168));
     Text(active ? @"ACTIVE" : @"BACKGROUND",
          NSMakeRect(x + 320, y + 22, 150, 22), MonoFont(9),
-         active ? RGB(0x53F587) : RGB(0x657168), NSTextAlignmentRight);
+         active ? RGB(0xB8FF3D) : RGB(0x657168), NSTextAlignmentRight);
     Text(tab[@"title"], NSMakeRect(x + 22, y + 74, 440, 38),
-         DisplayFont(25), RGB(0xF4F6F2));
+         DisplayFont(25), RGB(0xF4F1E8));
     Text(tab[@"url"], NSMakeRect(x + 22, y + 122, 440, 22), MonoFont(9),
          RGB(0x87938B));
     Line(NSMakePoint(x + 22, y + 174), NSMakePoint(x + 476, y + 174),
@@ -551,10 +592,10 @@ class PreviewModel final {
 - (void)drawEngineBoundary:(NSRect)rect label:(NSString*)label {
   RoundedRect(rect, 15, RGB(0x0C1410), RGB(0x29382F));
   Text(label, NSMakeRect(rect.origin.x + 28, rect.origin.y + 28, 260, 24),
-       MonoFont(11), RGB(0x53F587));
+       MonoFont(11), RGB(0xB8FF3D));
   Text(@"ENGINE BOUNDARY", NSMakeRect(rect.origin.x + 28, rect.origin.y + 86,
                                       rect.size.width - 56, 62),
-       DisplayFont(44), RGB(0xF4F6F2));
+       DisplayFont(44), RGB(0xF4F1E8));
   Text(@"The macOS artifact exercises Fireball's C++ Profile / Space / Tab model.\nChromium Profile and WebContents adapters are intentionally absent until B0.",
        NSMakeRect(rect.origin.x + 30, rect.origin.y + 156,
                   rect.size.width - 60, 58),
@@ -573,9 +614,9 @@ class PreviewModel final {
     RoundedRect(NSMakeRect(x, y, card_width, 144), 13, RGB(0x121B16),
                 RGB(0x314038));
     Text(cards[index][0], NSMakeRect(x + 18, y + 18, card_width - 36, 22),
-         MonoFont(10), index == 2 ? RGB(0xFF8D5B) : RGB(0x53F587));
+         MonoFont(10), index == 2 ? RGB(0xFF8D5B) : RGB(0xB8FF3D));
     Text(cards[index][1], NSMakeRect(x + 18, y + 54, card_width - 36, 28),
-         DisplayFont(17), RGB(0xF4F6F2));
+         DisplayFont(17), RGB(0xF4F1E8));
     Text(cards[index][2], NSMakeRect(x + 18, y + 94, card_width - 36, 34),
          BodyFont(10), RGB(0x87938B));
   }
@@ -586,7 +627,7 @@ class PreviewModel final {
   Text(@"B0 / FULL CHROMIUM BUILD NOT PRESENT",
        NSMakeRect(rect.origin.x + 52, NSMaxY(rect) - 112,
                   rect.size.width - 104, 24),
-       MonoFont(11), RGB(0xFFAE73));
+       MonoFont(11), RGB(0xFF9A6A));
   Text(@"This preview is documentation evidence for domain state and layout direction—not a browser binary, rendered webpage, sandbox, or security-rebase artifact.",
        NSMakeRect(rect.origin.x + 52, NSMaxY(rect) - 78,
                   rect.size.width - 104, 36),
