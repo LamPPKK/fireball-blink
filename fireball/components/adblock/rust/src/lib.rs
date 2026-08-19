@@ -17,6 +17,14 @@ const MAX_MANIFEST_BYTES: usize = 64 * 1024;
 const MAX_URL_BYTES: usize = 8 * 1024;
 const MAX_HOST_BYTES: usize = 253;
 const MAX_TOKEN_BYTES: usize = 64;
+const MAX_COSMETIC_JSON_BYTES: usize = 1024 * 1024;
+const MAX_COSMETIC_ENTRIES: usize = 4096;
+const MAX_GENERIC_SELECTORS: usize = 8192;
+const MAX_SELECTOR_BYTES: usize = 4096;
+const MAX_PROCEDURAL_ACTION_BYTES: usize = 8192;
+const MAX_EXCEPTION_BYTES: usize = 256;
+const MAX_INJECTED_SCRIPT_BYTES: usize = 256 * 1024;
+const MAX_DOM_JSON_BYTES: usize = 256 * 1024;
 const ENGINE_NAME: &str = "adblock-rust";
 const ENGINE_VERSION: &str = "0.13.2";
 const SIGNING_CONTEXT: &str = "fireball-adblock-rules-v1";
@@ -359,6 +367,26 @@ fn into_c_string(value: String) -> *mut c_char {
         .unwrap_or(ptr::null_mut())
 }
 
+fn bounded_strings(values: &[String], maximum_count: usize, maximum_bytes: usize) -> bool {
+    values.len() <= maximum_count
+        && values
+            .iter()
+            .all(|value| !value.is_empty() && value.len() <= maximum_bytes && !value.contains('\0'))
+}
+
+fn bounded_json_encoding<'a>(values: impl IntoIterator<Item = &'a String>) -> bool {
+    values
+        .into_iter()
+        .try_fold(256_usize, |total, value| {
+            value
+                .len()
+                .checked_mul(6)
+                .and_then(|escaped| escaped.checked_add(3))
+                .and_then(|escaped| total.checked_add(escaped))
+        })
+        .is_some_and(|total| total <= MAX_COSMETIC_JSON_BYTES)
+}
+
 fn valid_host(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= MAX_HOST_BYTES
@@ -585,15 +613,34 @@ pub unsafe extern "C" fn fireball_adblock_cosmetic_resources(
         hide_selectors.sort();
         procedural_actions.sort();
         exceptions.sort();
-        serde_json::to_string(&CosmeticOutput {
+        if !bounded_strings(&hide_selectors, MAX_COSMETIC_ENTRIES, MAX_SELECTOR_BYTES)
+            || !bounded_strings(
+                &procedural_actions,
+                MAX_COSMETIC_ENTRIES,
+                MAX_PROCEDURAL_ACTION_BYTES,
+            )
+            || !bounded_strings(&exceptions, MAX_COSMETIC_ENTRIES, MAX_EXCEPTION_BYTES)
+            || resources.injected_script.len() > MAX_INJECTED_SCRIPT_BYTES
+            || resources.injected_script.contains('\0')
+            || !bounded_json_encoding(
+                hide_selectors
+                    .iter()
+                    .chain(procedural_actions.iter())
+                    .chain(exceptions.iter())
+                    .chain(std::iter::once(&resources.injected_script)),
+            )
+        {
+            return None;
+        }
+        let output = serde_json::to_string(&CosmeticOutput {
             hide_selectors,
             procedural_actions,
             exceptions,
             injected_script: resources.injected_script,
             generichide: resources.generichide,
         })
-        .ok()
-        .map(into_c_string)
+        .ok()?;
+        (output.len() <= MAX_COSMETIC_JSON_BYTES).then(|| into_c_string(output))
     }))
     .ok()
     .flatten()
@@ -619,17 +666,22 @@ pub unsafe extern "C" fn fireball_adblock_hidden_selectors(
     catch_unwind(AssertUnwindSafe(|| {
         // SAFETY: Inputs are checked for null/size before constructing strings.
         let classes_json =
-            unsafe { read_input(classes_json_data, classes_json_length, 256 * 1024) }?;
-        let ids_json = unsafe { read_input(ids_json_data, ids_json_length, 256 * 1024) }?;
-        let exceptions_json =
-            unsafe { read_input(exceptions_json_data, exceptions_json_length, 256 * 1024) }?;
+            unsafe { read_input(classes_json_data, classes_json_length, MAX_DOM_JSON_BYTES) }?;
+        let ids_json = unsafe { read_input(ids_json_data, ids_json_length, MAX_DOM_JSON_BYTES) }?;
+        let exceptions_json = unsafe {
+            read_input(
+                exceptions_json_data,
+                exceptions_json_length,
+                MAX_DOM_JSON_BYTES,
+            )
+        }?;
         let classes: Vec<String> = serde_json::from_str(classes_json).ok()?;
         let ids: Vec<String> = serde_json::from_str(ids_json).ok()?;
         let exceptions: std::collections::HashSet<String> =
             serde_json::from_str(exceptions_json).ok()?;
-        if classes.len() > 4096
-            || ids.len() > 4096
-            || exceptions.len() > 4096
+        if classes.len() > MAX_COSMETIC_ENTRIES
+            || ids.len() > MAX_COSMETIC_ENTRIES
+            || exceptions.len() > MAX_COSMETIC_ENTRIES
             || classes
                 .iter()
                 .chain(ids.iter())
@@ -644,7 +696,13 @@ pub unsafe extern "C" fn fireball_adblock_hidden_selectors(
                 .engine
                 .hidden_class_id_selectors(&classes, &ids, &exceptions);
         selectors.sort();
-        serde_json::to_string(&selectors).ok().map(into_c_string)
+        if !bounded_strings(&selectors, MAX_GENERIC_SELECTORS, MAX_SELECTOR_BYTES)
+            || !bounded_json_encoding(selectors.iter())
+        {
+            return None;
+        }
+        let output = serde_json::to_string(&selectors).ok()?;
+        (output.len() <= MAX_COSMETIC_JSON_BYTES).then(|| into_c_string(output))
     }))
     .ok()
     .flatten()
