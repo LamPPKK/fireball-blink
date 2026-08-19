@@ -1,4 +1,5 @@
 #include "fireball/components/transfer/aria2_sidecar.h"
+#include "fireball/components/transfer/transfer_queue.h"
 #include "fireball/components/transfer/transfer_types.h"
 
 #include <arpa/inet.h>
@@ -15,6 +16,7 @@
 #include <fstream>
 #include <iterator>
 #include <string>
+#include <string_view>
 #include <thread>
 #include <vector>
 
@@ -150,35 +152,41 @@ int main(int argc, char** argv) {
       "must-not-start.bin");
   assert(wrong_boundary.has_value());
   assert(!sidecar->rpc().Enqueue(*wrong_boundary).ok());
-  auto added = sidecar->rpc().Enqueue(*request);
-  assert(added.ok());
+  fireball::transfer::TransferQueue queue(
+      &sidecar->rpc(), fireball::transfer::TransferPersistence::kPersistent);
+  constexpr std::string_view kHttpTransferId =
+      "40000000-0000-4000-8000-000000000010";
+  assert(queue.Enqueue(std::string(kHttpTransferId), *request,
+                       "fireball-range.bin",
+                       fireball::transfer::MediaCandidateKind::kDirectVideo));
 
   bool paused_and_resumed = false;
   const auto deadline =
       std::chrono::steady_clock::now() + std::chrono::seconds(15);
   while (std::chrono::steady_clock::now() < deadline) {
-    auto status = sidecar->rpc().TellStatus(*added.value);
-    assert(status.ok());
+    assert(queue.Refresh(kHttpTransferId));
+    const fireball::transfer::TransferItem* status =
+        queue.Find(kHttpTransferId);
+    assert(status != nullptr);
     if (!paused_and_resumed &&
-        status.value->state ==
-            fireball::transfer::Aria2TransferState::kActive) {
-      auto paused = sidecar->rpc().Pause(*added.value);
-      assert(paused.ok() && *paused.value == *added.value);
-      auto unpaused = sidecar->rpc().Unpause(*added.value);
-      assert(unpaused.ok() && *unpaused.value == *added.value);
+        status->state == fireball::transfer::TransferState::kActive) {
+      assert(queue.Pause(kHttpTransferId));
+      assert(queue.Resume(kHttpTransferId));
       paused_and_resumed = true;
     }
-    if (status.value->state ==
-        fireball::transfer::Aria2TransferState::kComplete) {
-      assert(status.value->completed_bytes == payload_size);
+    if (status->state == fireball::transfer::TransferState::kComplete) {
+      assert(status->completed_bytes == payload_size);
       break;
     }
-    assert(status.value->state !=
-           fireball::transfer::Aria2TransferState::kError);
+    assert(status->state != fireball::transfer::TransferState::kFailed);
     std::this_thread::sleep_for(std::chrono::milliseconds(25));
   }
   assert(paused_and_resumed);
   assert(HasExpectedPayload(downloads / "fireball-range.bin", payload_size));
+  assert(queue.Find(kHttpTransferId)->state ==
+         fireball::transfer::TransferState::kComplete);
+  assert(queue.ForgetFinished(kHttpTransferId));
+  assert(queue.Find(kHttpTransferId) == nullptr);
 
   auto torrent = fireball::transfer::MakeTorrentTransferRequest(
       LocalTorrentMetainfo(),

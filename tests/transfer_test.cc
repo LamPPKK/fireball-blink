@@ -1,11 +1,82 @@
 #include "fireball/components/transfer/aria2_rpc_client.h"
 #include "fireball/components/transfer/egress_transfer_policy.h"
+#include "fireball/components/transfer/media_discovery.h"
+#include "fireball/components/transfer/transfer_queue.h"
 #include "fireball/components/transfer/transfer_types.h"
 
 #include <cassert>
+#include <cstdio>
 #include <cstdint>
+#include <limits>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
+
+namespace {
+
+class FakeTransferBackend final : public fireball::transfer::TransferBackend {
+ public:
+  fireball::transfer::Aria2RpcResult<std::string> Enqueue(
+      const fireball::transfer::TransferRequest& request) override {
+    ++enqueue_count;
+    last_source_kind = request.source_kind;
+    return {enqueue_gid, {}};
+  }
+
+  fireball::transfer::Aria2RpcResult<
+      fireball::transfer::Aria2TransferStatus>
+  TellStatus(std::string_view gid) override {
+    ++status_count;
+    if (fail_status) {
+      return {std::nullopt, status_error};
+    }
+    fireball::transfer::Aria2TransferStatus result = status;
+    result.gid = std::string(gid);
+    return {std::move(result), {}};
+  }
+
+  fireball::transfer::Aria2RpcResult<std::string> Pause(
+      std::string_view gid) override {
+    ++pause_count;
+    return {std::string(gid), {}};
+  }
+
+  fireball::transfer::Aria2RpcResult<std::string> Unpause(
+      std::string_view gid) override {
+    ++resume_count;
+    return {std::string(gid), {}};
+  }
+
+  fireball::transfer::Aria2RpcResult<std::string> Remove(
+      std::string_view gid) override {
+    ++cancel_count;
+    return {std::string(gid), {}};
+  }
+
+  fireball::transfer::Aria2RpcResult<std::string> ForgetDownloadResult(
+      std::string_view gid) override {
+    ++forget_count;
+    last_forgotten_gid = std::string(gid);
+    return {std::string("OK"), {}};
+  }
+
+  std::string enqueue_gid = "0123456789abcdef";
+  fireball::transfer::Aria2TransferStatus status;
+  fireball::transfer::TransferSourceKind last_source_kind =
+      fireball::transfer::TransferSourceKind::kHttp;
+  bool fail_status = false;
+  std::string status_error = "backend\ntransport failure";
+  int enqueue_count = 0;
+  int status_count = 0;
+  int pause_count = 0;
+  int resume_count = 0;
+  int cancel_count = 0;
+  int forget_count = 0;
+  std::string last_forgotten_gid;
+};
+
+}  // namespace
 
 int main() {
   using fireball::transfer::Aria2RpcClient;
@@ -18,9 +89,13 @@ int main() {
   using fireball::transfer::IsValidAria2Secret;
   using fireball::transfer::MakeTorrentTransferRequest;
   using fireball::transfer::MakeUriTransferRequest;
+  using fireball::transfer::MediaDiscovery;
   using fireball::transfer::MediaCandidateKind;
   using fireball::transfer::TransferPersistence;
+  using fireball::transfer::TransferQueue;
+  using fireball::transfer::TransferRequest;
   using fireball::transfer::TransferSourceKind;
+  using fireball::transfer::TransferState;
 
   assert(IsSafeHttpDownloadUri("https://downloads.example.test/file.bin"));
   assert(IsSafeHttpDownloadUri("http://127.0.0.1:8080/file.bin?part=1"));
@@ -82,6 +157,89 @@ int main() {
   assert(ClassifyMediaCandidate("file:///tmp/movie.mp4", "video/mp4") ==
          MediaCandidateKind::kNone);
 
+  MediaDiscovery discovery;
+  const std::string tab_id = "30000000-0000-4000-8000-000000000010";
+  const std::string media_id = "50000000-0000-4000-8000-000000000001";
+  const std::string signed_media =
+      "https://cdn.example.test/movie.mp4?token=private";
+  assert(discovery.Observe(media_id, tab_id, signed_media, "video/mp4",
+                           "Launch film.mp4", 4096, 100));
+  auto candidates = discovery.SnapshotForTab(tab_id);
+  assert(candidates.size() == 1);
+  assert(candidates[0].id == media_id);
+  assert(candidates[0].kind == MediaCandidateKind::kDirectVideo);
+  assert(candidates[0].directly_downloadable);
+  assert(candidates[0].content_length == 4096);
+  assert(!discovery.Observe(media_id, tab_id,
+                            "https://cdn.example.test/other.mp4", "video/mp4",
+                            std::nullopt, 1024, 150));
+  assert(discovery.Observe("50000000-0000-4000-8000-000000000002", tab_id,
+                           signed_media, "video/mp4", "Launch film 4K.mp4",
+                           8192, 200));
+  candidates = discovery.SnapshotForTab(tab_id);
+  assert(candidates.size() == 1);
+  assert(candidates[0].id == media_id);
+  assert(candidates[0].display_name == "Launch film 4K.mp4");
+  assert(candidates[0].content_length == 8192);
+
+  const std::string hls_id = "50000000-0000-4000-8000-000000000003";
+  assert(discovery.Observe(hls_id, tab_id,
+                           "https://cdn.example.test/master.m3u8",
+                           "application/vnd.apple.mpegurl", std::nullopt, 0,
+                           300));
+  assert(!discovery.ConsumeDirect(hls_id, TransferPersistence::kPersistent)
+              .has_value());
+  assert(!discovery.Observe(
+      "50000000-0000-4000-8000-000000000004", tab_id,
+      "https://user:password@cdn.example.test/movie.mp4", "video/mp4",
+      std::nullopt, 0, 400));
+
+  auto media_request =
+      discovery.ConsumeDirect(media_id, TransferPersistence::kPersistent);
+  assert(media_request.has_value());
+  assert(media_request->source == signed_media);
+  assert(media_request->output_name ==
+         std::optional<std::string>("Launch film 4K.mp4"));
+  assert(discovery.SnapshotForTab(tab_id).size() == 1);
+  assert(discovery.ExpireBefore(301) == 1);
+  assert(discovery.size() == 0);
+
+  for (std::uint32_t index = 0; index < 34; ++index) {
+    char candidate_id[37] = {};
+    std::snprintf(candidate_id, sizeof(candidate_id),
+                  "51000000-0000-4000-8000-%012x",
+                  static_cast<unsigned int>(index + 1));
+    assert(discovery.Observe(
+        candidate_id, tab_id,
+        "https://cdn.example.test/clip-" + std::to_string(index) + ".mp4",
+        "video/mp4", std::nullopt, 1024, index + 1));
+  }
+  candidates = discovery.SnapshotForTab(tab_id);
+  assert(candidates.size() ==
+         fireball::transfer::kMaximumMediaCandidatesPerTab);
+  assert(candidates.back().observed_at_ms == 3);
+  assert(discovery.ForgetTab(tab_id) ==
+         fireball::transfer::kMaximumMediaCandidatesPerTab);
+
+  for (std::uint32_t index = 0; index < 257; ++index) {
+    char candidate_id[37] = {};
+    char owner_id[37] = {};
+    std::snprintf(candidate_id, sizeof(candidate_id),
+                  "52000000-0000-4000-8000-%012x",
+                  static_cast<unsigned int>(index + 1));
+    std::snprintf(owner_id, sizeof(owner_id),
+                  "32000000-0000-4000-8000-%012x",
+                  static_cast<unsigned int>(index / 32 + 1));
+    assert(discovery.Observe(
+        candidate_id, owner_id,
+        "https://media.example.test/item-" + std::to_string(index) + ".mp3",
+        "audio/mpeg", std::nullopt, 2048, index + 1));
+  }
+  assert(discovery.size() == fireball::transfer::kMaximumMediaCandidates);
+  assert(discovery.ExpireBefore(std::numeric_limits<std::uint64_t>::max()) ==
+         fireball::transfer::kMaximumMediaCandidates);
+  assert(discovery.size() == 0);
+
   const std::string secret(64, 'a');
   assert(IsValidAria2Secret(secret));
   assert(!IsValidAria2Secret(std::string(63, 'a')));
@@ -100,6 +258,87 @@ int main() {
       MakeTorrentTransferRequest(torrent, TransferPersistence::kPersistent);
   assert(torrent_request.has_value());
   assert(!proxied_client.Enqueue(*torrent_request).ok());
+
+  FakeTransferBackend backend;
+  TransferQueue queue(&backend, TransferPersistence::kPersistent);
+  const std::string transfer_id =
+      "40000000-0000-4000-8000-000000000001";
+  const TransferRequest unsafe_request{TransferSourceKind::kHttp,
+                                       TransferPersistence::kPersistent,
+                                       "file:///etc/passwd", std::nullopt, {}};
+  assert(!queue.Enqueue("40000000-0000-4000-8000-000000000099",
+                        unsafe_request, "Unsafe"));
+  assert(!queue.Enqueue("not-a-uuid", *http, "Fireball download"));
+  assert(queue.Enqueue(transfer_id, *http, "Fireball download",
+                       MediaCandidateKind::kDirectVideo));
+  assert(!queue.Enqueue(transfer_id, *http, "Duplicate"));
+  assert(backend.enqueue_count == 1);
+  assert(queue.Snapshot().size() == 1);
+  assert(queue.Find(transfer_id)->display_name == "Fireball download");
+  assert(queue.Find(transfer_id)->media_kind ==
+         MediaCandidateKind::kDirectVideo);
+
+  backend.status.state = fireball::transfer::Aria2TransferState::kActive;
+  backend.status.total_bytes = 1024;
+  backend.status.completed_bytes = 256;
+  backend.status.bytes_per_second = 128;
+  assert(queue.Refresh(transfer_id));
+  assert(queue.Find(transfer_id)->state == TransferState::kActive);
+  assert(queue.Find(transfer_id)->completed_bytes == 256);
+  assert(queue.Pause(transfer_id));
+  assert(queue.Find(transfer_id)->state == TransferState::kPaused);
+  assert(queue.Resume(transfer_id));
+  assert(queue.Find(transfer_id)->state == TransferState::kQueued);
+
+  backend.status.state = fireball::transfer::Aria2TransferState::kError;
+  backend.status.error_code = "3";
+  backend.status.error_message =
+      "failed https://signed.example.test/video?token=private";
+  assert(queue.Refresh(transfer_id));
+  assert(queue.Find(transfer_id)->state == TransferState::kFailed);
+  assert(queue.Find(transfer_id)->failure_code == "ARIA2_3");
+  assert(queue.Find(transfer_id)->failure_code.find("signed.example") ==
+         std::string::npos);
+  assert(queue.ForgetFinished(transfer_id));
+  assert(queue.Find(transfer_id) == nullptr);
+  assert(backend.last_forgotten_gid == backend.enqueue_gid);
+
+  const std::string torrent_id =
+      "40000000-0000-4000-8000-000000000002";
+  assert(queue.Enqueue(torrent_id, *torrent_request, "Private torrent"));
+  assert(backend.last_source_kind == TransferSourceKind::kTorrentMetainfo);
+  assert(queue.Cancel(torrent_id));
+  assert(queue.Find(torrent_id)->state == TransferState::kCancelled);
+  backend.status.state = fireball::transfer::Aria2TransferState::kActive;
+  assert(queue.Refresh(torrent_id));
+  assert(queue.Find(torrent_id)->state == TransferState::kCancelled);
+  assert(queue.ForgetFinished(torrent_id));
+
+  const std::string malformed_error_id =
+      "40000000-0000-4000-8000-000000000005";
+  assert(queue.Enqueue(malformed_error_id, *http, "Malformed backend error"));
+  backend.status.state = fireball::transfer::Aria2TransferState::kError;
+  backend.status.error_code = "http";
+  assert(queue.Refresh(malformed_error_id));
+  assert(queue.Find(malformed_error_id)->failure_code == "TRANSFER_FAILED");
+  assert(queue.ForgetFinished(malformed_error_id));
+
+  auto ephemeral_http = MakeUriTransferRequest(
+      "https://downloads.example.test/ephemeral.bin",
+      TransferPersistence::kEphemeral, "ephemeral.bin");
+  assert(ephemeral_http.has_value());
+  assert(!queue.Enqueue("40000000-0000-4000-8000-000000000003",
+                        *ephemeral_http, "Wrong boundary"));
+
+  assert(queue.Enqueue("40000000-0000-4000-8000-000000000004", *http,
+                       "Backend outage"));
+  backend.fail_status = true;
+  assert(!queue.RefreshAll());
+  assert(queue.last_control_error() == "backendtransport failure");
+  backend.status_error =
+      "failed https://signed.example.test/file?token=private";
+  assert(!queue.RefreshAll());
+  assert(queue.last_control_error() == "transfer backend request failed");
 
   fireball::transfer::Aria2SidecarConfig sidecar_config;
   std::string policy_error;

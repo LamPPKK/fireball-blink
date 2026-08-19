@@ -15,6 +15,12 @@ These rules override `../MASTER.md` for the four-layout model preview.
   while keeping Fireball's solid surfaces and angular orbital identity.
 - `LIVE`, `SLEEP`, `ACTIVE` and `PROTECTED` are text-plus-shape states. Orange
   marks a discarded model tab; lime alone is never the only signal.
+- Transfer Deck is a right-side utility drawer, never a center modal. Each job
+  shows source class, explicit state, byte progress, rate and a single valid
+  action. It never renders a signed URL, magnet URI or raw backend error.
+- Direct media uses lime readiness; torrent and assembler-gated streams use
+  orange plus text. WARP/Tor must never imply torrent privacy when peer sockets
+  are policy-disabled.
 - Grid cards use index, active/background text and URL; the active card needs a
   border plus an `ACTIVE` label, not color alone.
 - The UI must continue to say `NO CHROMIUM ENGINE` and `PREVIEW · NOT A BROWSER

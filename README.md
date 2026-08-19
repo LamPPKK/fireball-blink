@@ -11,6 +11,8 @@ boundaries and visible provenance—without pretending this preview is a browser
 
 ![Fireball Blink macOS tab-grid model preview](docs/assets/fireball-blink-macos-grid.png)
 
+![Fireball Blink transfer queue model preview](docs/assets/fireball-blink-macos-transfers.png)
+
 ## macOS model preview
 
 The repository includes a buildable AppKit preview that drives its four tab
@@ -48,7 +50,7 @@ Brave overlay order and Helium provenance model visible in the interface.
 - Every imported patch must record its source repository/path, HTTPS license URL, exact source commit, exact verified Chromium commit, milestone range, security impact, required tests and SHA-256.
 - PartitionAlloc, Chromium's process model and sandbox remain intact.
 
-`make check` validates upstream/reference pins, generated network policy and the patch manifest; exercises apply, reverse, conflict, checksum and path-traversal fixtures; and compiles standalone C++ policy and domain tests. `make macos-preview-media` rebuilds the AppKit preview and deterministically regenerates all four repository screenshots. This repository does not fetch or build Chromium yet. The first full control build still needs a B0 builder with at least 8 cores, 32 GiB RAM and 300 GiB free disk; no Chromium artifact is claimed from this preview lane.
+`make check` validates upstream/reference pins, generated network policy and the patch manifest; exercises apply, reverse, conflict, checksum and path-traversal fixtures; and compiles standalone C++ policy and domain tests. `make macos-preview-media` rebuilds the AppKit preview and deterministically regenerates all five repository screenshots. This repository does not fetch or build Chromium yet. The first full control build still needs a B0 builder with at least 8 cores, 32 GiB RAM and 300 GiB free disk; no Chromium artifact is claimed from this preview lane.
 
 ## Brave and Helium reference policy
 
@@ -116,6 +118,20 @@ HLS/DASH candidates; and controls a foreground aria2 sidecar through typed
 JSON-RPC. HTTP transfers use four range connections by default, support
 pause/resume and never overwrite an existing file.
 
+The C++ `TransferQueue` gives each job a stable UUID and enforces
+Queued/Active/Paused/Complete/Failed/Cancelled transitions. It retains no source
+URI or uploaded metainfo after enqueue, keeps terminal states monotonic, redacts
+URL/token-bearing backend errors and forgets finished jobs from aria2 only after
+the RPC confirms cleanup. The real aria2 integration test drives this queue,
+pauses/resumes an 8 MiB ranged download and verifies every output byte.
+
+`MediaDiscovery` adds a bounded, RAM-only per-Tab candidate store for direct
+audio/video, HLS and DASH. Public snapshots omit source URLs, direct media can
+be consumed once into the HTTP transfer path, and candidates disappear on Tab
+cleanup or expiry. HLS/DASH stay visibly gated until a safe VOD assembler is
+implemented; downloading only the manifest is not presented as a finished
+video.
+
 The sidecar cannot launch until the network policy observes an explicit user
 transfer action, and its RPC binds only to IPv4 loopback. A fresh 256-bit secret is placed
 in a mode-0600 file inside a private runtime directory—not in process
@@ -133,8 +149,10 @@ multiple HTTP Range requests, exercises pause/resume, submits valid torrent
 metainfo, verifies no uploaded `.torrent` is retained, and proves clean child
 process shutdown. Install the dependency with `brew install aria2` on macOS or
 `apt install aria2` on Ubuntu. HLS/DASH assembly, Chromium download interception
-and the user-facing transfer shelf remain follow-up work; the candidate model
-does not present those streams as completed downloads.
+and the Chromium user-facing transfer shelf remain follow-up work. The AppKit
+preview includes a deterministic drawer backed by the real queue state machine,
+not a production download surface. See [the transfer architecture and remaining
+promotion work](docs/TRANSFERS.md).
 
 ## WARP and Tor egress foundation
 

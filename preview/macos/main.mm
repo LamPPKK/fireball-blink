@@ -1,10 +1,13 @@
 #import <Cocoa/Cocoa.h>
 
+#include <algorithm>
 #include <cstdlib>
+#include <map>
 #include <optional>
 #include <string>
 
 #include "fireball/browser/domain_model.h"
+#include "fireball/components/transfer/transfer_queue.h"
 
 namespace {
 
@@ -18,6 +21,17 @@ using fireball::browser::TabId;
 using fireball::browser::TabLayout;
 using fireball::browser::TabPlacement;
 using fireball::browser::TabResidency;
+using fireball::transfer::Aria2RpcResult;
+using fireball::transfer::Aria2TransferState;
+using fireball::transfer::Aria2TransferStatus;
+using fireball::transfer::MediaCandidateKind;
+using fireball::transfer::TransferBackend;
+using fireball::transfer::TransferItem;
+using fireball::transfer::TransferPersistence;
+using fireball::transfer::TransferQueue;
+using fireball::transfer::TransferRequest;
+using fireball::transfer::TransferSourceKind;
+using fireball::transfer::TransferState;
 
 constexpr CGFloat kCanvasWidth = 1440.0;
 constexpr CGFloat kCanvasHeight = 900.0;
@@ -160,6 +174,53 @@ NSString* ResidencyName(TabResidency residency) {
   return residency == TabResidency::kLoaded ? @"LIVE" : @"SLEEP";
 }
 
+NSString* TransferStateName(TransferState state) {
+  switch (state) {
+    case TransferState::kQueued:
+      return @"QUEUED";
+    case TransferState::kActive:
+      return @"ACTIVE";
+    case TransferState::kPaused:
+      return @"PAUSED";
+    case TransferState::kComplete:
+      return @"COMPLETE";
+    case TransferState::kFailed:
+      return @"FAILED";
+    case TransferState::kCancelled:
+      return @"CANCELLED";
+  }
+  return @"UNKNOWN";
+}
+
+NSString* TransferKindName(const TransferItem& item) {
+  if (item.source_kind == TransferSourceKind::kMagnet ||
+      item.source_kind == TransferSourceKind::kTorrentMetainfo) {
+    return @"TORRENT";
+  }
+  switch (item.media_kind) {
+    case MediaCandidateKind::kDirectAudio:
+      return @"DIRECT AUDIO";
+    case MediaCandidateKind::kDirectVideo:
+      return @"DIRECT VIDEO";
+    case MediaCandidateKind::kHlsManifest:
+      return @"HLS";
+    case MediaCandidateKind::kDashManifest:
+      return @"DASH";
+    case MediaCandidateKind::kNone:
+      return @"HTTP";
+  }
+  return @"HTTP";
+}
+
+NSString* FormatByteCount(std::uint64_t bytes) {
+  constexpr double kMiB = 1024.0 * 1024.0;
+  constexpr double kGiB = 1024.0 * 1024.0 * 1024.0;
+  if (bytes >= static_cast<std::uint64_t>(kGiB)) {
+    return [NSString stringWithFormat:@"%.1f GB", bytes / kGiB];
+  }
+  return [NSString stringWithFormat:@"%.0f MB", bytes / kMiB];
+}
+
 std::optional<TabLayout> ParseLayout(NSString* name) {
   NSString* normalized = name.lowercaseString;
   if ([normalized isEqualToString:@"classic"]) {
@@ -176,6 +237,71 @@ std::optional<TabLayout> ParseLayout(NSString* name) {
   }
   return std::nullopt;
 }
+
+class PreviewTransferBackend final : public TransferBackend {
+ public:
+  Aria2RpcResult<std::string> Enqueue(
+      const TransferRequest& request) override {
+    const bool peer_to_peer =
+        request.source_kind == TransferSourceKind::kMagnet ||
+        request.source_kind == TransferSourceKind::kTorrentMetainfo;
+    const std::string gid =
+        peer_to_peer ? "0123456789abcde1" : "0123456789abcde0";
+    Aria2TransferStatus status;
+    status.gid = gid;
+    status.state = peer_to_peer ? Aria2TransferState::kPaused
+                                : Aria2TransferState::kActive;
+    status.total_bytes = peer_to_peer ? 4'294'967'296ULL : 1'610'612'736ULL;
+    status.completed_bytes =
+        peer_to_peer ? 1'073'741'824ULL : 1'095'217'152ULL;
+    status.bytes_per_second = peer_to_peer ? 0 : 18'874'368ULL;
+    statuses_[gid] = std::move(status);
+    return {gid, {}};
+  }
+
+  Aria2RpcResult<Aria2TransferStatus> TellStatus(
+      std::string_view gid) override {
+    auto status = statuses_.find(gid);
+    if (status == statuses_.end()) {
+      return {std::nullopt, "unknown preview transfer"};
+    }
+    return {status->second, {}};
+  }
+
+  Aria2RpcResult<std::string> Pause(std::string_view gid) override {
+    return ChangeState(gid, Aria2TransferState::kPaused);
+  }
+
+  Aria2RpcResult<std::string> Unpause(std::string_view gid) override {
+    return ChangeState(gid, Aria2TransferState::kActive);
+  }
+
+  Aria2RpcResult<std::string> Remove(std::string_view gid) override {
+    return ChangeState(gid, Aria2TransferState::kRemoved);
+  }
+
+  Aria2RpcResult<std::string> ForgetDownloadResult(
+      std::string_view gid) override {
+    if (statuses_.erase(std::string(gid)) != 1) {
+      return {std::nullopt, "unknown preview transfer"};
+    }
+    return {std::string("OK"), {}};
+  }
+
+ private:
+  Aria2RpcResult<std::string> ChangeState(std::string_view gid,
+                                          Aria2TransferState state) {
+    auto status = statuses_.find(gid);
+    if (status == statuses_.end()) {
+      return {std::nullopt, "unknown preview transfer"};
+    }
+    status->second.state = state;
+    status->second.bytes_per_second = 0;
+    return {std::string(gid), {}};
+  }
+
+  std::map<std::string, Aria2TransferStatus, std::less<>> statuses_;
+};
 
 class PreviewModel final {
  public:
@@ -222,6 +348,22 @@ class PreviewModel final {
     if (!model_.MarkTabDiscarded(helium)) {
       std::abort();
     }
+
+    auto video = fireball::transfer::MakeUriTransferRequest(
+        "https://media.example.test/fireball-launch.mp4?signature=preview",
+        TransferPersistence::kPersistent, "Fireball launch.mp4");
+    auto torrent = fireball::transfer::MakeUriTransferRequest(
+        "magnet:?xt=urn:btih:0123456789abcdef0123456789abcdef01234567",
+        TransferPersistence::kPersistent);
+    if (!video.has_value() || !torrent.has_value() ||
+        !transfers_.Enqueue("40000000-0000-4000-8000-000000000001", *video,
+                            "Fireball launch.mp4",
+                            MediaCandidateKind::kDirectVideo) ||
+        !transfers_.Enqueue("40000000-0000-4000-8000-000000000002",
+                            *torrent, "Linux image.torrent") ||
+        transfers_.RefreshAll() != 2) {
+      std::abort();
+    }
   }
 
   BrowserModel& model() { return model_; }
@@ -229,6 +371,7 @@ class PreviewModel final {
   const SpaceId& main_space() const { return *main_space_; }
   const SpaceId& research_space() const { return *research_space_; }
   const SpaceId& burner_space() const { return *burner_space_; }
+  const TransferQueue& transfers() const { return transfers_; }
 
  private:
   TabId AddTab(const char* id,
@@ -244,6 +387,9 @@ class PreviewModel final {
     return tab_id;
   }
 
+  PreviewTransferBackend transfer_backend_;
+  TransferQueue transfers_{&transfer_backend_,
+                           TransferPersistence::kPersistent};
   BrowserModel model_;
   std::optional<ProfileId> persistent_profile_;
   std::optional<ProfileId> burner_profile_;
@@ -258,21 +404,32 @@ class PreviewModel final {
  @private
   PreviewModel _preview;
   TabLayout _layout;
+  BOOL _showTransfers;
+  NSInteger _hoveredLayoutIndex;
+  BOOL _transferHovered;
+  NSTrackingArea* _trackingArea;
 }
-- (instancetype)initWithFrame:(NSRect)frame layout:(TabLayout)layout;
+- (instancetype)initWithFrame:(NSRect)frame
+                        layout:(TabLayout)layout
+                 showTransfers:(BOOL)showTransfers;
 @end
 
 @implementation FireballPreviewView
 
-- (instancetype)initWithFrame:(NSRect)frame layout:(TabLayout)layout {
+- (instancetype)initWithFrame:(NSRect)frame
+                        layout:(TabLayout)layout
+                 showTransfers:(BOOL)showTransfers {
   self = [super initWithFrame:frame];
   if (self != nil) {
     _layout = layout;
+    _showTransfers = showTransfers;
+    _hoveredLayoutIndex = -1;
+    _transferHovered = NO;
     _preview.model().SetTabLayout(layout);
     self.accessibilityRole = NSAccessibilityGroupRole;
     self.accessibilityLabel = @"Fireball Blink tab-layout model preview";
     self.accessibilityHelp =
-        @"Use keys 1 through 4 or the arrow keys to switch layouts.";
+        @"Use keys 1 through 4 to switch layouts and D to toggle transfers.";
   }
   return self;
 }
@@ -297,6 +454,55 @@ class PreviewModel final {
   [self addCursorRect:NSMakeRect(493 * scale_x, 20 * scale_y, 464 * scale_x,
                                  38 * scale_y)
                cursor:NSCursor.pointingHandCursor];
+  [self addCursorRect:NSMakeRect(1162 * scale_x, 106 * scale_y,
+                                 108 * scale_x, 42 * scale_y)
+               cursor:NSCursor.pointingHandCursor];
+}
+
+- (void)updateTrackingAreas {
+  [super updateTrackingAreas];
+  if (_trackingArea != nil) {
+    [self removeTrackingArea:_trackingArea];
+  }
+  _trackingArea = [[NSTrackingArea alloc]
+      initWithRect:NSZeroRect
+           options:NSTrackingMouseMoved | NSTrackingMouseEnteredAndExited |
+                   NSTrackingActiveInKeyWindow | NSTrackingInVisibleRect
+             owner:self
+          userInfo:nil];
+  [self addTrackingArea:_trackingArea];
+}
+
+- (NSPoint)canvasPointForEvent:(NSEvent*)event {
+  NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
+  point.x *= kCanvasWidth / self.bounds.size.width;
+  point.y *= kCanvasHeight / self.bounds.size.height;
+  return point;
+}
+
+- (void)mouseMoved:(NSEvent*)event {
+  const NSPoint point = [self canvasPointForEvent:event];
+  NSInteger layout_index = -1;
+  if (point.y >= 20.0 && point.y <= 58.0 && point.x >= 493.0 &&
+      point.x < 957.0) {
+    layout_index = static_cast<NSInteger>((point.x - 493.0) / 116.0);
+  }
+  const BOOL transfer_hovered =
+      point.x >= 1162.0 && point.x <= 1270.0 && point.y >= 106.0 &&
+      point.y <= 148.0;
+  if (layout_index != _hoveredLayoutIndex ||
+      transfer_hovered != _transferHovered) {
+    _hoveredLayoutIndex = layout_index;
+    _transferHovered = transfer_hovered;
+    self.needsDisplay = YES;
+  }
+}
+
+- (void)mouseExited:(NSEvent*)event {
+  (void)event;
+  _hoveredLayoutIndex = -1;
+  _transferHovered = NO;
+  self.needsDisplay = YES;
 }
 
 - (void)selectLayoutAtIndex:(NSInteger)index {
@@ -328,6 +534,11 @@ class PreviewModel final {
       [self selectLayoutAtIndex:(current + delta + 4) % 4];
       return;
     }
+    if (key == 'd' || key == 'D') {
+      _showTransfers = !_showTransfers;
+      self.needsDisplay = YES;
+      return;
+    }
   }
   [super keyDown:event];
 }
@@ -351,15 +562,19 @@ class PreviewModel final {
 }
 
 - (void)mouseDown:(NSEvent*)event {
-  NSPoint point = [self convertPoint:event.locationInWindow fromView:nil];
-  point.x *= kCanvasWidth / self.bounds.size.width;
-  point.y *= kCanvasHeight / self.bounds.size.height;
+  const NSPoint point = [self canvasPointForEvent:event];
   const CGFloat segment_x = 493.0;
   const CGFloat segment_width = 116.0;
   if (point.y >= 20.0 && point.y <= 58.0 && point.x >= segment_x &&
       point.x < segment_x + segment_width * 4.0) {
     NSInteger index = (NSInteger)((point.x - segment_x) / segment_width);
     [self selectLayoutAtIndex:index];
+    return;
+  }
+  if (point.x >= 1162.0 && point.x <= 1270.0 && point.y >= 106.0 &&
+      point.y <= 148.0) {
+    _showTransfers = !_showTransfers;
+    self.needsDisplay = YES;
   }
 }
 
@@ -415,7 +630,10 @@ class PreviewModel final {
   for (NSInteger index = 0; index < 4; ++index) {
     NSRect segment = NSMakeRect(493 + index * 116, 20, 108, 38);
     const bool selected = layouts[index] == _layout;
-    RoundedRect(segment, 9, selected ? RGB(0xB8FF3D) : RGB(0x101510),
+    const bool hovered = index == _hoveredLayoutIndex;
+    RoundedRect(segment, 9,
+                selected ? RGB(0xB8FF3D)
+                         : (hovered ? RGB(0x1A241A) : RGB(0x101510)),
                 selected ? RGB(0xB8FF3D) : RGB(0x2B342B));
     Text(LayoutName(layouts[index]), NSInsetRect(segment, 4, 9), MonoFont(10),
          selected ? RGB(0x071007) : RGB(0xA8B0A6), NSTextAlignmentCenter);
@@ -550,10 +768,14 @@ class PreviewModel final {
               RGB(0x455542));
   Text(@"BLOCKER", NSMakeRect(1052, 118, 88, 20), MonoFont(8),
        RGB(0xB8FF3D), NSTextAlignmentCenter);
-  RoundedRect(NSMakeRect(1162, 106, 108, 42), 11, RGB(0x121812),
-              RGB(0x3A4339));
-  Text(@"TRANSFER", NSMakeRect(1172, 118, 88, 20), MonoFont(8),
-       RGB(0xD1D5CE), NSTextAlignmentCenter);
+  RoundedRect(NSMakeRect(1162, 106, 108, 42), 11,
+              _showTransfers
+                  ? RGB(0xF4F1E8)
+                  : (_transferHovered ? RGB(0x1A241A) : RGB(0x121812)),
+              _showTransfers ? nil : RGB(0x3A4339));
+  Text(@"TRANSFER 02", NSMakeRect(1172, 118, 88, 20), MonoFont(7),
+       _showTransfers ? RGB(0x07100A) : RGB(0xD1D5CE),
+       NSTextAlignmentCenter);
   RoundedRect(NSMakeRect(1282, 106, 112, 42), 11, RGB(0x21110B),
               RGB(0x813513));
   Text(@"B0 / GATED", NSMakeRect(1292, 118, 92, 20), MonoFont(8),
@@ -572,6 +794,9 @@ class PreviewModel final {
     case TabLayout::kTabGrid:
       [self drawGridLayout];
       break;
+  }
+  if (_showTransfers) {
+    [self drawTransferDeck];
   }
 }
 
@@ -769,6 +994,89 @@ class PreviewModel final {
   }
 }
 
+- (void)drawTransferDeck {
+  const NSRect panel = NSMakeRect(774, 164, 624, 686);
+  RoundedRect(NSOffsetRect(panel, 10, 10), 16, RGB(0x000000, 0.42));
+  RoundedRect(panel, 16, RGB(0x0B0F0C), RGB(0x596459), 1.5);
+  RoundedRect(NSMakeRect(774, 164, 8, 686), 4, RGB(0xFF5A1F));
+
+  Text(@"TRANSFER DECK", NSMakeRect(806, 190, 300, 38), DisplayFont(25),
+       RGB(0xF4F1E8));
+  Text(@"ARIA2 QUEUE MODEL · SOURCE URL DROPPED AFTER ENQUEUE",
+       NSMakeRect(808, 229, 430, 18), MonoFont(7), RGB(0x8C978F));
+  RoundedRect(NSMakeRect(1244, 190, 122, 34), 9, RGB(0x182117),
+              RGB(0x455542));
+  Text(@"02 TRANSFERS", NSMakeRect(1254, 199, 102, 18), MonoFont(8),
+       RGB(0xB8FF3D), NSTextAlignmentCenter);
+
+  const std::vector<TransferItem> transfers = _preview.transfers().Snapshot();
+  CGFloat y = 270;
+  for (const TransferItem& item : transfers) {
+    const bool active = item.state == TransferState::kActive;
+    const bool paused = item.state == TransferState::kPaused;
+    NSRect card = NSMakeRect(806, y, 560, 140);
+    RoundedRect(card, 14, active ? RGB(0x142019) : RGB(0x111611),
+                active ? RGB(0xB8FF3D, 0.62) : RGB(0x344036));
+    RoundedRect(NSMakeRect(826, y + 21, 8, 8), 4,
+                active ? RGB(0xB8FF3D) : RGB(0xFF7A3D));
+    Text(TransferKindName(item), NSMakeRect(846, y + 14, 150, 20),
+         MonoFont(8), active ? RGB(0xB8FF3D) : RGB(0xFF9A6A));
+    Text(TransferStateName(item.state), NSMakeRect(1212, y + 14, 132, 20),
+         MonoFont(8), active ? RGB(0xB8FF3D) : RGB(0xA8B0A6),
+         NSTextAlignmentRight);
+    Text([NSString stringWithUTF8String:item.display_name.c_str()],
+         NSMakeRect(826, y + 47, 360, 30), DisplayFont(18), RGB(0xF4F1E8));
+    const CGFloat progress =
+        item.total_bytes == 0
+            ? 0
+            : std::min<CGFloat>(
+                  1.0, static_cast<CGFloat>(item.completed_bytes) /
+                           static_cast<CGFloat>(item.total_bytes));
+    RoundedRect(NSMakeRect(826, y + 84, 518, 7), 3.5, RGB(0x283128));
+    if (progress > 0) {
+      RoundedRect(NSMakeRect(826, y + 84, 518 * progress, 7), 3.5,
+                  active ? RGB(0xB8FF3D) : RGB(0xFF7A3D));
+    }
+    NSString* progress_text = [NSString
+        stringWithFormat:@"%@ / %@ · %.0f%%",
+                         FormatByteCount(item.completed_bytes),
+                         FormatByteCount(item.total_bytes), progress * 100.0];
+    Text(progress_text, NSMakeRect(826, y + 103, 310, 18), MonoFont(8),
+         RGB(0xA8B0A6));
+    NSString* action = active ? @"PAUSE" : (paused ? @"RESUME" : @"OPEN");
+    Text(action, NSMakeRect(1242, y + 103, 102, 18), MonoFont(8),
+         active ? RGB(0xB8FF3D) : RGB(0xFF9A6A), NSTextAlignmentRight);
+    if (item.bytes_per_second > 0) {
+      Text([FormatByteCount(item.bytes_per_second)
+               stringByAppendingString:@"/s"],
+           NSMakeRect(1138, y + 103, 92, 18), MonoFont(8), RGB(0xA8B0A6),
+           NSTextAlignmentRight);
+    }
+    y += 154;
+  }
+
+  RoundedRect(NSMakeRect(806, 588, 560, 92), 13, RGB(0x101713),
+              RGB(0x344036));
+  Text(@"MEDIA DISCOVERY", NSMakeRect(826, 606, 180, 18), MonoFont(8),
+       RGB(0xFF7A3D));
+  Text(@"DIRECT AUDIO / VIDEO", NSMakeRect(826, 635, 190, 18), MonoFont(8),
+       RGB(0xF4F1E8));
+  Text(@"READY", NSMakeRect(1006, 635, 60, 18), MonoFont(7), RGB(0xB8FF3D),
+       NSTextAlignmentRight);
+  Text(@"HLS + DASH", NSMakeRect(1100, 635, 100, 18), MonoFont(8),
+       RGB(0xF4F1E8));
+  Text(@"DETECTED · GATED", NSMakeRect(1204, 635, 140, 18), MonoFont(7),
+       RGB(0xFF9A6A), NSTextAlignmentRight);
+
+  RoundedRect(NSMakeRect(806, 696, 560, 126), 13, RGB(0x21110B),
+              RGB(0x813513));
+  Text(@"PRIVATE BY CONSTRUCTION", NSMakeRect(826, 716, 260, 20), MonoFont(9),
+       RGB(0xFF9A6A));
+  Text(@"No source URL in UI snapshots · no uploaded .torrent retained\n"
+        "Torrent peers disabled on WARP / Tor proxy routes",
+       NSMakeRect(826, 748, 500, 48), BodyFont(10), RGB(0xD3B6A3));
+}
+
 - (void)drawEngineBoundary:(NSRect)rect label:(NSString*)label {
   RoundedRect(rect, 15, RGB(0x0C1410), RGB(0x29382F));
   Text(label, NSMakeRect(rect.origin.x + 28, rect.origin.y + 28, 260, 24),
@@ -820,6 +1128,7 @@ class PreviewModel final {
 @interface PreviewAppDelegate : NSObject <NSApplicationDelegate>
 @property(nonatomic, strong) NSWindow* window;
 @property(nonatomic) TabLayout initialLayout;
+@property(nonatomic) BOOL showTransfers;
 @end
 
 @implementation PreviewAppDelegate
@@ -837,8 +1146,11 @@ class PreviewModel final {
   self.window.title = @"Fireball Blink — macOS Model Preview";
   self.window.minSize = NSMakeSize(960, 600);
   self.window.backgroundColor = RGB(0x070B09);
+  self.window.acceptsMouseMovedEvents = YES;
   FireballPreviewView* view =
-      [[FireballPreviewView alloc] initWithFrame:frame layout:self.initialLayout];
+      [[FireballPreviewView alloc] initWithFrame:frame
+                                         layout:self.initialLayout
+                                  showTransfers:self.showTransfers];
   view.autoresizingMask = NSViewWidthSizable | NSViewHeightSizable;
   self.window.contentView = view;
   [self.window center];
@@ -855,10 +1167,14 @@ class PreviewModel final {
 
 namespace {
 
-bool CapturePreview(NSString* output_path, TabLayout layout) {
+bool CapturePreview(NSString* output_path,
+                    TabLayout layout,
+                    bool show_transfers) {
   NSRect frame = NSMakeRect(0, 0, kCanvasWidth, kCanvasHeight);
   FireballPreviewView* view =
-      [[FireballPreviewView alloc] initWithFrame:frame layout:layout];
+      [[FireballPreviewView alloc] initWithFrame:frame
+                                         layout:layout
+                                  showTransfers:show_transfers];
   NSBitmapImageRep* image = [[NSBitmapImageRep alloc]
       initWithBitmapDataPlanes:nil
                    pixelsWide:(NSInteger)kCanvasWidth
@@ -894,6 +1210,7 @@ int main(int argc, const char* argv[]) {
   @autoreleasepool {
     NSString* capture_path = nil;
     TabLayout layout = TabLayout::kTabGrid;
+    bool show_transfers = false;
     for (int index = 1; index < argc; ++index) {
       NSString* argument = [NSString stringWithUTF8String:argv[index]];
       if ([argument isEqualToString:@"--capture"] && index + 1 < argc) {
@@ -906,21 +1223,29 @@ int main(int argc, const char* argv[]) {
           return 2;
         }
         layout = *parsed;
+      } else if ([argument isEqualToString:@"--panel"] && index + 1 < argc) {
+        NSString* panel = [NSString stringWithUTF8String:argv[++index]];
+        if (![panel isEqualToString:@"transfers"]) {
+          fprintf(stderr, "unknown panel\n");
+          return 2;
+        }
+        show_transfers = true;
       } else {
         fprintf(stderr,
                 "usage: FireballBlinkPreview [--layout classic|floating|vertical|grid] "
-                "[--capture path.png]\n");
+                "[--panel transfers] [--capture path.png]\n");
         return 2;
       }
     }
 
     if (capture_path != nil) {
-      return CapturePreview(capture_path, layout) ? 0 : 1;
+      return CapturePreview(capture_path, layout, show_transfers) ? 0 : 1;
     }
 
     [NSApplication sharedApplication];
     PreviewAppDelegate* delegate = [[PreviewAppDelegate alloc] init];
     delegate.initialLayout = layout;
+    delegate.showTransfers = show_transfers;
     NSApp.delegate = delegate;
     [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
     [NSApp run];

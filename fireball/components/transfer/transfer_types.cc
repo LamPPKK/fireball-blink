@@ -208,6 +208,47 @@ bool IsSafeOutputName(std::string_view name) {
   });
 }
 
+bool IsCanonicalTransferId(std::string_view id) {
+  if (id.size() != 36 || id == "00000000-0000-0000-0000-000000000000") {
+    return false;
+  }
+  for (std::size_t index = 0; index < id.size(); ++index) {
+    const bool separator =
+        index == 8 || index == 13 || index == 18 || index == 23;
+    if (separator) {
+      if (id[index] != '-') {
+        return false;
+      }
+      continue;
+    }
+    const char character = id[index];
+    if (!((character >= '0' && character <= '9') ||
+          (character >= 'a' && character <= 'f'))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool IsValidTransferRequest(const TransferRequest& request) {
+  if (request.output_name.has_value() &&
+      !IsSafeOutputName(*request.output_name)) {
+    return false;
+  }
+  switch (request.source_kind) {
+    case TransferSourceKind::kHttp:
+      return IsSafeHttpDownloadUri(request.source) &&
+             request.torrent_metainfo.empty();
+    case TransferSourceKind::kMagnet:
+      return IsSafeMagnetUri(request.source) &&
+             request.torrent_metainfo.empty();
+    case TransferSourceKind::kTorrentMetainfo:
+      return request.source.empty() &&
+             IsPlausibleTorrentMetainfo(request.torrent_metainfo);
+  }
+  return false;
+}
+
 std::optional<TransferRequest> MakeUriTransferRequest(
     std::string uri,
     TransferPersistence persistence,
@@ -223,8 +264,11 @@ std::optional<TransferRequest> MakeUriTransferRequest(
   if (output_name.has_value() && !IsSafeOutputName(*output_name)) {
     return std::nullopt;
   }
-  return TransferRequest{kind, persistence, std::move(uri),
-                         std::move(output_name), {}};
+  TransferRequest request{kind, persistence, std::move(uri),
+                          std::move(output_name), {}};
+  return IsValidTransferRequest(request)
+             ? std::optional<TransferRequest>(std::move(request))
+             : std::nullopt;
 }
 
 std::optional<TransferRequest> MakeTorrentTransferRequest(
@@ -235,8 +279,11 @@ std::optional<TransferRequest> MakeTorrentTransferRequest(
       (output_name.has_value() && !IsSafeOutputName(*output_name))) {
     return std::nullopt;
   }
-  return TransferRequest{TransferSourceKind::kTorrentMetainfo, persistence, {},
-                         std::move(output_name), std::move(metainfo)};
+  TransferRequest request{TransferSourceKind::kTorrentMetainfo, persistence,
+                          {}, std::move(output_name), std::move(metainfo)};
+  return IsValidTransferRequest(request)
+             ? std::optional<TransferRequest>(std::move(request))
+             : std::nullopt;
 }
 
 MediaCandidateKind ClassifyMediaCandidate(std::string_view uri,

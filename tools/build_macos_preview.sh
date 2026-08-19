@@ -22,6 +22,9 @@ DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer} \
   -I"$repo_root" \
   "$repo_root/preview/macos/main.mm" \
   "$repo_root/fireball/browser/domain_model.cc" \
+  "$repo_root/fireball/components/transfer/transfer_types.cc" \
+  "$repo_root/fireball/components/transfer/aria2_rpc_client.cc" \
+  "$repo_root/fireball/components/transfer/transfer_queue.cc" \
   -framework Cocoa \
   -o "$executable"
 

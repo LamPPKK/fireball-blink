@@ -37,10 +37,25 @@ struct Aria2TransferStatus {
   std::string error_message;
 };
 
+class TransferBackend {
+ public:
+  virtual ~TransferBackend() = default;
+
+  virtual Aria2RpcResult<std::string> Enqueue(
+      const TransferRequest& request) = 0;
+  virtual Aria2RpcResult<Aria2TransferStatus> TellStatus(
+      std::string_view gid) = 0;
+  virtual Aria2RpcResult<std::string> Pause(std::string_view gid) = 0;
+  virtual Aria2RpcResult<std::string> Unpause(std::string_view gid) = 0;
+  virtual Aria2RpcResult<std::string> Remove(std::string_view gid) = 0;
+  virtual Aria2RpcResult<std::string> ForgetDownloadResult(
+      std::string_view gid) = 0;
+};
+
 // A deliberately small JSON-RPC 2.0 client. It can connect only to IPv4
 // loopback and caps every response, so browser-provided URIs never become an
 // arbitrary RPC/network primitive.
-class Aria2RpcClient final {
+class Aria2RpcClient final : public TransferBackend {
  public:
   Aria2RpcClient(std::uint16_t port,
                  std::string secret,
@@ -54,11 +69,15 @@ class Aria2RpcClient final {
   bool IsConfigurationValid() const;
 
   Aria2RpcResult<std::string> GetVersion();
-  Aria2RpcResult<std::string> Enqueue(const TransferRequest& request);
-  Aria2RpcResult<Aria2TransferStatus> TellStatus(std::string_view gid);
-  Aria2RpcResult<std::string> Pause(std::string_view gid);
-  Aria2RpcResult<std::string> Unpause(std::string_view gid);
-  Aria2RpcResult<std::string> Remove(std::string_view gid);
+  Aria2RpcResult<std::string> Enqueue(
+      const TransferRequest& request) override;
+  Aria2RpcResult<Aria2TransferStatus> TellStatus(
+      std::string_view gid) override;
+  Aria2RpcResult<std::string> Pause(std::string_view gid) override;
+  Aria2RpcResult<std::string> Unpause(std::string_view gid) override;
+  Aria2RpcResult<std::string> Remove(std::string_view gid) override;
+  Aria2RpcResult<std::string> ForgetDownloadResult(
+      std::string_view gid) override;
   Aria2RpcResult<std::string> ForceShutdown();
 
  private:

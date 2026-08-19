@@ -25,6 +25,12 @@ Click `CLASSIC`, `FLOATING`, `VERTICAL`, or `GRID` to change presentation, or
 use keys `1`–`4` and the left/right arrow keys. The same in-memory
 `BrowserModel` and tab IDs remain attached.
 
+Click `TRANSFER 02` or press `D` to toggle the Transfer Deck. The drawer uses
+the production `TransferQueue` state machine with a deterministic preview
+backend: one direct-video job is active and one torrent is paused. It proves UI
+mapping and privacy labels only; the real aria2 process is exercised separately
+by `make check`.
+
 The Vertical layout renders the Arc-inspired Favorite/Pinned/Today hierarchy.
 The Safari Floating layout uses a unified location surface and floating tab
 chrome. Grid exposes the residency policy, including a deterministic discarded
@@ -38,8 +44,8 @@ make macos-preview-media
 ```
 
 The capture mode renders the exact same AppKit view offscreen at 1440×900. The
-four PNGs under `docs/assets/` are therefore reproducible build artifacts, not
-hand-authored mockups.
+four layout PNGs and Transfer Deck PNG under `docs/assets/` are therefore
+reproducible build artifacts, not hand-authored mockups.
 
 ## Promotion boundary
 

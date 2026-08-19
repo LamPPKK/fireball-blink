@@ -196,6 +196,8 @@ def main() -> int:
                 "fireball/components/egress/egress_route.cc",
                 "fireball/components/transfer/transfer_types.cc",
                 "fireball/components/transfer/aria2_rpc_client.cc",
+                "fireball/components/transfer/media_discovery.cc",
+                "fireball/components/transfer/transfer_queue.cc",
                 "fireball/components/transfer/egress_transfer_policy.cc",
                 "tests/transfer_test.cc",
             ],
@@ -248,6 +250,7 @@ def main() -> int:
                 str(root / "fireball/components/transfer/transfer_types.cc"),
                 str(root / "fireball/components/transfer/aria2_rpc_client.cc"),
                 str(root / "fireball/components/transfer/aria2_sidecar.cc"),
+                str(root / "fireball/components/transfer/transfer_queue.cc"),
                 str(root / "fireball/components/privacy/network_audit.cc"),
                 str(root / "tests/aria2_integration_test.cc"),
                 "-o",
@@ -294,7 +297,7 @@ def main() -> int:
             )
             return 1
         print(
-            "fireball-cpp-tests: aria2 direct + HTTP CONNECT passed "
+            "fireball-cpp-tests: aria2 queue + HTTP CONNECT passed "
             f"({server.range_requests} range requests, "
             f"{proxy.connect_requests} proxy tunnels)"
         )

@@ -590,6 +590,16 @@ Aria2RpcResult<std::string> Aria2RpcClient::Remove(std::string_view gid) {
                            JsonQuote(gid) + "]");
 }
 
+Aria2RpcResult<std::string> Aria2RpcClient::ForgetDownloadResult(
+    std::string_view gid) {
+  if (!IsValidAria2Gid(gid)) {
+    return {std::nullopt, "invalid aria2 GID"};
+  }
+  return CallForString("aria2.removeDownloadResult",
+                       "[" + JsonQuote("token:" + secret_) + "," +
+                           JsonQuote(gid) + "]");
+}
+
 Aria2RpcResult<std::string> Aria2RpcClient::ForceShutdown() {
   return CallForString("aria2.forceShutdown",
                        "[" + JsonQuote("token:" + secret_) + "]");

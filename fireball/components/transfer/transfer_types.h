@@ -53,6 +53,8 @@ bool IsSafeMagnetUri(std::string_view uri);
 bool IsPlausibleTorrentMetainfo(std::span<const std::uint8_t> metainfo);
 
 bool IsSafeOutputName(std::string_view name);
+bool IsCanonicalTransferId(std::string_view id);
+bool IsValidTransferRequest(const TransferRequest& request);
 
 std::optional<TransferRequest> MakeUriTransferRequest(
     std::string uri,

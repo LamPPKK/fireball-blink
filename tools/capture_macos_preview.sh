@@ -14,4 +14,9 @@ for layout in classic floating vertical grid; do
     --capture "$asset_root/fireball-blink-macos-$layout.png"
 done
 
+"$executable" \
+  --layout floating \
+  --panel transfers \
+  --capture "$asset_root/fireball-blink-macos-transfers.png"
+
 printf '%s\n' "$asset_root"
