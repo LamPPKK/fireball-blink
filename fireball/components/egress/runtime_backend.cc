@@ -85,7 +85,20 @@ bool RuntimeEgressBackend::Verify(const browser::ProfileId& profile_id,
                            config_.readiness_timeout, error)) {
     return false;
   }
-  return config_.delegate->VerifyPublicIpAndDns(profile_id, candidate, error);
+  auto evidence = config_.delegate->CollectEgressVerificationEvidence(
+      profile_id, candidate, error);
+  if (!evidence.has_value()) {
+    *error = EgressVerificationCodeName(
+        EgressVerificationCode::kCollectionFailed);
+    return false;
+  }
+  const EgressVerificationResult verification =
+      ValidateEgressEvidence(candidate, *evidence);
+  if (!verification.accepted()) {
+    *error = EgressVerificationCodeName(verification.code);
+    return false;
+  }
+  return true;
 }
 
 bool RuntimeEgressBackend::Activate(const browser::ProfileId& profile_id,

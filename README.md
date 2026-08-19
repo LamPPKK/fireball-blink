@@ -210,6 +210,9 @@ anonymity. Tor gets distinct SOCKS5 and HTTP CONNECT listeners per Profile.
 
 Chromium proxy rules contain no implicit Direct fallback. HTTP(S) downloads are
 mapped to the route's HTTP CONNECT listener, while peer-to-peer requests remain
-disabled on proxied routes. The detailed security boundary, external setup and
-remaining Chromium/public-IP/DNS-leak wiring are documented in
+disabled on proxied routes. A native evidence validator now rejects route-mode
+or proxy-port mismatch, local DNS activity, direct fallback, missing provider
+attestation and non-public probe addresses before a candidate can commit. The
+detailed security boundary, external setup and remaining Chromium probe
+collector wiring are documented in
 [`docs/EGRESS.md`](docs/EGRESS.md).

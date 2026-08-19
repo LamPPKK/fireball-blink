@@ -154,15 +154,29 @@ class RuntimeDelegate final : public fireball::egress::RuntimeEgressDelegate {
     return ports;
   }
 
-  bool VerifyPublicIpAndDns(const fireball::browser::ProfileId&,
-                            const fireball::egress::EgressRoute&,
-                            std::string* error) override {
+  std::optional<fireball::egress::EgressVerificationEvidence>
+  CollectEgressVerificationEvidence(
+      const fireball::browser::ProfileId&,
+      const fireball::egress::EgressRoute& candidate,
+      std::string*) override {
     ++verify_count;
-    if (fail_verify) {
-      *error = "simulated DNS leak";
-      return false;
+    fireball::egress::EgressVerificationEvidence evidence;
+    evidence.observed_mode = candidate.mode;
+    evidence.public_ip_probe_used_candidate_route = true;
+    evidence.public_ip = "2606:4700:4700::1111";
+    evidence.successful_probe_count = 1;
+    if (candidate.proxy.has_value()) {
+      evidence.observed_proxy_port = candidate.proxy->browser_socks5;
+      evidence.dns_probe_used_candidate_route = true;
+      evidence.remote_dns_confirmed = true;
+      evidence.local_dns_observed = fail_verify;
+      evidence.provider_attestation =
+          candidate.mode == fireball::egress::EgressMode::kWarp
+              ? fireball::egress::ProviderAttestation::kWarp
+              : fireball::egress::ProviderAttestation::kTor;
+      evidence.successful_probe_count = 2;
     }
-    return true;
+    return evidence;
   }
 
   bool ApplyChromiumProxyRules(const fireball::browser::ProfileId&,
@@ -248,6 +262,8 @@ int main(int argc, char** argv) {
                             /*profile_is_idle=*/true,
                             /*has_user_consent=*/true, &error));
   assert(delegate.verify_count == 1);
+  assert(error == "egress.verification.local_dns_leak");
+  assert(delegate.applied_rules.empty());
   assert(std::filesystem::is_empty(runtime));
   delegate.fail_verify = false;
   delegate.ports = {FindAvailableLoopbackPort(), FindAvailableLoopbackPort()};

@@ -70,6 +70,29 @@ warp-cli connect
 Managed Cloudflare Zero Trust devices may forbid these commands; their device
 profile must select Local proxy mode instead.
 
+## Pre-commit verification evidence
+
+`RuntimeEgressDelegate` no longer returns an unstructured success boolean. It
+must collect a bounded `EgressVerificationEvidence` record through the exact
+candidate route without first mutating the active Profile proxy configuration.
+The delegate keeps raw HTTPS responses and randomized probe hostnames private;
+the native validator receives only route-use facts, the observed proxy port, a
+public address, provider attestation and DNS/fallback observations.
+
+For WARP and Tor, commit requires at least two successful probes, both public-IP
+and randomized-hostname probes using the candidate proxy, the exact prepared
+SOCKS5 port, remote DNS confirmation, no local resolver event, no direct
+fallback, a globally routable result address and matching provider evidence.
+The WARP collector must derive `kWarp` only from Cloudflare's `warp=on`; the Tor
+collector must derive `kTor` only from a successful `IsTor=true` response.
+Direct mode requires one successful route-bound public-IP probe and forbids a
+proxy port or provider attestation.
+
+Validation failures expose stable `egress.verification.*` codes and never put
+the public address, hostname or provider response in the error. A failed check
+rolls back the prepared candidate and, for Tor, destroys the new sidecar before
+the previous route is touched.
+
 ## Implemented and still open
 
 Implemented now:
@@ -82,14 +105,17 @@ Implemented now:
 - WARP local-proxy verification;
 - runtime backend that owns prepared/active Tor processes and retires the old
   process only after route activation succeeds;
+- typed public-IP/DNS evidence with native mode, proxy-port, provider,
+  remote-DNS, local-leak and direct-fallback validation;
+- stable redacted verification failure codes and Tor rollback coverage;
 - HTTP CONNECT configuration for aria2 and fail-closed P2P policy.
 
 Still required before the Linux alpha can claim working browser egress:
 
 - implement the Chromium runtime delegate with per-Profile
-  `ProxyConfigWithAnnotation` application;
-- implement the delegate's real public-IP/DNS-leak check, plus disconnect and
-  kill-switch tests, before each transaction commits;
+  `ProxyConfigWithAnnotation` application and collect the required evidence
+  from real HTTPS/NetLog probes;
+- add real disconnect and kill-switch tests around that collector;
 - route Chromium-owned helper traffic and the full aria2 process under the same
   policy, then evaluate whether WARP torrent support can safely be enabled;
 - add hardware/network integration tests on the Linux builder.

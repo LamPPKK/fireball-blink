@@ -138,11 +138,32 @@ class FakeRuntimeDelegate final
     return fireball::egress::LoopbackProxyPorts{39060, 39061};
   }
 
-  bool VerifyPublicIpAndDns(const fireball::browser::ProfileId&,
-                            const fireball::egress::EgressRoute&,
-                            std::string*) override {
+  std::optional<fireball::egress::EgressVerificationEvidence>
+  CollectEgressVerificationEvidence(
+      const fireball::browser::ProfileId&,
+      const fireball::egress::EgressRoute& candidate,
+      std::string* error) override {
     ++verify_count;
-    return true;
+    if (fail_collection) {
+      *error = "raw provider response must not escape";
+      return std::nullopt;
+    }
+    fireball::egress::EgressVerificationEvidence evidence;
+    evidence.observed_mode = candidate.mode;
+    evidence.public_ip_probe_used_candidate_route = true;
+    evidence.public_ip = "1.1.1.1";
+    evidence.successful_probe_count = 1;
+    if (candidate.proxy.has_value()) {
+      evidence.observed_proxy_port = candidate.proxy->browser_socks5;
+      evidence.dns_probe_used_candidate_route = true;
+      evidence.remote_dns_confirmed = true;
+      evidence.successful_probe_count = 2;
+      evidence.provider_attestation =
+          candidate.mode == fireball::egress::EgressMode::kWarp
+              ? fireball::egress::ProviderAttestation::kWarp
+              : fireball::egress::ProviderAttestation::kTor;
+    }
+    return evidence;
   }
 
   bool ApplyChromiumProxyRules(const fireball::browser::ProfileId&,
@@ -153,6 +174,7 @@ class FakeRuntimeDelegate final
   }
 
   int verify_count = 0;
+  bool fail_collection = false;
   std::vector<std::string> applied_rules;
 };
 
@@ -278,10 +300,19 @@ int main() {
   assert(runtime_delegate.verify_count == 1);
   assert(runtime_delegate.applied_rules.back() ==
          "socks5://127.0.0.1:" + std::to_string(runtime_socks.port()));
+  runtime_delegate.fail_collection = true;
+  assert(!runtime_controller.Switch(runtime_profile, EgressMode::kDirect,
+                                    /*profile_is_idle=*/true,
+                                    /*has_user_consent=*/false, &error));
+  assert(error == "egress.verification.collection_failed");
+  assert(runtime_controller.GetRoute(runtime_profile)->mode ==
+         EgressMode::kWarp);
+  assert(runtime_delegate.applied_rules.size() == 1);
+  runtime_delegate.fail_collection = false;
   assert(runtime_controller.Switch(runtime_profile, EgressMode::kDirect,
                                    /*profile_is_idle=*/true,
                                    /*has_user_consent=*/false, &error));
-  assert(runtime_delegate.verify_count == 2);
+  assert(runtime_delegate.verify_count == 3);
   assert(runtime_delegate.applied_rules.back() == "direct://");
   assert(runtime_controller.RemoveProfile(runtime_profile));
 

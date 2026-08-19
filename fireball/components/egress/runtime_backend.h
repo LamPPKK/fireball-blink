@@ -12,13 +12,18 @@
 #include "fireball/browser/domain_model.h"
 #include "fireball/components/egress/egress_controller.h"
 #include "fireball/components/egress/egress_route.h"
+#include "fireball/components/egress/egress_verification.h"
 #include "fireball/components/egress/tor_sidecar.h"
 
 namespace fireball::egress {
 
-// Chromium supplies this delegate at the product boundary. A route cannot
-// commit until both the public-IP/DNS check and per-profile proxy application
-// succeed.
+// Chromium supplies this delegate at the product boundary. Evidence collection
+// must send public-IP and randomized-hostname probes through the candidate
+// route without mutating the active Profile configuration. It derives provider
+// attestation from bounded HTTPS responses (WARP `warp=on`, Tor `IsTor=true`)
+// and observes local resolver activity through Chromium instrumentation. Raw
+// responses and hostnames remain inside the delegate. A route cannot commit
+// until native validation and per-profile proxy application both succeed.
 class RuntimeEgressDelegate {
  public:
   virtual ~RuntimeEgressDelegate() = default;
@@ -26,7 +31,8 @@ class RuntimeEgressDelegate {
   virtual std::optional<LoopbackProxyPorts> AllocateTorPorts(
       const browser::ProfileId& profile_id,
       std::string* error) = 0;
-  virtual bool VerifyPublicIpAndDns(const browser::ProfileId& profile_id,
+  virtual std::optional<EgressVerificationEvidence>
+  CollectEgressVerificationEvidence(const browser::ProfileId& profile_id,
                                     const EgressRoute& candidate,
                                     std::string* error) = 0;
   virtual bool ApplyChromiumProxyRules(

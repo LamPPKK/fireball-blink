@@ -4,6 +4,8 @@ source_set("egress") {
     "egress_controller.h",
     "egress_route.cc",
     "egress_route.h",
+    "egress_verification.cc",
+    "egress_verification.h",
     "runtime_backend.cc",
     "runtime_backend.h",
     "socks5_probe.cc",
