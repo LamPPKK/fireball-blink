@@ -2,6 +2,29 @@
 
 Buildable B0/B1 tooling foundation for the Chromium-based Fireball Browser.
 
+![Fireball Blink macOS tab-grid model preview](docs/assets/fireball-blink-macos-grid.png)
+
+## macOS model preview
+
+The repository includes a buildable AppKit preview that drives its four tab
+presentations from the real C++ `BrowserModel`:
+
+| Chromium Classic | Safari Floating |
+| --- | --- |
+| ![Classic tab presentation](docs/assets/fireball-blink-macos-classic.png) | ![Floating tab presentation](docs/assets/fireball-blink-macos-floating.png) |
+| Vertical Sidebar | Tab Grid |
+| ![Vertical tab presentation](docs/assets/fireball-blink-macos-vertical.png) | ![Tab-grid presentation](docs/assets/fireball-blink-macos-grid.png) |
+
+```sh
+make macos-preview
+open "out/macos-preview/Fireball Blink Preview.app"
+```
+
+This is deliberately a **model/UI preview, not a Chromium browser build**. It
+contains no Chromium checkout, WebContents, renderer, sandbox, extensions,
+adblock engine, or URL cleaner. The executable and every screenshot repeat that
+boundary. See [the reproducible preview and promotion rules](docs/MACOS_PREVIEW.md).
+
 ## Architecture boundary
 
 - Chromium Stable Linux `151.0.7922.169` and `depot_tools` are locked to exact official revisions in `pins/upstream.json`.
@@ -11,7 +34,7 @@ Buildable B0/B1 tooling foundation for the Chromium-based Fireball Browser.
 - Every imported patch must record its source repository/path, HTTPS license URL, exact source commit, exact verified Chromium commit, milestone range, security impact, required tests and SHA-256.
 - PartitionAlloc, Chromium's process model and sandbox remain intact.
 
-`make check` validates upstream/reference pins, generated network policy and the patch manifest; exercises apply, reverse, conflict, checksum and path-traversal fixtures; and compiles a standalone C++ policy test. This repository does not fetch or build Chromium yet. The first full Linux control build still needs the dedicated B0 builder (at least 8 cores, 32 GiB RAM and 300 GiB free disk).
+`make check` validates upstream/reference pins, generated network policy and the patch manifest; exercises apply, reverse, conflict, checksum and path-traversal fixtures; and compiles standalone C++ policy and domain tests. `make macos-preview-media` rebuilds the AppKit preview and deterministically regenerates all four repository screenshots. This repository does not fetch or build Chromium yet. The first full control build still needs a B0 builder with at least 8 cores, 32 GiB RAM and 300 GiB free disk; no Chromium artifact is claimed from this preview lane.
 
 ## Brave and Helium reference policy
 

@@ -1,4 +1,4 @@
-.PHONY: check test
+.PHONY: check test macos-preview macos-preview-media
 
 check:
 	python3 tools/check_pins.py
@@ -9,3 +9,9 @@ check:
 	python3 tools/run_cpp_tests.py
 
 test: check
+
+macos-preview:
+	./tools/build_macos_preview.sh
+
+macos-preview-media:
+	./tools/capture_macos_preview.sh
