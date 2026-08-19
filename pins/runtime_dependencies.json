@@ -29,6 +29,29 @@
         "full-regex-handling",
         "single-thread"
       ]
+    },
+    {
+      "name": "ffmpeg",
+      "version": "9.0.1",
+      "license": "LGPL-2.1-or-later",
+      "integration": "external-process-local-stream-copy",
+      "bundled": false,
+      "source_url": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz",
+      "source_sha256": "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635",
+      "accepted_major_versions": [
+        6,
+        7,
+        8,
+        9
+      ],
+      "network_access": false,
+      "required_features": [
+        "file-protocol",
+        "pipe-protocol",
+        "mov-demuxer",
+        "mp4-muxer",
+        "stream-copy"
+      ]
     }
   ]
 }

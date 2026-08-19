@@ -163,22 +163,30 @@ the RPC confirms cleanup. The real aria2 integration test drives this queue,
 pauses/resumes an 8 MiB ranged download and verifies every output byte.
 
 `MediaDiscovery` adds a bounded, RAM-only per-Tab candidate store for direct
-audio/video, HLS and DASH. Public snapshots omit source URLs, direct media and
-HLS candidates are consumed once, and candidates disappear on Tab cleanup or
-expiry. A separate RAM-only `MediaHeaderGrantStore` can bind a one-time,
+audio/video, HLS and DASH. Public snapshots omit source URLs, each supported
+candidate is consumed once, and candidates disappear on Tab cleanup or expiry.
+A separate RAM-only `MediaHeaderGrantStore` can bind a one-time,
 maximum-60-second request-header capability to one Profile, Tab and candidate.
 It accepts only bounded `Authorization`, `Cookie`, `Origin`, `Referer` and
 `User-Agent` values; grants are consumed once or destroyed on expiry, Tab close
-or Profile removal, and never enter queue snapshots. The HLS lane passes the
-consumed headers to the entry manifest, selected child playlist and every
-segment. It parses bounded master playlists, selects a bandwidth variant, and
-accepts only finite, unencrypted MPEG-TS VOD media playlists. Its coordinator
-uses the same aria2 storage/egress boundary throughout, then assembles a
-mode-0600 `.ts` file with atomic no-overwrite publish. Product snapshots omit
-headers, playlist/segment URLs and GIDs. Manifest, segment and aria2 result
-artifacts are removed before success is reported.
-Live/event HLS, encryption, byte ranges, discontinuities, fMP4 and low-latency
-extensions still fail closed; DASH remains detected but gated.
+or Profile removal, and never enter queue snapshots. HLS supports bounded master
+playlists plus finite, unencrypted MPEG-TS VOD. DASH supports a deliberately
+closed static, single-Period, unencrypted fMP4 subset using `SegmentTemplate`
+with duration or `SegmentTimeline`, one selected video representation and
+optional audio. Both coordinators retain no URLs or backend GIDs in public state,
+remove private artifacts before success, and atomically publish mode-0600 output.
+DASH assembles each track locally and invokes a hardened, no-shell FFmpeg
+stream-copy mux through pre-opened input descriptors with network and filesystem
+input protocols disabled. Live/low-latency streams,
+DRM/`ContentProtection`, HLS encryption, HLS byte ranges and unsupported DASH
+addressing modes fail closed.
+
+The grant handoff is ready for Chromium's future origin-aware network backend,
+but aria2 deliberately rejects every credential-bearing job. A real redirect
+probe showed that aria2 1.37.0 forwards custom `Authorization` and `Cookie`
+headers across origins and its RPC surface cannot impose the required redirect
+policy. Public, credential-free HLS and DASH jobs continue through aria2; private
+media must wait for the Chromium adapter rather than risk header disclosure.
 
 The sidecar cannot launch until the network policy observes an explicit user
 transfer action, and its RPC binds only to IPv4 loopback. A fresh 256-bit secret is placed
@@ -191,17 +199,16 @@ runtime directory. HTTP(S) downloads can consume a verified route's loopback
 HTTP CONNECT endpoint. Magnet and `.torrent` requests fail closed on proxied
 routes until every peer socket can be proven to stay inside that egress.
 
-`make check` requires `aria2c` (1.37.0 is the development control), launches
-the real sidecar, downloads and byte-verifies an 8 MiB local fixture through
-multiple HTTP Range requests, exercises pause/resume, fetches master/variant
-playlists and three HLS segments over both Direct and loopback HTTP CONNECT,
-and verifies assembled outputs byte-for-byte. A protected local endpoint also
-proves that the real aria2 process receives the bounded authentication grant.
-The suite submits valid torrent metainfo, verifies no uploaded `.torrent` is
-retained, and proves clean child process shutdown. Install the dependency with
-`brew install aria2` on macOS or `apt install aria2` on Ubuntu. DASH assembly,
-Chromium-side grant minting/download interception and the user-facing Chromium
-transfer shelf remain follow-up work. The AppKit preview includes a
+`make check` requires `aria2c` 1.37.0 plus FFmpeg/ffprobe major 6–9. It launches
+the real sidecar, downloads and byte-verifies an 8 MiB ranged fixture, exercises
+pause/resume, and completes HLS and generated fMP4 DASH VOD over both Direct and
+loopback HTTP CONNECT. The suite verifies DASH video/audio streams with ffprobe,
+asserts that aria2 sends no credential-bearing requests, submits valid torrent
+metainfo, checks that no uploaded `.torrent` is retained, and proves clean child
+process shutdown. Install dependencies with `brew install aria2 ffmpeg` on macOS
+or `apt install aria2 ffmpeg` on Ubuntu. Chromium-side grant minting, the
+origin-aware private-media backend and the user-facing Chromium transfer shelf
+remain follow-up work. The AppKit preview includes a
 deterministic drawer backed by the real queue state machine and HLS parser, not
 a production download surface. See [the transfer architecture and remaining
 promotion work](docs/TRANSFERS.md).

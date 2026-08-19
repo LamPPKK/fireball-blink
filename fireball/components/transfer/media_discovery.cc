@@ -80,6 +80,7 @@ bool MediaDiscovery::Observe(std::string id,
       observed_at_ms,
       IsDirect(kind),
       kind == MediaCandidateKind::kHlsManifest,
+      kind == MediaCandidateKind::kDashManifest,
   };
   const std::string key = candidate.id;
   const std::string owner = candidate.tab_id;
@@ -140,6 +141,22 @@ std::optional<HlsManifestRequest> MediaDiscovery::ConsumeHls(
   HlsManifestRequest request{std::move(record->second.source_uri),
                              std::move(record->second.candidate.display_name),
                              std::move(request_headers)};
+  records_.erase(record);
+  return request;
+}
+
+std::optional<DashManifestRequest> MediaDiscovery::ConsumeDash(
+    std::string_view id,
+    std::vector<TransferRequestHeader> request_headers) {
+  auto record = records_.find(id);
+  if (record == records_.end() ||
+      record->second.candidate.kind != MediaCandidateKind::kDashManifest ||
+      !IsValidTransferRequestHeaders(request_headers)) {
+    return std::nullopt;
+  }
+  DashManifestRequest request{std::move(record->second.source_uri),
+                              std::move(record->second.candidate.display_name),
+                              std::move(request_headers)};
   records_.erase(record);
   return request;
 }

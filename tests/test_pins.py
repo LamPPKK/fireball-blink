@@ -83,6 +83,25 @@ class PinTests(unittest.TestCase):
         with self.assertRaisesRegex(PinError, "source_sha256"):
             validate_runtime_dependencies(document)
 
+    def test_ffmpeg_version_checksum_and_network_boundary_are_locked(self) -> None:
+        document = copy.deepcopy(self.runtime_dependencies)
+        ffmpeg = next(
+            item for item in document["dependencies"] if item["name"] == "ffmpeg"
+        )
+        ffmpeg["version"] = "latest"
+        with self.assertRaisesRegex(PinError, "version"):
+            validate_runtime_dependencies(document)
+        ffmpeg["version"] = "9.0.1"
+        ffmpeg["source_sha256"] = "0" * 64
+        with self.assertRaisesRegex(PinError, "source_sha256"):
+            validate_runtime_dependencies(document)
+        ffmpeg["source_sha256"] = (
+            "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635"
+        )
+        ffmpeg["network_access"] = True
+        with self.assertRaisesRegex(PinError, "network_access"):
+            validate_runtime_dependencies(document)
+
 
 if __name__ == "__main__":
     unittest.main()

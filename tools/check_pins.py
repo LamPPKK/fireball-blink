@@ -149,12 +149,12 @@ def validate_runtime_dependencies(document: dict[str, Any]) -> None:
     if set(document) != {"schema_version", "dependencies"} or document.get("schema_version") != 1:
         raise PinError("runtime dependencies must use the exact schema_version 1 shape")
     dependencies = document["dependencies"]
-    if not isinstance(dependencies, list) or len(dependencies) != 2:
-        raise PinError("runtime dependencies: aria2 and adblock-rust are required")
+    if not isinstance(dependencies, list) or len(dependencies) != 3:
+        raise PinError("runtime dependencies: aria2, adblock-rust and ffmpeg are required")
     if not all(isinstance(dependency, dict) for dependency in dependencies):
         raise PinError("runtime dependencies: each entry must be an object")
     by_name = {dependency.get("name"): dependency for dependency in dependencies}
-    if set(by_name) != {"aria2", "adblock-rust"} or len(by_name) != len(dependencies):
+    if set(by_name) != {"aria2", "adblock-rust", "ffmpeg"} or len(by_name) != len(dependencies):
         raise PinError("runtime dependencies: names must be unique and complete")
 
     aria2 = by_name["aria2"]
@@ -219,6 +219,43 @@ def validate_runtime_dependencies(document: dict[str, Any]) -> None:
     for field, expected in expected_adblock.items():
         if adblock[field] != expected:
             raise PinError(f"adblock-rust runtime dependency: unexpected {field}")
+
+    ffmpeg = by_name["ffmpeg"]
+    ffmpeg_fields = {
+        "name",
+        "version",
+        "license",
+        "integration",
+        "bundled",
+        "source_url",
+        "source_sha256",
+        "accepted_major_versions",
+        "network_access",
+        "required_features",
+    }
+    if set(ffmpeg) != ffmpeg_fields:
+        raise PinError("ffmpeg runtime dependency: unexpected entry shape")
+    expected_ffmpeg = {
+        "name": "ffmpeg",
+        "version": "9.0.1",
+        "license": "LGPL-2.1-or-later",
+        "integration": "external-process-local-stream-copy",
+        "bundled": False,
+        "source_url": "https://ffmpeg.org/releases/ffmpeg-9.0.1.tar.xz",
+        "source_sha256": "cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635",
+        "accepted_major_versions": [6, 7, 8, 9],
+        "network_access": False,
+        "required_features": [
+            "file-protocol",
+            "pipe-protocol",
+            "mov-demuxer",
+            "mp4-muxer",
+            "stream-copy",
+        ],
+    }
+    for field, expected in expected_ffmpeg.items():
+        if ffmpeg[field] != expected:
+            raise PinError(f"ffmpeg runtime dependency: unexpected {field}")
 
 
 def validate_repository(repository_root: pathlib.Path) -> None:

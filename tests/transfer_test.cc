@@ -201,6 +201,19 @@ int main() {
   assert(hls_request->uri == "https://cdn.example.test/master.m3u8");
   assert(hls_request->request_headers.empty());
   assert(!discovery.ConsumeHls(hls_id).has_value());
+  const std::string dash_id = "50000000-0000-4000-8000-000000000005";
+  assert(discovery.Observe(dash_id, tab_id,
+                           "https://cdn.example.test/stream.mpd",
+                           "application/dash+xml", std::nullopt, 0, 350));
+  candidates = discovery.SnapshotForTab(tab_id);
+  assert(candidates[0].id == dash_id);
+  assert(candidates[0].dash_vod_downloadable);
+  assert(!candidates[0].hls_vod_downloadable);
+  auto dash_request = discovery.ConsumeDash(dash_id);
+  assert(dash_request.has_value());
+  assert(dash_request->uri == "https://cdn.example.test/stream.mpd");
+  assert(dash_request->request_headers.empty());
+  assert(!discovery.ConsumeDash(dash_id).has_value());
   assert(!discovery.Observe(
       "50000000-0000-4000-8000-000000000004", tab_id,
       "https://user:password@cdn.example.test/movie.mp4", "video/mp4",

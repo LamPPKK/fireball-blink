@@ -14,28 +14,30 @@ Chromium response observer (B0 adapter)
 MediaDiscovery — RAM only, bounded per Tab
         │  direct audio/video: one-time TransferRequest
         │  HLS VOD: one-time HlsManifestRequest
-        │  DASH / unsupported HLS: visible but gated
+        │  DASH VOD: one-time DashManifestRequest
         │
         ├── MediaHeaderGrantStore — one-time Profile/Tab/candidate capability
         ▼
-TransferQueue / HlsDownload — no source URL/metainfo in snapshots
+TransferQueue / HlsDownload / DashDownload — no source URL in snapshots
         │
         ▼
 Aria2RpcClient — authenticated IPv4-loopback JSON-RPC
         │
         ▼
 aria2 sidecar — one persistence + egress boundary
+        │
+        └── DASH private fMP4 tracks → local-only FFmpeg stream-copy → MP4
 ```
 
 The current AppKit Transfer Deck is driven by the real `TransferQueue` state
 machine and HLS parser with a deterministic fake backend. The integration test
-drives the same queue and `HlsDownload` against a real aria2 1.37.0 process,
-byte-verifies an 8 MiB ranged download, fetches a master and selected child
-playlist, then verifies a three-segment HLS output. It repeats that HLS flow
-through the loopback HTTP CONNECT route used by WARP/Tor downloads. A separate
-protected fixture requires `Authorization`, `Cookie` and `Referer`, proving the
-real aria2 JSON-RPC path forwards the bounded grant. The AppKit artifact remains
-a model preview, not Chromium UI.
+drives the same queue plus both media coordinators against aria2 1.37.0,
+byte-verifies an 8 MiB ranged download and a three-segment HLS output, then
+generates a real fMP4 DASH fixture, downloads it and verifies the muxed video and
+audio streams with ffprobe. It repeats HLS and DASH through the loopback HTTP
+CONNECT route used by WARP/Tor downloads. The same suite proves that aria2
+rejects credential-bearing requests before network I/O. The AppKit artifact
+remains a model preview, not Chromium UI.
 
 ## Queue lifecycle
 
@@ -91,16 +93,29 @@ for Chromium's response observer to call after B0.
   cancellation, removes the stopped aria2 results and deletes private
   artifacts. A failed atomic publication removes both temporary and newly
   linked output names before reporting error.
-- DASH remains detected but deliberately gated. Downloading a manifest alone
-  is never presented as a completed video.
+- DASH candidates can be consumed once into `DashDownload`. The closed parser
+  accepts static, single-Period, unencrypted fMP4 MPDs using `SegmentTemplate`
+  with a fixed duration or bounded `SegmentTimeline`. It selects one video
+  representation at or below the configured bandwidth cap and optional audio;
+  it rejects DTD/custom entities, XLink, `ContentProtection`, SegmentBase/List,
+  live/low-latency behavior, unsafe URLs, unsupported codecs, more than 64
+  representations, more than 4,096 segments per track or more than 12 hours.
+- DASH initialization and media fragments use the same exact-name, no-rename
+  aria2 boundary as the manifest. The coordinator assembles private owner-only
+  track files, forgets backend results and removes fragments, then runs an
+  absolute, non-group/world-writable FFmpeg executable without a shell. FFmpeg
+  receives a clean environment, pre-opened no-symlink inputs through `pipe`
+  descriptors only, explicit video/audio maps and stream-copy output. The final
+  MP4 is fsynced and published without overwriting; failure/cancel removes
+  private manifest, fragment, track and mux artifacts.
 - DRM/Widevine capture is out of scope.
 
 ## Authenticated media grants
 
-The native boundary supports authenticated downloads without handing aria2 a
-Profile's cookie jar. The future Chromium adapter creates a cryptographically
-random UUIDv4 capability ID and stores the associated header values only in
-`MediaHeaderGrantStore`.
+The native boundary prepares authenticated downloads without handing a backend
+the whole Profile cookie jar. The future Chromium adapter creates a
+cryptographically random UUIDv4 capability ID and stores the associated header
+values only in `MediaHeaderGrantStore`.
 
 - A grant is bound to one canonical Profile UUID, Tab UUID and discovered-media
   candidate UUID. It can be consumed once, expires after at most 60 seconds and
@@ -113,10 +128,14 @@ random UUIDv4 capability ID and stores the associated header values only in
   cannot have surrounding spaces, are capped at 8 KiB each and 16 KiB total.
   This rejects CR/LF injection and excludes proxy credentials.
 - Request headers are valid only for HTTP(S); magnet and `.torrent` requests
-  reject them. HLS forwards the same consumed header set to the entry manifest,
-  selected variant and all segments.
-- Header containers overwrite owned bytes on destruction. Temporary aria2
-  header/JSON-RPC buffers are explicitly erased after the enqueue call. This is
+  reject them. HLS and DASH carry the same consumed header set across their
+  manifest and artifact plans so an origin-aware backend can enforce one policy.
+- aria2 is not that backend: version 1.37.0 forwards custom authentication and
+  cookie headers across cross-origin redirects, and its RPC API exposes no
+  per-request redirect prohibition. `Aria2RpcClient` therefore rejects every
+  request with headers before network I/O. Private-media promotion remains
+  blocked until Chromium supplies an origin-pinned backend with redirect tests.
+- Header containers overwrite owned bytes on destruction. This is
   best-effort process-memory hygiene, not a claim that every allocator or kernel
   copy can be physically overwritten.
 - Queue snapshots, errors and result records contain no header or grant value;
@@ -141,12 +160,15 @@ label a torrent private merely because the browser page itself uses WARP or Tor.
   policy;
 - pass the one-time `HlsManifestRequest` from the Chromium response observer to
   `HlsDownload`, together with the current Profile's verified aria2 route;
+- pass `DashManifestRequest` to `DashDownload`, provide the verified FFmpeg
+  executable and expose the stable DASH failure codes in the transfer shelf;
 - mint the implemented one-time header grant from Chromium's current request
-  context without exposing the full cookie jar, then revoke it with the owning
-  Tab/Profile lifecycle;
+  context without exposing the full cookie jar, revoke it with the owning
+  Tab/Profile lifecycle, and use a new origin-aware browser backend rather than
+  aria2 whenever a grant is present;
 - persist regular transfer metadata without persisting signed source URLs;
 - delete partial ephemeral files when their Profile/Burner Space closes;
-- add DASH/fMP4 muxing and decide separately whether encrypted non-DRM HLS is
-  supportable without weakening the key lifecycle;
+- decide separately whether encrypted non-DRM HLS is supportable without
+  weakening the key lifecycle;
 - wire real Views controls and accessibility instead of the AppKit model drawer;
 - add hostile-server, disk-full, filename-conflict and reboot recovery tests.

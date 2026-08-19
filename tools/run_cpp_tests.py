@@ -84,6 +84,18 @@ class RangeRequestHandler(BaseHTTPRequestHandler):
                 return
             with self.server.counter_lock:  # type: ignore[attr-defined]
                 self.server.authenticated_requests += 1  # type: ignore[attr-defined]
+        elif self.path.startswith("/dash/"):
+            payload = self.server.dash_files.get(self.path)  # type: ignore[attr-defined]
+            if payload is None:
+                self.send_error(404)
+                return
+            if self.path.endswith(".mpd"):
+                content_type = "application/dash+xml"
+                is_manifest = True
+            elif self.path.endswith(".mp4") or self.path.endswith(".m4s"):
+                content_type = "video/mp4"
+            with self.server.counter_lock:  # type: ignore[attr-defined]
+                self.server.dash_requests += 1  # type: ignore[attr-defined]
         elif self.path != "/fireball-range.bin":
             self.send_error(404)
             return
@@ -135,13 +147,15 @@ class RangeRequestHandler(BaseHTTPRequestHandler):
 
 
 class RangeServer(ThreadingHTTPServer):
-    def __init__(self) -> None:
+    def __init__(self, dash_files: dict[str, bytes]) -> None:
         super().__init__(("127.0.0.1", 0), RangeRequestHandler)
         self.counter_lock = threading.Lock()
         self.range_requests = 0
         self.total_requests = 0
         self.manifest_requests = 0
         self.authenticated_requests = 0
+        self.dash_requests = 0
+        self.dash_files = dash_files
 
 
 class ConnectProxyHandler(socketserver.StreamRequestHandler):
@@ -292,6 +306,19 @@ def main() -> int:
                 "fireball/components/transfer/media_header_grant.cc",
                 "tests/media_header_grant_test.cc",
             ],
+            "dash_vod_test": [
+                "fireball/components/transfer/transfer_types.cc",
+                "fireball/components/transfer/dash_vod.cc",
+                "tests/dash_vod_test.cc",
+            ],
+            "dash_download_test": [
+                "fireball/components/transfer/transfer_types.cc",
+                "fireball/components/transfer/aria2_rpc_client.cc",
+                "fireball/components/transfer/dash_vod.cc",
+                "fireball/components/transfer/ffmpeg_muxer.cc",
+                "fireball/components/transfer/dash_download.cc",
+                "tests/dash_download_test.cc",
+            ],
             "hls_vod_test": [
                 "fireball/components/transfer/transfer_types.cc",
                 "fireball/components/transfer/aria2_rpc_client.cc",
@@ -335,6 +362,182 @@ def main() -> int:
             )
             subprocess.run([str(binary)], check=True)
 
+        ffmpeg = os.environ.get("FFMPEG") or shutil.which("ffmpeg")
+        ffprobe = os.environ.get("FFPROBE") or shutil.which("ffprobe")
+        if ffmpeg is None or ffprobe is None:
+            print("fireball-cpp-tests: ffmpeg and ffprobe are required", file=sys.stderr)
+            return 1
+        ffmpeg_version = subprocess.run(
+            [ffmpeg, "-version"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.splitlines()[0]
+        version_match = re.match(r"ffmpeg version (\d+)\.", ffmpeg_version)
+        if version_match is None or not 6 <= int(version_match.group(1)) < 10:
+            print(
+                "fireball-cpp-tests: FFmpeg major version must be in [6, 10)",
+                file=sys.stderr,
+            )
+            return 1
+
+        mux_directory = pathlib.Path(temporary) / "ffmpeg-mux"
+        mux_directory.mkdir(mode=0o700)
+        subprocess.run(
+            [
+                ffmpeg,
+                "-nostdin",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc=size=160x90:rate=10",
+                "-t",
+                "1",
+                "-an",
+                "-c:v",
+                "mpeg4",
+                "-movflags",
+                "+frag_keyframe+empty_moov",
+                str(mux_directory / "video-track.mp4"),
+            ],
+            check=True,
+            timeout=30,
+        )
+        subprocess.run(
+            [
+                ffmpeg,
+                "-nostdin",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=1000:sample_rate=48000",
+                "-t",
+                "1",
+                "-vn",
+                "-c:a",
+                "aac",
+                "-movflags",
+                "+frag_keyframe+empty_moov",
+                str(mux_directory / "audio-track.mp4"),
+            ],
+            check=True,
+            timeout=30,
+        )
+        muxer_binary = pathlib.Path(temporary) / "ffmpeg_muxer_test"
+        subprocess.run(
+            [
+                compiler,
+                "-std=c++20",
+                "-Wall",
+                "-Wextra",
+                "-Werror",
+                "-pthread",
+                f"-I{root}",
+                str(root / "fireball/components/transfer/transfer_types.cc"),
+                str(root / "fireball/components/transfer/ffmpeg_muxer.cc"),
+                str(root / "tests/ffmpeg_muxer_test.cc"),
+                "-o",
+                str(muxer_binary),
+            ],
+            check=True,
+        )
+        subprocess.run(
+            [str(muxer_binary), ffmpeg, str(mux_directory)],
+            check=True,
+            timeout=45,
+        )
+        muxed_streams = subprocess.run(
+            [
+                ffprobe,
+                "-v",
+                "error",
+                "-show_entries",
+                "stream=codec_type",
+                "-of",
+                "csv=p=0",
+                str(mux_directory / ".fireball-dash-mux.mp4"),
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=15,
+        ).stdout.splitlines()
+        if muxed_streams != ["video", "audio"]:
+            print(
+                f"fireball-cpp-tests: unexpected DASH mux streams {muxed_streams!r}",
+                file=sys.stderr,
+            )
+            return 1
+
+        dash_fixture = pathlib.Path(temporary) / "dash-fixture"
+        dash_fixture.mkdir(mode=0o700)
+        subprocess.run(
+            [
+                ffmpeg,
+                "-nostdin",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-f",
+                "lavfi",
+                "-i",
+                "testsrc=size=320x180:rate=10",
+                "-f",
+                "lavfi",
+                "-i",
+                "sine=frequency=880:sample_rate=48000",
+                "-t",
+                "2",
+                "-map",
+                "0:v:0",
+                "-map",
+                "1:a:0",
+                "-c:v",
+                "libx264",
+                "-pix_fmt",
+                "yuv420p",
+                "-g",
+                "10",
+                "-keyint_min",
+                "10",
+                "-sc_threshold",
+                "0",
+                "-c:a",
+                "aac",
+                "-f",
+                "dash",
+                "-seg_duration",
+                "1",
+                "-use_template",
+                "1",
+                "-use_timeline",
+                "1",
+                "-adaptation_sets",
+                "id=0,streams=v id=1,streams=a",
+                "-init_seg_name",
+                "init-$RepresentationID$.mp4",
+                "-media_seg_name",
+                "chunk-$RepresentationID$-$Number%05d$.m4s",
+                str(dash_fixture / "manifest.mpd"),
+            ],
+            check=True,
+            timeout=45,
+        )
+        dash_files = {
+            f"/dash/{path.name}": path.read_bytes()
+            for path in dash_fixture.iterdir()
+            if path.is_file()
+        }
+        if "/dash/manifest.mpd" not in dash_files or len(dash_files) < 6:
+            print("fireball-cpp-tests: FFmpeg DASH fixture is incomplete", file=sys.stderr)
+            return 1
+
         aria2 = os.environ.get("ARIA2C") or shutil.which("aria2c")
         if aria2 is None:
             print("fireball-cpp-tests: aria2c is required", file=sys.stderr)
@@ -364,6 +567,9 @@ def main() -> int:
                 str(root / "fireball/components/transfer/transfer_types.cc"),
                 str(root / "fireball/components/transfer/aria2_rpc_client.cc"),
                 str(root / "fireball/components/transfer/aria2_sidecar.cc"),
+                str(root / "fireball/components/transfer/dash_download.cc"),
+                str(root / "fireball/components/transfer/dash_vod.cc"),
+                str(root / "fireball/components/transfer/ffmpeg_muxer.cc"),
                 str(root / "fireball/components/transfer/hls_download.cc"),
                 str(root / "fireball/components/transfer/hls_vod.cc"),
                 str(root / "fireball/components/transfer/transfer_queue.cc"),
@@ -374,7 +580,7 @@ def main() -> int:
             ],
             check=True,
         )
-        server = RangeServer()
+        server = RangeServer(dash_files)
         server_thread = threading.Thread(target=server.serve_forever, daemon=True)
         server_thread.start()
         proxy = ConnectProxyServer(server.server_port)
@@ -391,6 +597,7 @@ def main() -> int:
                     str(proxy.server_address[1]),
                     str(HLS_SEGMENT_COUNT),
                     str(HLS_SEGMENT_SIZE),
+                    ffmpeg,
                 ],
                 check=True,
                 timeout=45,
@@ -420,9 +627,15 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 1
-        if server.authenticated_requests < 1:
+        if server.authenticated_requests != 0:
             print(
-                "fireball-cpp-tests: aria2 did not forward the authenticated media grant",
+                "fireball-cpp-tests: aria2 leaked credential headers to the network",
+                file=sys.stderr,
+            )
+            return 1
+        if server.dash_requests < len(dash_files) * 2:
+            print(
+                "fireball-cpp-tests: DASH coordinator did not fetch every artifact through both routes",
                 file=sys.stderr,
             )
             return 1
@@ -430,7 +643,8 @@ def main() -> int:
             "fireball-cpp-tests: aria2 queue + end-to-end HLS VOD + HTTP CONNECT passed "
             f"({server.range_requests} range requests, "
             f"{server.manifest_requests} manifest requests, "
-            f"{server.authenticated_requests} authenticated requests, "
+            f"{server.authenticated_requests} credential-bearing aria2 requests, "
+            f"{server.dash_requests} DASH requests, "
             f"{proxy.connect_requests} proxy tunnels)"
         )
     return 0

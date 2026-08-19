@@ -1,4 +1,5 @@
 #include "fireball/components/transfer/aria2_sidecar.h"
+#include "fireball/components/transfer/dash_download.h"
 #include "fireball/components/transfer/hls_download.h"
 #include "fireball/components/transfer/transfer_queue.h"
 #include "fireball/components/transfer/transfer_types.h"
@@ -12,7 +13,6 @@
 #include <cassert>
 #include <cerrno>
 #include <chrono>
-#include <cstdio>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -133,10 +133,55 @@ void RunHlsDownload(fireball::transfer::TransferBackend* backend,
   }
 }
 
+void RunDashDownload(fireball::transfer::TransferBackend* backend,
+                     fireball::transfer::TransferPersistence persistence,
+                     std::string id,
+                     const std::filesystem::path& downloads,
+                     const std::filesystem::path& ffmpeg,
+                     std::string manifest_url,
+                     std::string output_name) {
+  fireball::transfer::DashDownload download(
+      backend, persistence, std::move(id), downloads, ffmpeg, 2'000'000);
+  assert(download.Start(std::move(manifest_url), output_name));
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(20);
+  while (std::chrono::steady_clock::now() < deadline &&
+         download.snapshot().state !=
+             fireball::transfer::DashDownloadState::kComplete) {
+    assert(download.Refresh());
+    assert(download.snapshot().state !=
+           fireball::transfer::DashDownloadState::kFailed);
+    std::this_thread::sleep_for(std::chrono::milliseconds(25));
+  }
+  assert(download.snapshot().state ==
+         fireball::transfer::DashDownloadState::kComplete);
+  assert(download.snapshot().selected_video_bandwidth > 0);
+  assert(download.snapshot().selected_width == 320);
+  assert(download.snapshot().selected_height == 180);
+  assert(download.snapshot().has_audio);
+  assert(download.snapshot().artifact_count >= 6);
+  assert(download.snapshot().completed_artifacts ==
+         download.snapshot().artifact_count);
+
+  const std::filesystem::path output = downloads / output_name;
+  struct stat output_status {};
+  assert(stat(output.c_str(), &output_status) == 0);
+  assert(S_ISREG(output_status.st_mode));
+  assert((output_status.st_mode & 0777) == 0600);
+  std::ifstream stream(output, std::ios::binary);
+  char signature[8] = {};
+  stream.read(signature, sizeof(signature));
+  assert(stream.gcount() == static_cast<std::streamsize>(sizeof(signature)));
+  assert(std::string_view(signature + 4, 4) == "ftyp");
+  for (const auto& entry : std::filesystem::directory_iterator(downloads)) {
+    assert(!entry.path().filename().string().starts_with(".fireball-dash-"));
+  }
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
-  assert(argc == 7);
+  assert(argc == 8);
   const std::filesystem::path aria2_executable(argv[1]);
   const std::string download_url(argv[2]);
   const std::size_t payload_size = std::stoull(argv[3]);
@@ -144,6 +189,7 @@ int main(int argc, char** argv) {
       static_cast<std::uint16_t>(std::stoul(argv[4]));
   const std::size_t hls_segment_count = std::stoull(argv[5]);
   const std::size_t hls_segment_size = std::stoull(argv[6]);
+  const std::filesystem::path ffmpeg_executable(argv[7]);
   assert(proxy_port != 0);
   assert(hls_segment_count > 0 && hls_segment_size > 0);
 
@@ -278,35 +324,23 @@ int main(int argc, char** argv) {
       std::string(kAuthenticatedTransferId), *authenticated_request,
       "Authenticated media",
       fireball::transfer::MediaCandidateKind::kDirectVideo);
-  if (!authenticated_enqueued) {
-    std::fprintf(stderr, "authenticated enqueue failed: %s\n",
-                 queue.last_control_error().c_str());
-  }
-  assert(authenticated_enqueued);
-  const auto authenticated_deadline =
-      std::chrono::steady_clock::now() + std::chrono::seconds(15);
-  while (std::chrono::steady_clock::now() < authenticated_deadline) {
-    assert(queue.Refresh(kAuthenticatedTransferId));
-    const auto* status = queue.Find(kAuthenticatedTransferId);
-    assert(status != nullptr &&
-           status->state != fireball::transfer::TransferState::kFailed);
-    if (status->state == fireball::transfer::TransferState::kComplete) {
-      break;
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(25));
-  }
-  assert(queue.Find(kAuthenticatedTransferId)->state ==
-         fireball::transfer::TransferState::kComplete);
-  assert(HasExpectedPayload(downloads / "fireball-authenticated.bin",
-                            payload_size));
-  assert(queue.ForgetFinished(kAuthenticatedTransferId));
+  assert(!authenticated_enqueued);
+  assert(queue.last_control_error() ==
+         "credential headers require the origin-pinned browser backend");
+  assert(queue.Find(kAuthenticatedTransferId) == nullptr);
+  assert(!std::filesystem::exists(downloads / "fireball-authenticated.bin"));
 
   const std::string hls_manifest_uri =
       download_origin + "/hls/master.m3u8";
+  const std::string dash_manifest_uri = download_origin + "/dash/manifest.mpd";
   RunHlsDownload(
       &sidecar->rpc(), fireball::transfer::TransferPersistence::kPersistent,
       "60000000-0000-4000-8000-000000000010", downloads, hls_manifest_uri,
       "fireball-hls-vod.ts", hls_segment_count, hls_segment_size);
+  RunDashDownload(
+      &sidecar->rpc(), fireball::transfer::TransferPersistence::kPersistent,
+      "80000000-0000-4000-8000-000000000010", downloads,
+      ffmpeg_executable, dash_manifest_uri, "fireball-dash-vod.mp4");
 
   auto torrent = fireball::transfer::MakeTorrentTransferRequest(
       LocalTorrentMetainfo(),
@@ -367,6 +401,11 @@ int main(int argc, char** argv) {
       fireball::transfer::TransferPersistence::kPersistent,
       "60000000-0000-4000-8000-000000000011", downloads, hls_manifest_uri,
       "fireball-proxied-hls.ts", hls_segment_count, hls_segment_size);
+  RunDashDownload(
+      &proxied_sidecar->rpc(),
+      fireball::transfer::TransferPersistence::kPersistent,
+      "80000000-0000-4000-8000-000000000011", downloads,
+      ffmpeg_executable, dash_manifest_uri, "fireball-proxied-dash.mp4");
   proxied_sidecar->Stop();
   proxied_sidecar.reset();
 

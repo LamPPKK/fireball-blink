@@ -25,6 +25,7 @@ struct DiscoveredMedia {
   std::uint64_t observed_at_ms = 0;
   bool directly_downloadable = false;
   bool hls_vod_downloadable = false;
+  bool dash_vod_downloadable = false;
 };
 
 // Internal hand-off to HlsDownload. Unlike DiscoveredMedia this contains a
@@ -35,10 +36,16 @@ struct HlsManifestRequest {
   std::vector<TransferRequestHeader> request_headers;
 };
 
+struct DashManifestRequest {
+  std::string uri;
+  std::string display_name;
+  std::vector<TransferRequestHeader> request_headers;
+};
+
 // Stores network-observed media candidates in memory only. Public snapshots do
 // not contain source URLs. Direct media can be consumed once into a
-// TransferRequest; HLS can be consumed by HlsDownload, while DASH remains
-// visible but gated until an assembler exists.
+// TransferRequest; HLS and DASH manifests can each be consumed once by their
+// bounded download coordinator.
 class MediaDiscovery final {
  public:
   bool Observe(std::string id,
@@ -55,6 +62,9 @@ class MediaDiscovery final {
       TransferPersistence persistence,
       std::vector<TransferRequestHeader> request_headers = {});
   std::optional<HlsManifestRequest> ConsumeHls(
+      std::string_view id,
+      std::vector<TransferRequestHeader> request_headers = {});
+  std::optional<DashManifestRequest> ConsumeDash(
       std::string_view id,
       std::vector<TransferRequestHeader> request_headers = {});
   std::size_t ForgetTab(std::string_view tab_id);

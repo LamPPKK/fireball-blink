@@ -509,34 +509,20 @@ Aria2RpcResult<std::string> Aria2RpcClient::Enqueue(
   if (!IsValidTransferRequest(request)) {
     return {std::nullopt, "invalid transfer request"};
   }
+  // aria2 forwards custom Authorization/Cookie headers across cross-origin
+  // redirects. Its RPC API has no per-request redirect prohibition, so a
+  // credential-bearing request must use Chromium's origin-aware network
+  // backend instead of this sidecar.
+  if (!request.request_headers.empty()) {
+    return {std::nullopt,
+            "credential headers require the origin-pinned browser backend"};
+  }
   std::string options = "{";
   ScopedStringErase erase_options(&options);
-  bool has_option = false;
   if (request.output_name.has_value()) {
     options += "\"out\":" + JsonQuote(*request.output_name) +
                ",\"auto-file-renaming\":\"" +
                (request.allow_automatic_renaming ? "true" : "false") + "\"";
-    has_option = true;
-  }
-  if (!request.request_headers.empty()) {
-    if (has_option) {
-      options.push_back(',');
-    }
-    options += "\"header\":[";
-    for (std::size_t index = 0; index < request.request_headers.size(); ++index) {
-      if (index != 0) {
-        options.push_back(',');
-      }
-      std::string header_line =
-          std::string(TransferRequestHeaderName(
-              request.request_headers[index].kind)) +
-          ": " + std::string(request.request_headers[index].value.view());
-      ScopedStringErase erase_header(&header_line);
-      std::string quoted_header = JsonQuote(header_line);
-      ScopedStringErase erase_quoted_header(&quoted_header);
-      options += quoted_header;
-    }
-    options.push_back(']');
   }
   options.push_back('}');
   std::string plain_token = "token:";
