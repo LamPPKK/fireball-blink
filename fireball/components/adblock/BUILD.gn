@@ -1,5 +1,6 @@
 source_set("adblock_policy") {
   sources = [
+    "cosmetic_evaluator.h",
     "network_evaluator.h",
     "profile_policy.cc",
     "profile_policy.h",
@@ -12,7 +13,10 @@ source_set("adblock_policy") {
 # target. Kept separate so the standalone overlay can compile policy code before
 # the Chromium/Rust toolchain seam exists.
 source_set("adblock_ffi_adapter") {
-  sources = [ "network_evaluator.cc" ]
+  sources = [
+    "cosmetic_evaluator.cc",
+    "network_evaluator.cc",
+  ]
 
   deps = [ ":adblock_policy" ]
 }

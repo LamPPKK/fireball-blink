@@ -1,15 +1,15 @@
-#include "fireball/components/navigation/request_policy.h"
-
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <string>
 #include <string_view>
 
+#include "fireball/components/navigation/document_cosmetic_policy.h"
+#include "fireball/components/navigation/request_policy.h"
+
 extern "C" FireballAdblockEngine*
 fireball_adblock_engine_create_unverified_for_testing(
-    const std::uint8_t* rules_data,
-    std::size_t rules_length);
+    const std::uint8_t* rules_data, std::size_t rules_length);
 
 namespace {
 
@@ -21,8 +21,8 @@ bool ResolveRegistrableDomain(const std::uint8_t* hostname_data,
       domain_start == nullptr || domain_end == nullptr) {
     return false;
   }
-  const std::string_view hostname(
-      reinterpret_cast<const char*>(hostname_data), hostname_length);
+  const std::string_view hostname(reinterpret_cast<const char*>(hostname_data),
+                                  hostname_length);
   const std::size_t last_dot = hostname.rfind('.');
   if (last_dot == std::string_view::npos) {
     *domain_start = 0;
@@ -36,10 +36,8 @@ bool ResolveRegistrableDomain(const std::uint8_t* hostname_data,
 }
 
 fireball::navigation::RequestContext ScriptRequest(
-    const fireball::browser::ProfileId& profile,
-    std::string url,
-    std::string hostname,
-    bool third_party) {
+    const fireball::browser::ProfileId& profile, std::string url,
+    std::string hostname, bool third_party) {
   return {profile,
           std::move(url),
           std::move(hostname),
@@ -53,8 +51,11 @@ fireball::navigation::RequestContext ScriptRequest(
 }  // namespace
 
 int main() {
+  using fireball::adblock::FfiCosmeticEvaluator;
   using fireball::adblock::FfiNetworkEvaluator;
   using fireball::browser::ProfileId;
+  using fireball::navigation::DocumentCosmeticPolicy;
+  using fireball::navigation::DocumentCosmeticStatus;
   using fireball::navigation::RequestAction;
   using fireball::navigation::RequestPolicy;
   using fireball::navigation::UrlCleaner;
@@ -63,7 +64,10 @@ int main() {
   const std::string rules =
       "||ads.example^\n"
       "@@||ads.example/allowed.js$script,domain=publisher.example\n"
-      "||tracker.example^$third-party\n";
+      "||tracker.example^$third-party\n"
+      "publisher.example##.sponsored\n"
+      "##.global-ad\n"
+      "@@||nogeneric.example^$generichide\n";
   FireballAdblockEngine* engine =
       fireball_adblock_engine_create_unverified_for_testing(
           reinterpret_cast<const std::uint8_t*>(rules.data()), rules.size());
@@ -79,6 +83,8 @@ int main() {
   assert(egress.AddProfile(profile));
   FfiNetworkEvaluator evaluator(engine);
   RequestPolicy policy(&shields, &evaluator, &cleaner, &egress);
+  FfiCosmeticEvaluator cosmetic_evaluator(engine);
+  DocumentCosmeticPolicy cosmetic_policy(&shields, &cosmetic_evaluator);
 
   auto decision = policy.Evaluate(
       {profile,
@@ -90,9 +96,27 @@ int main() {
        false,
        true});
   assert(decision.action == RequestAction::kAllow);
+
+  auto cosmetic = cosmetic_policy.BeginDocument(
+      profile, "https://publisher.example/article", "publisher.example");
+  assert(cosmetic.status == DocumentCosmeticStatus::kReady);
+  assert(cosmetic.stylesheet == ".sponsored{display:none!important;}\n");
+  assert(cosmetic.hidden_selector_count == 1);
+  assert(cosmetic.generic_scan_allowed);
+  assert(cosmetic.skipped_procedural_action_count == 0);
+  assert(!cosmetic.skipped_scriptlets);
+  auto generic = cosmetic_policy.MatchGenericSelectors(
+      profile, "publisher.example", cosmetic, {"global-ad"}, {});
+  assert(generic.status == DocumentCosmeticStatus::kReady);
+  assert(generic.stylesheet == ".global-ad{display:none!important;}\n");
+  assert(generic.hidden_selector_count == 1);
+
+  cosmetic = cosmetic_policy.BeginDocument(
+      profile, "https://nogeneric.example/", "nogeneric.example");
+  assert(cosmetic.status == DocumentCosmeticStatus::kReady);
+  assert(!cosmetic.generic_scan_allowed);
   assert(decision.url_cleaned && decision.removed_parameters == 1);
-  assert(decision.request_url ==
-         "https://publisher.example/article?story=1");
+  assert(decision.request_url == "https://publisher.example/article?story=1");
   assert(decision.proxy_rules == "direct://");
   assert(decision.adblock_evaluated);
 
@@ -118,6 +142,9 @@ int main() {
       profile, "https://ads.example/banner.js", "ads.example", true));
   assert(decision.action == RequestAction::kAllow);
   assert(!decision.adblock_evaluated);
+  cosmetic = cosmetic_policy.BeginDocument(
+      profile, "https://publisher.example/article", "publisher.example");
+  assert(cosmetic.status == DocumentCosmeticStatus::kDisabled);
 
   fireball_adblock_engine_destroy(engine);
   return 0;

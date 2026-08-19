@@ -95,6 +95,14 @@ and generic class/ID selectors are exercised through the actual engine. The
 single-thread feature is selected for this first memory-conscious lane; a
 generic build remains the performance control.
 
+The cosmetic path now crosses the native boundary as well: strict C++ decoding
+consumes bounded Rust JSON, a Profile-scoped document policy compiles validated
+hide selectors into CSS, and a second bounded class/ID phase honors
+`$generichide`. Site exemptions disable both phases. Procedural actions and
+engine scriptlets are reported as skipped and never executed. The future
+Chromium renderer adapter must use an isolated-world stylesheet API and may not
+inject HTML or page-world script. See the [cosmetic filtering contract](docs/COSMETIC_FILTERING.md).
+
 Release engine creation fails closed until Chromium registers its
 registry-controlled-domain resolver and a rules artifact passes bounded input,
 SHA-256, Ed25519, source provenance, engine-version and minimum-app-version
@@ -113,14 +121,15 @@ The adblock path fails closed on a missing engine, malformed result or unknown
 flags; only bounded subresource `data:` redirects and same-host, same-scheme
 rewrites are accepted.
 
-The integration gate links this C++ policy to the actual pinned Rust library
-and proves block, exception, third-party and exemption behavior. See the
-[request pipeline and Chromium adapter contract](docs/REQUEST_PIPELINE.md).
+The integration gate links these C++ policies to the actual pinned Rust library
+and proves block, exception, third-party, exemption, site-specific cosmetic,
+generic selector and `$generichide` behavior. See the [request pipeline and
+Chromium adapter contract](docs/REQUEST_PIPELINE.md).
 
-This is not yet full Brave Shields or a Chromium network interceptor. The B0
+This is not yet full Brave Shields or a Chromium network/renderer interceptor. The B0
 Chromium checkout still needs to supply trusted `GURL` fields, wire the Rust
 target into GN, apply decisions in navigation/URL-loader throttles, inject
-cosmetic resources through isolated worlds, and publish a real signed
+the validated cosmetic styles through an isolated world, and publish a real signed
 EasyList/EasyPrivacy-derived artifact and embedded production key. Until those
 steps land, the feature is a tested native foundation rather than a
 user-visible blocker.

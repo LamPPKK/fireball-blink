@@ -57,8 +57,11 @@ payloads are bounded again at the C++ boundary.
 unsigned constructor, runs the Rust and Python C-ABI suites, then links a C++
 integration executable against the produced library. That final test proves
 the whole path for URL cleaning, blocking, an allow exception, third-party
-matching, a site exemption and the Direct route. Normal product builds do not
-expose the unsigned constructor.
+matching, a site exemption and the Direct route. The same executable also
+proves site-specific cosmetic hiding, generic class matching and
+`$generichide` through the real Rust ABI. Normal product builds do not expose
+the unsigned constructor. See the [cosmetic filtering and renderer adapter
+contract](COSMETIC_FILTERING.md) for that second path.
 
 ## Chromium wiring after B0
 
@@ -76,8 +79,11 @@ policy implementation:
   remain idle-session transactions;
 - response observation can pass bounded media candidates to `MediaDiscovery`,
   but must not persist complete browsing URLs or re-evaluate policy elsewhere.
+- the renderer adapter must install validated cosmetic styles through a
+  browser-owned isolated-world stylesheet seam, bind each plan to its Profile
+  and document, and submit only bounded class/ID tokens for generic matching.
 
-The current repository proves the platform-neutral policy and native FFI seam.
-It does not claim a Chromium interceptor, user-visible Shields UI, cosmetic
-injection or working browser proxy until those adapters pass the control and
-overlay builds on the Linux builder.
+The current repository proves the platform-neutral network/cosmetic policies
+and native FFI seams. It does not claim a Chromium interceptor, user-visible
+Shields UI, cosmetic renderer injection or working browser proxy until those
+adapters pass the control and overlay builds on the Linux builder.

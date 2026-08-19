@@ -611,8 +611,11 @@ pub unsafe extern "C" fn fireball_adblock_cosmetic_resources(
             resources.procedural_actions.into_iter().collect();
         let mut exceptions: Vec<String> = resources.exceptions.into_iter().collect();
         hide_selectors.sort();
+        hide_selectors.dedup();
         procedural_actions.sort();
+        procedural_actions.dedup();
         exceptions.sort();
+        exceptions.dedup();
         if !bounded_strings(&hide_selectors, MAX_COSMETIC_ENTRIES, MAX_SELECTOR_BYTES)
             || !bounded_strings(
                 &procedural_actions,
@@ -696,6 +699,7 @@ pub unsafe extern "C" fn fireball_adblock_hidden_selectors(
                 .engine
                 .hidden_class_id_selectors(&classes, &ids, &exceptions);
         selectors.sort();
+        selectors.dedup();
         if !bounded_strings(&selectors, MAX_GENERIC_SELECTORS, MAX_SELECTOR_BYTES)
             || !bounded_json_encoding(selectors.iter())
         {
@@ -819,6 +823,32 @@ publisher.example##.sponsored
             &resources.exceptions,
         );
         assert!(hidden.contains(&".global-ad".to_string()));
+    }
+
+    #[test]
+    fn cosmetic_ffi_bounds_reject_oversized_values() {
+        let selectors = vec![".ad".to_string()];
+        assert!(bounded_strings(
+            &selectors,
+            MAX_COSMETIC_ENTRIES,
+            MAX_SELECTOR_BYTES
+        ));
+        assert!(bounded_json_encoding(selectors.iter()));
+
+        let empty = vec![String::new()];
+        assert!(!bounded_strings(
+            &empty,
+            MAX_COSMETIC_ENTRIES,
+            MAX_SELECTOR_BYTES
+        ));
+        let oversized_selector = vec!["x".repeat(MAX_SELECTOR_BYTES + 1)];
+        assert!(!bounded_strings(
+            &oversized_selector,
+            MAX_COSMETIC_ENTRIES,
+            MAX_SELECTOR_BYTES
+        ));
+        let oversized_json = ["x".repeat(MAX_COSMETIC_JSON_BYTES / 6 + 1)];
+        assert!(!bounded_json_encoding(oversized_json.iter()));
     }
 
     #[test]

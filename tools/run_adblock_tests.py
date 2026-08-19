@@ -43,10 +43,12 @@ def run_cpp_request_policy_test(
     sources = [
         "fireball/browser/domain_model.cc",
         "fireball/components/adblock/profile_policy.cc",
+        "fireball/components/adblock/cosmetic_evaluator.cc",
         "fireball/components/adblock/network_evaluator.cc",
         "fireball/components/egress/egress_route.cc",
         "fireball/components/egress/egress_controller.cc",
         "fireball/components/navigation/url_cleaner.cc",
+        "fireball/components/navigation/document_cosmetic_policy.cc",
         "fireball/components/navigation/request_policy.cc",
         "fireball/components/privacy/network_audit.cc",
         "tests/request_policy_ffi_test.cc",
@@ -171,6 +173,7 @@ def main() -> int:
             b"||tracker.example^$third-party",
             b"publisher.example##.sponsored",
             b"##.global-ad",
+            b"@@||nogeneric.example^$generichide",
         ]
     )
     rules_buffer = byte_buffer(rules)

@@ -216,6 +216,14 @@ def main() -> int:
             "adblock_ffi_header_test": [
                 "tests/adblock_ffi_header_test.cc",
             ],
+            "cosmetic_evaluator_test": [
+                "fireball/browser/domain_model.cc",
+                "fireball/components/adblock/profile_policy.cc",
+                "fireball/components/adblock/cosmetic_evaluator.cc",
+                "fireball/components/navigation/url_cleaner.cc",
+                "fireball/components/navigation/document_cosmetic_policy.cc",
+                "tests/cosmetic_evaluator_test.cc",
+            ],
             "egress_test": [
                 "fireball/browser/domain_model.cc",
                 "fireball/components/privacy/network_audit.cc",
