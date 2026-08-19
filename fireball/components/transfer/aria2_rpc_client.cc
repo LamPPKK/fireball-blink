@@ -25,6 +25,29 @@ namespace {
 constexpr std::size_t kMaximumRpcResponseBytes = 1024 * 1024;
 constexpr std::chrono::seconds kRpcTimeout(2);
 
+void SecureErase(std::string* value) {
+  if (value == nullptr) {
+    return;
+  }
+  volatile char* bytes = value->empty() ? nullptr : value->data();
+  for (std::size_t index = 0; index < value->size(); ++index) {
+    bytes[index] = 0;
+  }
+  value->clear();
+}
+
+class ScopedStringErase final {
+ public:
+  explicit ScopedStringErase(std::string* value) : value_(value) {}
+  ~ScopedStringErase() { SecureErase(value_); }
+
+  ScopedStringErase(const ScopedStringErase&) = delete;
+  ScopedStringErase& operator=(const ScopedStringErase&) = delete;
+
+ private:
+  std::string* value_;
+};
+
 class ScopedSocket final {
  public:
   explicit ScopedSocket(int descriptor) : descriptor_(descriptor) {}
@@ -299,13 +322,14 @@ Aria2RpcResult<std::string> PostToLoopback(std::uint16_t port,
     return {std::nullopt, SocketError("connect")};
   }
 
-  const std::string request =
+  std::string request =
       "POST /jsonrpc HTTP/1.1\r\nHost: 127.0.0.1:" +
       std::to_string(port) +
       "\r\nContent-Type: application/json\r\nAccept: application/json\r\n"
       "Connection: close\r\nContent-Length: " +
       std::to_string(request_body.size()) + "\r\n\r\n" +
       std::string(request_body);
+  ScopedStringErase erase_request(&request);
 
   std::size_t sent = 0;
   while (sent < request.size()) {
@@ -416,14 +440,16 @@ bool Aria2RpcClient::IsConfigurationValid() const {
 Aria2RpcResult<std::string> Aria2RpcClient::Call(
     std::string_view method,
     std::string params_json) {
+  ScopedStringErase erase_params(&params_json);
   if (!IsConfigurationValid()) {
     return {std::nullopt, "invalid loopback RPC configuration"};
   }
   const std::string request_id = "fireball-" + std::to_string(next_request_id_++);
-  const std::string body =
+  std::string body =
       "{\"jsonrpc\":\"2.0\",\"id\":" + JsonQuote(request_id) +
       ",\"method\":" + JsonQuote(method) + ",\"params\":" +
-      std::move(params_json) + "}";
+      params_json + "}";
+  ScopedStringErase erase_body(&body);
   auto response = PostToLoopback(port_, body);
   if (!response.ok()) {
     return response;
@@ -444,7 +470,8 @@ Aria2RpcResult<std::string> Aria2RpcClient::Call(
 Aria2RpcResult<std::string> Aria2RpcClient::CallForString(
     std::string_view method,
     std::string params_json) {
-  auto response = Call(method, std::move(params_json));
+  ScopedStringErase erase_params(&params_json);
+  auto response = Call(method, params_json);
   if (!response.ok()) {
     return response;
   }
@@ -479,37 +506,62 @@ Aria2RpcResult<std::string> Aria2RpcClient::Enqueue(
     return {std::nullopt,
             "peer-to-peer transfers are disabled for the active egress route"};
   }
-  std::string options = "{}";
-  if (request.output_name.has_value()) {
-    if (!IsSafeOutputName(*request.output_name)) {
-      return {std::nullopt, "unsafe output filename"};
-    }
-    options = "{\"out\":" + JsonQuote(*request.output_name) +
-              ",\"auto-file-renaming\":\"" +
-              (request.allow_automatic_renaming ? "true" : "false") + "\"}";
+  if (!IsValidTransferRequest(request)) {
+    return {std::nullopt, "invalid transfer request"};
   }
-  const std::string token = JsonQuote("token:" + secret_);
+  std::string options = "{";
+  ScopedStringErase erase_options(&options);
+  bool has_option = false;
+  if (request.output_name.has_value()) {
+    options += "\"out\":" + JsonQuote(*request.output_name) +
+               ",\"auto-file-renaming\":\"" +
+               (request.allow_automatic_renaming ? "true" : "false") + "\"";
+    has_option = true;
+  }
+  if (!request.request_headers.empty()) {
+    if (has_option) {
+      options.push_back(',');
+    }
+    options += "\"header\":[";
+    for (std::size_t index = 0; index < request.request_headers.size(); ++index) {
+      if (index != 0) {
+        options.push_back(',');
+      }
+      std::string header_line =
+          std::string(TransferRequestHeaderName(
+              request.request_headers[index].kind)) +
+          ": " + std::string(request.request_headers[index].value.view());
+      ScopedStringErase erase_header(&header_line);
+      std::string quoted_header = JsonQuote(header_line);
+      ScopedStringErase erase_quoted_header(&quoted_header);
+      options += quoted_header;
+    }
+    options.push_back(']');
+  }
+  options.push_back('}');
+  std::string plain_token = "token:";
+  plain_token += secret_;
+  ScopedStringErase erase_plain_token(&plain_token);
+  std::string token = JsonQuote(plain_token);
+  ScopedStringErase erase_token(&token);
   Aria2RpcResult<std::string> result;
   if (request.source_kind == TransferSourceKind::kHttp ||
       request.source_kind == TransferSourceKind::kMagnet) {
-    const bool valid = request.source_kind == TransferSourceKind::kHttp
-                           ? IsSafeHttpDownloadUri(request.source)
-                           : IsSafeMagnetUri(request.source);
-    if (!valid || !request.torrent_metainfo.empty()) {
-      return {std::nullopt, "invalid URI transfer request"};
-    }
-    result = CallForString("aria2.addUri",
-                           "[" + token + ",[" + JsonQuote(request.source) +
-                               "]," + options + "]");
+    std::string quoted_source = JsonQuote(request.source);
+    ScopedStringErase erase_quoted_source(&quoted_source);
+    std::string params =
+        "[" + token + ",[" + quoted_source + "]," + options + "]";
+    ScopedStringErase erase_params(&params);
+    result = CallForString("aria2.addUri", params);
   } else if (request.source_kind == TransferSourceKind::kTorrentMetainfo) {
-    if (!request.source.empty() ||
-        !IsPlausibleTorrentMetainfo(request.torrent_metainfo)) {
-      return {std::nullopt, "invalid torrent transfer request"};
-    }
-    result = CallForString(
-        "aria2.addTorrent",
-        "[" + token + "," + JsonQuote(Base64Encode(request.torrent_metainfo)) +
-            ",[]," + options + "]");
+    std::string encoded_metainfo = Base64Encode(request.torrent_metainfo);
+    ScopedStringErase erase_metainfo(&encoded_metainfo);
+    std::string quoted_metainfo = JsonQuote(encoded_metainfo);
+    ScopedStringErase erase_quoted_metainfo(&quoted_metainfo);
+    std::string params = "[" + token + "," + quoted_metainfo + ",[]," +
+                         options + "]";
+    ScopedStringErase erase_params(&params);
+    result = CallForString("aria2.addTorrent", params);
   } else {
     return {std::nullopt, "unsupported transfer source"};
   }

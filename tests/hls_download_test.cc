@@ -245,16 +245,31 @@ int main() {
 
   FakeBackend direct_backend;
   {
+    std::vector<fireball::transfer::TransferRequestHeader> request_headers;
+    request_headers.emplace_back(
+        fireball::transfer::TransferRequestHeaderKind::kAuthorization,
+        "Bearer hls-private-token");
+    request_headers.emplace_back(
+        fireball::transfer::TransferRequestHeaderKind::kCookie,
+        "session=hls-private");
     HlsDownload direct(
         &direct_backend, TransferPersistence::kPersistent,
         "70000000-0000-4000-8000-000000000002", directory);
     assert(direct.Start("https://media.example.test/vod/index.m3u8",
-                        "Direct media.ts"));
+                        "Direct media.ts", std::move(request_headers)));
     WriteRequestOutput(directory, direct_backend, 0, media);
     direct_backend.Complete(0, media.size());
     assert(direct.Refresh());
     assert(direct.snapshot().manifest_fetches_completed == 1);
     assert(direct.snapshot().segment_count == 2);
+    assert(direct_backend.requests.size() == 3);
+    for (const auto& request : direct_backend.requests) {
+      assert(request.request_headers.size() == 2);
+      assert(request.request_headers[0].value.view() ==
+             "Bearer hls-private-token");
+      assert(request.request_headers[1].value.view() ==
+             "session=hls-private");
+    }
   }
   assert(direct_backend.remove_count == 2);
   assert(direct_backend.forget_count == 3);

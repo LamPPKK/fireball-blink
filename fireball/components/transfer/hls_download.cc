@@ -170,13 +170,17 @@ HlsDownload::~HlsDownload() {
   }
 }
 
-bool HlsDownload::Start(std::string manifest_uri, std::string output_name) {
+bool HlsDownload::Start(
+    std::string manifest_uri,
+    std::string output_name,
+    std::vector<TransferRequestHeader> request_headers) {
   if (backend_ == nullptr || snapshot_.state != HlsDownloadState::kIdle ||
       !IsCanonicalTransferId(snapshot_.id) ||
       !IsSafeDownloadDirectory(download_directory_) ||
       !IsSafeHttpDownloadUri(manifest_uri) ||
       manifest_uri.find('#') != std::string::npos ||
-      !IsSafeOutputName(output_name) || !IsMpegTsOutput(output_name)) {
+      !IsSafeOutputName(output_name) || !IsMpegTsOutput(output_name) ||
+      !IsValidTransferRequestHeaders(request_headers)) {
     Erase(&manifest_uri);
     SetFailure("HLS_INVALID_JOB");
     return false;
@@ -189,6 +193,7 @@ bool HlsDownload::Start(std::string manifest_uri, std::string output_name) {
     return false;
   }
   snapshot_.output_name = std::move(output_name);
+  request_headers_ = std::move(request_headers);
   if (!EnqueueManifest(ManifestKind::kEntry, std::move(manifest_uri))) {
     SetFailure("HLS_MANIFEST_ENQUEUE_FAILED");
     return false;
@@ -214,7 +219,8 @@ bool HlsDownload::EnqueueManifest(ManifestKind kind, std::string uri) {
                           uri,
                           filename,
                           {},
-                          false};
+                          false,
+                          request_headers_};
   auto result = backend_->Enqueue(request);
   Erase(&request.source);
   if (!result.ok() || !IsValidAria2Gid(*result.value)) {
@@ -357,7 +363,8 @@ bool HlsDownload::ConsumeManifest() {
 bool HlsDownload::StartSegments(HlsVodPlan plan) {
   segment_session_ = std::make_unique<HlsVodSession>(
       backend_, persistence_, snapshot_.id, download_directory_);
-  if (!segment_session_->Start(std::move(plan), snapshot_.output_name)) {
+  if (!segment_session_->Start(std::move(plan), snapshot_.output_name,
+                               std::move(request_headers_))) {
     const std::string code = segment_session_->snapshot().failure_code;
     segment_session_.reset();
     SetFailure(code.empty() ? "HLS_SEGMENT_START_FAILED" : code);
@@ -480,6 +487,7 @@ bool HlsDownload::Cancel() {
   }
   snapshot_.bytes_per_second = 0;
   if (success) {
+    ClearRequestHeaders();
     snapshot_.state = HlsDownloadState::kCancelled;
     snapshot_.failure_code.clear();
   } else {
@@ -528,13 +536,20 @@ bool HlsDownload::CleanManifestFetch() {
 void HlsDownload::BestEffortClean() {
   static_cast<void>(CleanManifestFetch());
   segment_session_.reset();
+  ClearRequestHeaders();
   snapshot_.bytes_per_second = 0;
 }
 
 void HlsDownload::SetFailure(std::string_view code) {
+  ClearRequestHeaders();
   snapshot_.state = HlsDownloadState::kFailed;
   snapshot_.bytes_per_second = 0;
   snapshot_.failure_code.assign(code.substr(0, 64));
+}
+
+void HlsDownload::ClearRequestHeaders() {
+  request_headers_.clear();
+  request_headers_.shrink_to_fit();
 }
 
 }  // namespace fireball::transfer

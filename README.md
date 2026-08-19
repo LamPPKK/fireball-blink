@@ -165,13 +165,18 @@ pauses/resumes an 8 MiB ranged download and verifies every output byte.
 `MediaDiscovery` adds a bounded, RAM-only per-Tab candidate store for direct
 audio/video, HLS and DASH. Public snapshots omit source URLs, direct media and
 HLS candidates are consumed once, and candidates disappear on Tab cleanup or
-expiry. The HLS lane parses bounded master playlists, selects a bandwidth
-variant, and accepts only finite, unencrypted MPEG-TS VOD media playlists. Its
-coordinator now fetches the entry manifest and selected child playlist through
-the same aria2 storage/egress boundary as every segment, then assembles a
+expiry. A separate RAM-only `MediaHeaderGrantStore` can bind a one-time,
+maximum-60-second request-header capability to one Profile, Tab and candidate.
+It accepts only bounded `Authorization`, `Cookie`, `Origin`, `Referer` and
+`User-Agent` values; grants are consumed once or destroyed on expiry, Tab close
+or Profile removal, and never enter queue snapshots. The HLS lane passes the
+consumed headers to the entry manifest, selected child playlist and every
+segment. It parses bounded master playlists, selects a bandwidth variant, and
+accepts only finite, unencrypted MPEG-TS VOD media playlists. Its coordinator
+uses the same aria2 storage/egress boundary throughout, then assembles a
 mode-0600 `.ts` file with atomic no-overwrite publish. Product snapshots omit
-playlist/segment URLs and GIDs. Manifest, segment and aria2 result artifacts are
-removed before success is reported.
+headers, playlist/segment URLs and GIDs. Manifest, segment and aria2 result
+artifacts are removed before success is reported.
 Live/event HLS, encryption, byte ranges, discontinuities, fMP4 and low-latency
 extensions still fail closed; DASH remains detected but gated.
 
@@ -190,15 +195,16 @@ routes until every peer socket can be proven to stay inside that egress.
 the real sidecar, downloads and byte-verifies an 8 MiB local fixture through
 multiple HTTP Range requests, exercises pause/resume, fetches master/variant
 playlists and three HLS segments over both Direct and loopback HTTP CONNECT,
-and verifies assembled outputs byte-for-byte. It also submits valid torrent
-metainfo, verifies no uploaded `.torrent` is retained, and proves clean child
-process shutdown. Install the dependency with `brew install aria2` on macOS or
-`apt install aria2` on Ubuntu. DASH assembly, authenticated media header
-handoff, Chromium download interception and the Chromium user-facing transfer
-shelf remain follow-up work. The AppKit preview includes a deterministic drawer
-backed by the real queue state machine and HLS parser, not a production download
-surface. See [the transfer architecture and remaining promotion
-work](docs/TRANSFERS.md).
+and verifies assembled outputs byte-for-byte. A protected local endpoint also
+proves that the real aria2 process receives the bounded authentication grant.
+The suite submits valid torrent metainfo, verifies no uploaded `.torrent` is
+retained, and proves clean child process shutdown. Install the dependency with
+`brew install aria2` on macOS or `apt install aria2` on Ubuntu. DASH assembly,
+Chromium-side grant minting/download interception and the user-facing Chromium
+transfer shelf remain follow-up work. The AppKit preview includes a
+deterministic drawer backed by the real queue state machine and HLS parser, not
+a production download surface. See [the transfer architecture and remaining
+promotion work](docs/TRANSFERS.md).
 
 ## WARP and Tor egress foundation
 

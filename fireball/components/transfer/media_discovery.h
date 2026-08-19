@@ -32,6 +32,7 @@ struct DiscoveredMedia {
 struct HlsManifestRequest {
   std::string uri;
   std::string display_name;
+  std::vector<TransferRequestHeader> request_headers;
 };
 
 // Stores network-observed media candidates in memory only. Public snapshots do
@@ -51,8 +52,11 @@ class MediaDiscovery final {
   std::vector<DiscoveredMedia> SnapshotForTab(std::string_view tab_id) const;
   std::optional<TransferRequest> ConsumeDirect(
       std::string_view id,
-      TransferPersistence persistence);
-  std::optional<HlsManifestRequest> ConsumeHls(std::string_view id);
+      TransferPersistence persistence,
+      std::vector<TransferRequestHeader> request_headers = {});
+  std::optional<HlsManifestRequest> ConsumeHls(
+      std::string_view id,
+      std::vector<TransferRequestHeader> request_headers = {});
   std::size_t ForgetTab(std::string_view tab_id);
   std::size_t ExpireBefore(std::uint64_t cutoff_ms);
   std::size_t size() const { return records_.size(); }

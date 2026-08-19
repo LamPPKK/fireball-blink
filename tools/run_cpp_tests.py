@@ -70,6 +70,20 @@ class RangeRequestHandler(BaseHTTPRequestHandler):
                 return
             payload = HLS_SEGMENTS[int(match.group(1))]
             content_type = "video/mp2t"
+        elif self.path == "/protected.bin":
+            expected_referer = (
+                f"http://127.0.0.1:{self.server.server_port}/watch"  # type: ignore[attr-defined]
+            )
+            if (
+                self.headers.get("Authorization")
+                != "Bearer fireball-integration-token"
+                or self.headers.get("Cookie") != "session=fireball-private"
+                or self.headers.get("Referer") != expected_referer
+            ):
+                self.send_error(403)
+                return
+            with self.server.counter_lock:  # type: ignore[attr-defined]
+                self.server.authenticated_requests += 1  # type: ignore[attr-defined]
         elif self.path != "/fireball-range.bin":
             self.send_error(404)
             return
@@ -127,6 +141,7 @@ class RangeServer(ThreadingHTTPServer):
         self.range_requests = 0
         self.total_requests = 0
         self.manifest_requests = 0
+        self.authenticated_requests = 0
 
 
 class ConnectProxyHandler(socketserver.StreamRequestHandler):
@@ -267,9 +282,15 @@ def main() -> int:
                 "fireball/components/transfer/transfer_types.cc",
                 "fireball/components/transfer/aria2_rpc_client.cc",
                 "fireball/components/transfer/media_discovery.cc",
+                "fireball/components/transfer/media_header_grant.cc",
                 "fireball/components/transfer/transfer_queue.cc",
                 "fireball/components/transfer/egress_transfer_policy.cc",
                 "tests/transfer_test.cc",
+            ],
+            "media_header_grant_test": [
+                "fireball/components/transfer/transfer_types.cc",
+                "fireball/components/transfer/media_header_grant.cc",
+                "tests/media_header_grant_test.cc",
             ],
             "hls_vod_test": [
                 "fireball/components/transfer/transfer_types.cc",
@@ -399,10 +420,17 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 1
+        if server.authenticated_requests < 1:
+            print(
+                "fireball-cpp-tests: aria2 did not forward the authenticated media grant",
+                file=sys.stderr,
+            )
+            return 1
         print(
             "fireball-cpp-tests: aria2 queue + end-to-end HLS VOD + HTTP CONNECT passed "
             f"({server.range_requests} range requests, "
             f"{server.manifest_requests} manifest requests, "
+            f"{server.authenticated_requests} authenticated requests, "
             f"{proxy.connect_requests} proxy tunnels)"
         )
     return 0

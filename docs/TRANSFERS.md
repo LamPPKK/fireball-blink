@@ -15,6 +15,8 @@ MediaDiscovery — RAM only, bounded per Tab
         │  direct audio/video: one-time TransferRequest
         │  HLS VOD: one-time HlsManifestRequest
         │  DASH / unsupported HLS: visible but gated
+        │
+        ├── MediaHeaderGrantStore — one-time Profile/Tab/candidate capability
         ▼
 TransferQueue / HlsDownload — no source URL/metainfo in snapshots
         │
@@ -30,8 +32,10 @@ machine and HLS parser with a deterministic fake backend. The integration test
 drives the same queue and `HlsDownload` against a real aria2 1.37.0 process,
 byte-verifies an 8 MiB ranged download, fetches a master and selected child
 playlist, then verifies a three-segment HLS output. It repeats that HLS flow
-through the loopback HTTP CONNECT route used by WARP/Tor downloads. The AppKit
-artifact remains a model preview, not Chromium UI.
+through the loopback HTTP CONNECT route used by WARP/Tor downloads. A separate
+protected fixture requires `Authorization`, `Cookie` and `Referer`, proving the
+real aria2 JSON-RPC path forwards the bounded grant. The AppKit artifact remains
+a model preview, not Chromium UI.
 
 ## Queue lifecycle
 
@@ -91,6 +95,33 @@ for Chromium's response observer to call after B0.
   is never presented as a completed video.
 - DRM/Widevine capture is out of scope.
 
+## Authenticated media grants
+
+The native boundary supports authenticated downloads without handing aria2 a
+Profile's cookie jar. The future Chromium adapter creates a cryptographically
+random UUIDv4 capability ID and stores the associated header values only in
+`MediaHeaderGrantStore`.
+
+- A grant is bound to one canonical Profile UUID, Tab UUID and discovered-media
+  candidate UUID. It can be consumed once, expires after at most 60 seconds and
+  is revoked when its Tab or Profile closes. Failed binding checks do not
+  consume another caller's grant.
+- The store is RAM-only and capped at 128 records. Grant IDs must never be put
+  in URLs, logs, persistence or public UI state.
+- The allowlist is exactly `Authorization`, `Cookie`, `Origin`, `Referer` and
+  `User-Agent`, in canonical unique order. Values must be printable ASCII,
+  cannot have surrounding spaces, are capped at 8 KiB each and 16 KiB total.
+  This rejects CR/LF injection and excludes proxy credentials.
+- Request headers are valid only for HTTP(S); magnet and `.torrent` requests
+  reject them. HLS forwards the same consumed header set to the entry manifest,
+  selected variant and all segments.
+- Header containers overwrite owned bytes on destruction. Temporary aria2
+  header/JSON-RPC buffers are explicitly erased after the enqueue call. This is
+  best-effort process-memory hygiene, not a claim that every allocator or kernel
+  copy can be physically overwritten.
+- Queue snapshots, errors and result records contain no header or grant value;
+  aria2 still runs without `save-session` persistence.
+
 ## Torrent and egress policy
 
 Canonical BitTorrent v1 magnets and bounded `.torrent` metainfo are accepted.
@@ -110,9 +141,9 @@ label a torrent private merely because the browser page itself uses WARP or Tor.
   policy;
 - pass the one-time `HlsManifestRequest` from the Chromium response observer to
   `HlsDownload`, together with the current Profile's verified aria2 route;
-- design a bounded, short-lived cookie/header grant for authenticated media.
-  The current coordinator intentionally supports public or URL-tokenized HLS
-  only and does not read Chromium cookie storage;
+- mint the implemented one-time header grant from Chromium's current request
+  context without exposing the full cookie jar, then revoke it with the owning
+  Tab/Profile lifecycle;
 - persist regular transfer metadata without persisting signed source URLs;
 - delete partial ephemeral files when their Profile/Burner Space closes;
 - add DASH/fMP4 muxing and decide separately whether encrypted non-DRM HLS is

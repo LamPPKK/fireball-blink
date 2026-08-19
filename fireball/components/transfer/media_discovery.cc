@@ -109,14 +109,18 @@ std::vector<DiscoveredMedia> MediaDiscovery::SnapshotForTab(
 
 std::optional<TransferRequest> MediaDiscovery::ConsumeDirect(
     std::string_view id,
-    TransferPersistence persistence) {
+    TransferPersistence persistence,
+    std::vector<TransferRequestHeader> request_headers) {
   auto record = records_.find(id);
-  if (record == records_.end() || !record->second.candidate.directly_downloadable) {
+  if (record == records_.end() ||
+      !record->second.candidate.directly_downloadable ||
+      !IsValidTransferRequestHeaders(request_headers)) {
     return std::nullopt;
   }
   auto request = MakeUriTransferRequest(
       record->second.source_uri, persistence,
-      std::optional<std::string>(record->second.candidate.display_name));
+      std::optional<std::string>(record->second.candidate.display_name),
+      std::move(request_headers));
   if (!request.has_value()) {
     return std::nullopt;
   }
@@ -125,14 +129,17 @@ std::optional<TransferRequest> MediaDiscovery::ConsumeDirect(
 }
 
 std::optional<HlsManifestRequest> MediaDiscovery::ConsumeHls(
-    std::string_view id) {
+    std::string_view id,
+    std::vector<TransferRequestHeader> request_headers) {
   auto record = records_.find(id);
   if (record == records_.end() ||
-      record->second.candidate.kind != MediaCandidateKind::kHlsManifest) {
+      record->second.candidate.kind != MediaCandidateKind::kHlsManifest ||
+      !IsValidTransferRequestHeaders(request_headers)) {
     return std::nullopt;
   }
   HlsManifestRequest request{std::move(record->second.source_uri),
-                             std::move(record->second.candidate.display_name)};
+                             std::move(record->second.candidate.display_name),
+                             std::move(request_headers)};
   records_.erase(record);
   return request;
 }

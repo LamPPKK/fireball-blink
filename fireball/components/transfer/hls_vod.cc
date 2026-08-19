@@ -615,11 +615,14 @@ HlsVodSession::~HlsVodSession() {
 }
 
 bool HlsVodSession::ValidateStart(const HlsVodPlan& plan,
-                                  std::string_view output_name) const {
+                                  std::string_view output_name,
+                                  const std::vector<TransferRequestHeader>&
+                                      request_headers) const {
   if (backend_ == nullptr || snapshot_.state != HlsVodJobState::kIdle ||
       !IsCanonicalTransferId(snapshot_.id) ||
       !IsSafeDownloadDirectory(download_directory_) ||
       !IsSafeOutputName(output_name) || !IsMpegTsUri(output_name) ||
+      !IsValidTransferRequestHeaders(request_headers) ||
       plan.segments.empty() || plan.segments.size() > kMaximumHlsSegments ||
       plan.total_duration_ms == 0 ||
       plan.total_duration_ms > kMaximumHlsDurationMs) {
@@ -637,8 +640,11 @@ bool HlsVodSession::ValidateStart(const HlsVodPlan& plan,
   return duration == plan.total_duration_ms;
 }
 
-bool HlsVodSession::Start(HlsVodPlan plan, std::string output_name) {
-  if (!ValidateStart(plan, output_name)) {
+bool HlsVodSession::Start(
+    HlsVodPlan plan,
+    std::string output_name,
+    std::vector<TransferRequestHeader> request_headers) {
+  if (!ValidateStart(plan, output_name, request_headers)) {
     SetFailure("HLS_INVALID_JOB");
     return false;
   }
@@ -667,7 +673,8 @@ bool HlsVodSession::Start(HlsVodPlan plan, std::string output_name) {
                             std::move(plan.segments[index].uri),
                             filename,
                             {},
-                            false};
+                            false,
+                            request_headers};
     auto result = backend_->Enqueue(request);
     std::fill(request.source.begin(), request.source.end(), '\0');
     if (!result.ok() || !IsValidAria2Gid(*result.value) ||

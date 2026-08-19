@@ -12,6 +12,8 @@ source_set("transfer") {
     "hls_vod.h",
     "media_discovery.cc",
     "media_discovery.h",
+    "media_header_grant.cc",
+    "media_header_grant.h",
     "transfer_types.cc",
     "transfer_types.h",
     "transfer_queue.cc",

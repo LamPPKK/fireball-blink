@@ -1,5 +1,6 @@
 #include "fireball/components/transfer/aria2_rpc_client.h"
 #include "fireball/components/transfer/egress_transfer_policy.h"
+#include "fireball/components/transfer/media_header_grant.h"
 #include "fireball/components/transfer/media_discovery.h"
 #include "fireball/components/transfer/transfer_queue.h"
 #include "fireball/components/transfer/transfer_types.h"
@@ -89,6 +90,7 @@ int main() {
   using fireball::transfer::IsValidAria2Secret;
   using fireball::transfer::MakeTorrentTransferRequest;
   using fireball::transfer::MakeUriTransferRequest;
+  using fireball::transfer::MediaHeaderGrantStore;
   using fireball::transfer::MediaDiscovery;
   using fireball::transfer::MediaCandidateKind;
   using fireball::transfer::TransferPersistence;
@@ -197,18 +199,41 @@ int main() {
   auto hls_request = discovery.ConsumeHls(hls_id);
   assert(hls_request.has_value());
   assert(hls_request->uri == "https://cdn.example.test/master.m3u8");
+  assert(hls_request->request_headers.empty());
   assert(!discovery.ConsumeHls(hls_id).has_value());
   assert(!discovery.Observe(
       "50000000-0000-4000-8000-000000000004", tab_id,
       "https://user:password@cdn.example.test/movie.mp4", "video/mp4",
       std::nullopt, 0, 400));
 
-  auto media_request =
-      discovery.ConsumeDirect(media_id, TransferPersistence::kPersistent);
+  MediaHeaderGrantStore header_grants;
+  std::vector<fireball::transfer::TransferRequestHeader> media_headers;
+  media_headers.emplace_back(
+      fireball::transfer::TransferRequestHeaderKind::kAuthorization,
+      "Bearer candidate-bound-token");
+  media_headers.emplace_back(
+      fireball::transfer::TransferRequestHeaderKind::kCookie,
+      "session=candidate-bound");
+  constexpr std::string_view kGrantId =
+      "53000000-0000-4000-8000-000000000001";
+  constexpr std::string_view kProfileId =
+      "33000000-0000-4000-8000-000000000001";
+  assert(header_grants.Mint(std::string(kGrantId), std::string(kProfileId),
+                            tab_id, media_id, std::move(media_headers), 1'000,
+                            31'000));
+  auto granted_headers =
+      header_grants.Consume(kGrantId, kProfileId, tab_id, media_id, 2'000);
+  assert(granted_headers.has_value());
+  auto media_request = discovery.ConsumeDirect(
+      media_id, TransferPersistence::kPersistent,
+      std::move(*granted_headers));
   assert(media_request.has_value());
   assert(media_request->source == signed_media);
   assert(media_request->output_name ==
          std::optional<std::string>("Launch film 4K.mp4"));
+  assert(media_request->request_headers.size() == 2);
+  assert(media_request->request_headers[0].value.view() ==
+         "Bearer candidate-bound-token");
   assert(discovery.SnapshotForTab(tab_id).empty());
   assert(discovery.ExpireBefore(301) == 0);
   assert(discovery.size() == 0);
@@ -274,7 +299,8 @@ int main() {
       "40000000-0000-4000-8000-000000000001";
   const TransferRequest unsafe_request{TransferSourceKind::kHttp,
                                        TransferPersistence::kPersistent,
-                                       "file:///etc/passwd", std::nullopt, {}};
+                                       "file:///etc/passwd", std::nullopt, {},
+                                       true, {}};
   assert(!queue.Enqueue("40000000-0000-4000-8000-000000000099",
                         unsafe_request, "Unsafe"));
   assert(!queue.Enqueue("not-a-uuid", *http, "Fireball download"));

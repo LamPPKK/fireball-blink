@@ -12,6 +12,7 @@
 #include <cassert>
 #include <cerrno>
 #include <chrono>
+#include <cstdio>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -254,8 +255,54 @@ int main(int argc, char** argv) {
 
   const std::size_t last_slash = download_url.rfind('/');
   assert(last_slash != std::string::npos);
-  const std::string hls_origin = download_url.substr(0, last_slash);
-  const std::string hls_manifest_uri = hls_origin + "/hls/master.m3u8";
+  const std::string download_origin = download_url.substr(0, last_slash);
+  std::vector<fireball::transfer::TransferRequestHeader>
+      authenticated_headers;
+  authenticated_headers.emplace_back(
+      fireball::transfer::TransferRequestHeaderKind::kAuthorization,
+      "Bearer fireball-integration-token");
+  authenticated_headers.emplace_back(
+      fireball::transfer::TransferRequestHeaderKind::kCookie,
+      "session=fireball-private");
+  authenticated_headers.emplace_back(
+      fireball::transfer::TransferRequestHeaderKind::kReferer,
+      download_origin + "/watch");
+  auto authenticated_request = fireball::transfer::MakeUriTransferRequest(
+      download_origin + "/protected.bin",
+      fireball::transfer::TransferPersistence::kPersistent,
+      "fireball-authenticated.bin", std::move(authenticated_headers));
+  assert(authenticated_request.has_value());
+  constexpr std::string_view kAuthenticatedTransferId =
+      "40000000-0000-4000-8000-000000000011";
+  const bool authenticated_enqueued = queue.Enqueue(
+      std::string(kAuthenticatedTransferId), *authenticated_request,
+      "Authenticated media",
+      fireball::transfer::MediaCandidateKind::kDirectVideo);
+  if (!authenticated_enqueued) {
+    std::fprintf(stderr, "authenticated enqueue failed: %s\n",
+                 queue.last_control_error().c_str());
+  }
+  assert(authenticated_enqueued);
+  const auto authenticated_deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(15);
+  while (std::chrono::steady_clock::now() < authenticated_deadline) {
+    assert(queue.Refresh(kAuthenticatedTransferId));
+    const auto* status = queue.Find(kAuthenticatedTransferId);
+    assert(status != nullptr &&
+           status->state != fireball::transfer::TransferState::kFailed);
+    if (status->state == fireball::transfer::TransferState::kComplete) {
+      break;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(25));
+  }
+  assert(queue.Find(kAuthenticatedTransferId)->state ==
+         fireball::transfer::TransferState::kComplete);
+  assert(HasExpectedPayload(downloads / "fireball-authenticated.bin",
+                            payload_size));
+  assert(queue.ForgetFinished(kAuthenticatedTransferId));
+
+  const std::string hls_manifest_uri =
+      download_origin + "/hls/master.m3u8";
   RunHlsDownload(
       &sidecar->rpc(), fireball::transfer::TransferPersistence::kPersistent,
       "60000000-0000-4000-8000-000000000010", downloads, hls_manifest_uri,

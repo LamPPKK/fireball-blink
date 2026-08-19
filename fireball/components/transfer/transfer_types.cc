@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <limits>
 #include <string>
 #include <utility>
 
@@ -58,7 +59,72 @@ bool EndsWith(std::string_view value, std::string_view suffix) {
          value.substr(value.size() - suffix.size()) == suffix;
 }
 
+bool IsSafeHeaderValue(std::string_view value) {
+  return !value.empty() && value.size() <= kMaximumTransferHeaderValueBytes &&
+         value.front() != ' ' && value.back() != ' ' &&
+         std::all_of(value.begin(), value.end(), [](char character) {
+           const unsigned char byte = static_cast<unsigned char>(character);
+           return byte >= 0x20 && byte <= 0x7e;
+         });
+}
+
+bool IsOrigin(std::string_view value) {
+  if (!IsSafeHttpDownloadUri(value)) {
+    return false;
+  }
+  const std::size_t authority_start = value.starts_with("https://") ? 8 : 7;
+  return value.find_first_of("/?#", authority_start) == std::string_view::npos;
+}
+
 }  // namespace
+
+SensitiveHeaderValue::SensitiveHeaderValue() = default;
+
+SensitiveHeaderValue::SensitiveHeaderValue(std::string value)
+    : value_(std::move(value)) {}
+
+SensitiveHeaderValue::~SensitiveHeaderValue() {
+  Erase();
+}
+
+SensitiveHeaderValue::SensitiveHeaderValue(const SensitiveHeaderValue& other)
+    : value_(other.value_) {}
+
+SensitiveHeaderValue& SensitiveHeaderValue::operator=(
+    const SensitiveHeaderValue& other) {
+  if (this != &other) {
+    Erase();
+    value_ = other.value_;
+  }
+  return *this;
+}
+
+SensitiveHeaderValue::SensitiveHeaderValue(SensitiveHeaderValue&& other)
+    : value_(other.value_) {
+  other.Erase();
+}
+
+SensitiveHeaderValue& SensitiveHeaderValue::operator=(
+    SensitiveHeaderValue&& other) {
+  if (this != &other) {
+    Erase();
+    value_ = other.value_;
+    other.Erase();
+  }
+  return *this;
+}
+
+void SensitiveHeaderValue::Erase() {
+  volatile char* bytes = value_.empty() ? nullptr : value_.data();
+  for (std::size_t index = 0; index < value_.size(); ++index) {
+    bytes[index] = '\0';
+  }
+  value_.clear();
+}
+
+TransferRequestHeader::TransferRequestHeader(TransferRequestHeaderKind kind,
+                                             std::string value)
+    : kind(kind), value(std::move(value)) {}
 
 bool IsSafeHttpDownloadUri(std::string_view uri) {
   if (uri.empty() || uri.size() > kMaximumUriBytes || HasUnsafeUriByte(uri)) {
@@ -230,6 +296,53 @@ bool IsCanonicalTransferId(std::string_view id) {
   return true;
 }
 
+std::string_view TransferRequestHeaderName(TransferRequestHeaderKind kind) {
+  switch (kind) {
+    case TransferRequestHeaderKind::kAuthorization:
+      return "Authorization";
+    case TransferRequestHeaderKind::kCookie:
+      return "Cookie";
+    case TransferRequestHeaderKind::kOrigin:
+      return "Origin";
+    case TransferRequestHeaderKind::kReferer:
+      return "Referer";
+    case TransferRequestHeaderKind::kUserAgent:
+      return "User-Agent";
+  }
+  return {};
+}
+
+bool IsValidTransferRequestHeaders(
+    std::span<const TransferRequestHeader> headers) {
+  if (headers.size() > kMaximumTransferRequestHeaders) {
+    return false;
+  }
+  std::size_t total = 0;
+  std::optional<TransferRequestHeaderKind> previous;
+  for (const TransferRequestHeader& header : headers) {
+    const std::string_view name = TransferRequestHeaderName(header.kind);
+    const std::string_view value = header.value.view();
+    if (name.empty() || !IsSafeHeaderValue(value) ||
+        (previous.has_value() && *previous >= header.kind) ||
+        value.size() > std::numeric_limits<std::size_t>::max() - name.size() -
+                           2 ||
+        total > kMaximumTransferHeaderBytes - name.size() - 2 - value.size()) {
+      return false;
+    }
+    if (header.kind == TransferRequestHeaderKind::kOrigin &&
+        !IsOrigin(value)) {
+      return false;
+    }
+    if (header.kind == TransferRequestHeaderKind::kReferer &&
+        !IsSafeHttpDownloadUri(value)) {
+      return false;
+    }
+    total += name.size() + 2 + value.size();
+    previous = header.kind;
+  }
+  return true;
+}
+
 bool IsValidTransferRequest(const TransferRequest& request) {
   if (request.output_name.has_value() &&
       !IsSafeOutputName(*request.output_name)) {
@@ -238,13 +351,16 @@ bool IsValidTransferRequest(const TransferRequest& request) {
   switch (request.source_kind) {
     case TransferSourceKind::kHttp:
       return IsSafeHttpDownloadUri(request.source) &&
-             request.torrent_metainfo.empty();
+             request.torrent_metainfo.empty() &&
+             IsValidTransferRequestHeaders(request.request_headers);
     case TransferSourceKind::kMagnet:
       return IsSafeMagnetUri(request.source) &&
-             request.torrent_metainfo.empty();
+             request.torrent_metainfo.empty() &&
+             request.request_headers.empty();
     case TransferSourceKind::kTorrentMetainfo:
       return request.source.empty() &&
-             IsPlausibleTorrentMetainfo(request.torrent_metainfo);
+             IsPlausibleTorrentMetainfo(request.torrent_metainfo) &&
+             request.request_headers.empty();
   }
   return false;
 }
@@ -252,7 +368,8 @@ bool IsValidTransferRequest(const TransferRequest& request) {
 std::optional<TransferRequest> MakeUriTransferRequest(
     std::string uri,
     TransferPersistence persistence,
-    std::optional<std::string> output_name) {
+    std::optional<std::string> output_name,
+    std::vector<TransferRequestHeader> request_headers) {
   TransferSourceKind kind;
   if (IsSafeHttpDownloadUri(uri)) {
     kind = TransferSourceKind::kHttp;
@@ -264,8 +381,12 @@ std::optional<TransferRequest> MakeUriTransferRequest(
   if (output_name.has_value() && !IsSafeOutputName(*output_name)) {
     return std::nullopt;
   }
+  if (kind != TransferSourceKind::kHttp && !request_headers.empty()) {
+    return std::nullopt;
+  }
   TransferRequest request{kind, persistence, std::move(uri),
-                          std::move(output_name), {}};
+                          std::move(output_name), {}, true,
+                          std::move(request_headers)};
   return IsValidTransferRequest(request)
              ? std::optional<TransferRequest>(std::move(request))
              : std::nullopt;
@@ -280,7 +401,8 @@ std::optional<TransferRequest> MakeTorrentTransferRequest(
     return std::nullopt;
   }
   TransferRequest request{TransferSourceKind::kTorrentMetainfo, persistence,
-                          {}, std::move(output_name), std::move(metainfo)};
+                          {}, std::move(output_name), std::move(metainfo), true,
+                          {}};
   return IsValidTransferRequest(request)
              ? std::optional<TransferRequest>(std::move(request))
              : std::nullopt;

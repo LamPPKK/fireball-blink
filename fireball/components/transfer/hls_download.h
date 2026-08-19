@@ -6,6 +6,7 @@
 #include <filesystem>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "fireball/components/transfer/hls_vod.h"
 
@@ -60,7 +61,9 @@ class HlsDownload final {
   HlsDownload(HlsDownload&&) = delete;
   HlsDownload& operator=(HlsDownload&&) = delete;
 
-  bool Start(std::string manifest_uri, std::string output_name);
+  bool Start(std::string manifest_uri,
+             std::string output_name,
+             std::vector<TransferRequestHeader> request_headers = {});
   bool Refresh();
   bool Pause();
   bool Resume();
@@ -89,6 +92,7 @@ class HlsDownload final {
   void SyncSegmentSnapshot();
   bool CleanManifestFetch();
   void BestEffortClean();
+  void ClearRequestHeaders();
   void SetFailure(std::string_view code);
 
   TransferBackend* backend_;
@@ -96,6 +100,7 @@ class HlsDownload final {
   std::filesystem::path download_directory_;
   std::uint64_t maximum_bandwidth_;
   HlsDownloadSnapshot snapshot_;
+  std::vector<TransferRequestHeader> request_headers_;
   ManifestFetch manifest_;
   HlsDownloadState paused_from_ = HlsDownloadState::kIdle;
   std::unique_ptr<HlsVodSession> segment_session_;

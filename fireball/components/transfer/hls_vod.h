@@ -119,7 +119,9 @@ class HlsVodSession final {
   HlsVodSession(HlsVodSession&&) = delete;
   HlsVodSession& operator=(HlsVodSession&&) = delete;
 
-  bool Start(HlsVodPlan plan, std::string output_name);
+  bool Start(HlsVodPlan plan,
+             std::string output_name,
+             std::vector<TransferRequestHeader> request_headers = {});
   bool Refresh();
   bool Pause();
   bool Resume();
@@ -138,7 +140,9 @@ class HlsVodSession final {
   };
 
   bool ValidateStart(const HlsVodPlan& plan,
-                     std::string_view output_name) const;
+                     std::string_view output_name,
+                     const std::vector<TransferRequestHeader>&
+                         request_headers) const;
   bool AssembleAndPublish();
   void BestEffortStopAndClean();
   void SetFailure(std::string_view code);
