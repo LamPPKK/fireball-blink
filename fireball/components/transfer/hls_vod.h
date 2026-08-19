@@ -104,13 +104,20 @@ struct HlsVodJobSnapshot {
 
 // Downloads every validated segment through the same storage/egress-bound
 // aria2 backend, then byte-concatenates MPEG-TS segments into a mode-0600 file.
-// Source URLs and aria2 GIDs never appear in the product snapshot.
+// Source URLs and aria2 GIDs never appear in the product snapshot. The borrowed
+// backend must outlive the session and callers must serialize its methods.
 class HlsVodSession final {
  public:
   HlsVodSession(TransferBackend* backend,
                 TransferPersistence persistence,
                 std::string id,
                 std::filesystem::path download_directory);
+  ~HlsVodSession();
+
+  HlsVodSession(const HlsVodSession&) = delete;
+  HlsVodSession& operator=(const HlsVodSession&) = delete;
+  HlsVodSession(HlsVodSession&&) = delete;
+  HlsVodSession& operator=(HlsVodSession&&) = delete;
 
   bool Start(HlsVodPlan plan, std::string output_name);
   bool Refresh();

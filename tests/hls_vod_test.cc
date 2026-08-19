@@ -300,6 +300,7 @@ int main() {
   assert(cancelled.Cancel());
   assert(cancelled.snapshot().state == HlsVodJobState::kCancelled);
   assert(cancel_backend.remove_count == 2);
+  assert(cancel_backend.forget_count == 2);
   assert(!std::filesystem::exists(
       directory / *cancel_backend.requests.front().output_name));
   assert(!std::filesystem::exists(

@@ -1,5 +1,5 @@
 #include "fireball/components/transfer/aria2_sidecar.h"
-#include "fireball/components/transfer/hls_vod.h"
+#include "fireball/components/transfer/hls_download.h"
 #include "fireball/components/transfer/transfer_queue.h"
 #include "fireball/components/transfer/transfer_types.h"
 
@@ -19,6 +19,7 @@
 #include <string>
 #include <string_view>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -90,6 +91,45 @@ bool HasExpectedHlsPayload(const std::filesystem::path& path,
     }
   }
   return stream.peek() == std::char_traits<char>::eof();
+}
+
+void RunHlsDownload(fireball::transfer::TransferBackend* backend,
+                    fireball::transfer::TransferPersistence persistence,
+                    std::string id,
+                    const std::filesystem::path& downloads,
+                    std::string manifest_url,
+                    std::string output_name,
+                    std::size_t segment_count,
+                    std::size_t segment_size) {
+  fireball::transfer::HlsDownload download(
+      backend, persistence, std::move(id), downloads, 1'000'000);
+  assert(download.Start(std::move(manifest_url), output_name));
+  const auto deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(15);
+  while (std::chrono::steady_clock::now() < deadline &&
+         download.snapshot().state !=
+             fireball::transfer::HlsDownloadState::kComplete) {
+    assert(download.Refresh());
+    assert(download.snapshot().state !=
+           fireball::transfer::HlsDownloadState::kFailed);
+    std::this_thread::sleep_for(std::chrono::milliseconds(25));
+  }
+  assert(download.snapshot().state ==
+         fireball::transfer::HlsDownloadState::kComplete);
+  assert(download.snapshot().manifest_fetches_completed == 2);
+  assert(download.snapshot().selected_bandwidth == 800'000);
+  assert(download.snapshot().selected_width == 640);
+  assert(download.snapshot().selected_height == 360);
+  assert(download.snapshot().segment_count == segment_count);
+  assert(download.snapshot().completed_segments == segment_count);
+  assert(HasExpectedHlsPayload(downloads / output_name, segment_count,
+                               segment_size));
+  struct stat output_status {};
+  assert(stat((downloads / output_name).c_str(), &output_status) == 0);
+  assert((output_status.st_mode & 0777) == 0600);
+  for (const auto& entry : std::filesystem::directory_iterator(downloads)) {
+    assert(!entry.path().filename().string().starts_with(".fireball-hls-"));
+  }
 }
 
 }  // namespace
@@ -215,43 +255,11 @@ int main(int argc, char** argv) {
   const std::size_t last_slash = download_url.rfind('/');
   assert(last_slash != std::string::npos);
   const std::string hls_origin = download_url.substr(0, last_slash);
-  const std::string hls_manifest_uri = hls_origin + "/hls/index.m3u8";
-  std::string hls_manifest =
-      "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-PLAYLIST-TYPE:VOD\n";
-  for (std::size_t index = 0; index < hls_segment_count; ++index) {
-    hls_manifest += "#EXTINF:2.0,\nsegment-" + std::to_string(index) +
-                    ".ts\n";
-  }
-  hls_manifest += "#EXT-X-ENDLIST\n";
-  auto hls_plan = fireball::transfer::ParseHlsVodPlaylist(
-      hls_manifest_uri, hls_manifest);
-  assert(hls_plan.ok());
-  fireball::transfer::HlsVodSession hls_session(
+  const std::string hls_manifest_uri = hls_origin + "/hls/master.m3u8";
+  RunHlsDownload(
       &sidecar->rpc(), fireball::transfer::TransferPersistence::kPersistent,
-      "60000000-0000-4000-8000-000000000010", downloads);
-  assert(hls_session.Start(std::move(*hls_plan.value), "fireball-hls-vod.ts"));
-  const auto hls_deadline =
-      std::chrono::steady_clock::now() + std::chrono::seconds(15);
-  while (std::chrono::steady_clock::now() < hls_deadline &&
-         hls_session.snapshot().state !=
-             fireball::transfer::HlsVodJobState::kComplete) {
-    assert(hls_session.Refresh());
-    assert(hls_session.snapshot().state !=
-           fireball::transfer::HlsVodJobState::kFailed);
-    std::this_thread::sleep_for(std::chrono::milliseconds(25));
-  }
-  assert(hls_session.snapshot().state ==
-         fireball::transfer::HlsVodJobState::kComplete);
-  assert(hls_session.snapshot().segment_count == hls_segment_count);
-  assert(hls_session.snapshot().completed_segments == hls_segment_count);
-  assert(HasExpectedHlsPayload(downloads / "fireball-hls-vod.ts",
-                               hls_segment_count, hls_segment_size));
-  struct stat hls_status {};
-  assert(stat((downloads / "fireball-hls-vod.ts").c_str(), &hls_status) == 0);
-  assert((hls_status.st_mode & 0777) == 0600);
-  for (const auto& entry : std::filesystem::directory_iterator(downloads)) {
-    assert(!entry.path().filename().string().starts_with(".fireball-hls-"));
-  }
+      "60000000-0000-4000-8000-000000000010", downloads, hls_manifest_uri,
+      "fireball-hls-vod.ts", hls_segment_count, hls_segment_size);
 
   auto torrent = fireball::transfer::MakeTorrentTransferRequest(
       LocalTorrentMetainfo(),
@@ -307,6 +315,11 @@ int main(int argc, char** argv) {
   }
   assert(proxy_complete);
   assert(HasExpectedPayload(downloads / "fireball-proxied.bin", payload_size));
+  RunHlsDownload(
+      &proxied_sidecar->rpc(),
+      fireball::transfer::TransferPersistence::kPersistent,
+      "60000000-0000-4000-8000-000000000011", downloads, hls_manifest_uri,
+      "fireball-proxied-hls.ts", hls_segment_count, hls_segment_size);
   proxied_sidecar->Stop();
   proxied_sidecar.reset();
 

@@ -346,8 +346,14 @@ bool DoesNotExistAt(int directory, std::string_view name) {
 }
 
 bool UnlinkIfPresent(int directory, std::string_view name) {
-  return unlinkat(directory, std::string(name).c_str(), 0) == 0 ||
-         errno == ENOENT;
+  const std::string owned_name(name);
+  while (unlinkat(directory, owned_name.c_str(), 0) != 0) {
+    if (errno == EINTR) {
+      continue;
+    }
+    return errno == ENOENT;
+  }
+  return true;
 }
 
 bool RemoveSegmentArtifacts(int directory, std::string_view filename) {
@@ -601,6 +607,13 @@ HlsVodSession::HlsVodSession(TransferBackend* backend,
   snapshot_.id = std::move(id);
 }
 
+HlsVodSession::~HlsVodSession() {
+  if (!IsTerminalJob(snapshot_.state) &&
+      snapshot_.state != HlsVodJobState::kIdle) {
+    BestEffortStopAndClean();
+  }
+}
+
 bool HlsVodSession::ValidateStart(const HlsVodPlan& plan,
                                   std::string_view output_name) const {
   if (backend_ == nullptr || snapshot_.state != HlsVodJobState::kIdle ||
@@ -795,8 +808,12 @@ bool HlsVodSession::Cancel() {
       auto result = backend_->ForgetDownloadResult(segment.gid);
       success = success && result.ok() && *result.value == "OK";
     } else {
-      auto result = backend_->Remove(segment.gid);
-      success = success && result.ok() && *result.value == segment.gid;
+      auto removed = backend_->Remove(segment.gid);
+      const bool remove_ok =
+          removed.ok() && *removed.value == segment.gid;
+      auto forgotten = backend_->ForgetDownloadResult(segment.gid);
+      success = success && remove_ok && forgotten.ok() &&
+                *forgotten.value == "OK";
     }
   }
   ScopedFd directory(open(download_directory_.c_str(),
@@ -813,6 +830,9 @@ bool HlsVodSession::Cancel() {
         ".fireball-hls-" + snapshot_.id + ".partial";
     if (unlinkat(directory.value, temporary.c_str(), 0) != 0 &&
         errno != ENOENT) {
+      success = false;
+    }
+    if (fsync(directory.value) != 0) {
       success = false;
     }
   }
@@ -913,11 +933,20 @@ bool HlsVodSession::AssembleAndPublish() {
       return false;
     }
   }
-  if (linkat(directory.value, temporary.c_str(), directory.value,
-             snapshot_.output_name.c_str(), 0) != 0 ||
-      unlinkat(directory.value, temporary.c_str(), 0) != 0 ||
-      fsync(directory.value) != 0) {
-    unlinkat(directory.value, temporary.c_str(), 0);
+  const bool published =
+      linkat(directory.value, temporary.c_str(), directory.value,
+             snapshot_.output_name.c_str(), 0) == 0;
+  const bool temporary_removed =
+      published && UnlinkIfPresent(directory.value, temporary);
+  const bool directory_synced =
+      temporary_removed && fsync(directory.value) == 0;
+  if (!published || !temporary_removed || !directory_synced) {
+    static_cast<void>(UnlinkIfPresent(directory.value, temporary));
+    if (published) {
+      static_cast<void>(
+          UnlinkIfPresent(directory.value, snapshot_.output_name));
+      static_cast<void>(fsync(directory.value));
+    }
     SetFailure("HLS_PUBLISH_FAILED");
     return false;
   }
@@ -937,6 +966,7 @@ void HlsVodSession::BestEffortStopAndClean() {
         static_cast<void>(backend_->ForgetDownloadResult(segment.gid));
       } else {
         static_cast<void>(backend_->Remove(segment.gid));
+        static_cast<void>(backend_->ForgetDownloadResult(segment.gid));
       }
     }
   }
@@ -950,6 +980,7 @@ void HlsVodSession::BestEffortStopAndClean() {
     const std::string temporary =
         ".fireball-hls-" + snapshot_.id + ".partial";
     static_cast<void>(unlinkat(directory.value, temporary.c_str(), 0));
+    static_cast<void>(fsync(directory.value));
   }
 }
 

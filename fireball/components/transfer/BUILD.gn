@@ -6,6 +6,8 @@ source_set("transfer") {
     "aria2_sidecar.h",
     "egress_transfer_policy.cc",
     "egress_transfer_policy.h",
+    "hls_download.cc",
+    "hls_download.h",
     "hls_vod.cc",
     "hls_vod.h",
     "media_discovery.cc",

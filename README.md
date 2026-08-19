@@ -145,10 +145,12 @@ pauses/resumes an 8 MiB ranged download and verifies every output byte.
 audio/video, HLS and DASH. Public snapshots omit source URLs, direct media and
 HLS candidates are consumed once, and candidates disappear on Tab cleanup or
 expiry. The HLS lane parses bounded master playlists, selects a bandwidth
-variant, and accepts only finite, unencrypted MPEG-TS VOD media playlists.
-Every segment is downloaded through the same aria2 storage/egress boundary,
-then assembled into a mode-0600 `.ts` file with atomic no-overwrite publish.
-Temporary segments and aria2 results are removed before success is reported.
+variant, and accepts only finite, unencrypted MPEG-TS VOD media playlists. Its
+coordinator now fetches the entry manifest and selected child playlist through
+the same aria2 storage/egress boundary as every segment, then assembles a
+mode-0600 `.ts` file with atomic no-overwrite publish. Product snapshots omit
+playlist/segment URLs and GIDs. Manifest, segment and aria2 result artifacts are
+removed before success is reported.
 Live/event HLS, encryption, byte ranges, discontinuities, fMP4 and low-latency
 extensions still fail closed; DASH remains detected but gated.
 
@@ -165,14 +167,15 @@ routes until every peer socket can be proven to stay inside that egress.
 
 `make check` requires `aria2c` (1.37.0 is the development control), launches
 the real sidecar, downloads and byte-verifies an 8 MiB local fixture through
-multiple HTTP Range requests, exercises pause/resume, downloads three HLS
-segments and verifies the assembled output byte-for-byte, submits valid torrent
+multiple HTTP Range requests, exercises pause/resume, fetches master/variant
+playlists and three HLS segments over both Direct and loopback HTTP CONNECT,
+and verifies assembled outputs byte-for-byte. It also submits valid torrent
 metainfo, verifies no uploaded `.torrent` is retained, and proves clean child
 process shutdown. Install the dependency with `brew install aria2` on macOS or
-`apt install aria2` on Ubuntu. DASH assembly, Chromium download interception,
-master-playlist child fetching and the Chromium user-facing transfer shelf
-remain follow-up work. The AppKit preview includes a deterministic drawer backed
-by the real queue state machine and HLS parser, not a production download
+`apt install aria2` on Ubuntu. DASH assembly, authenticated media header
+handoff, Chromium download interception and the Chromium user-facing transfer
+shelf remain follow-up work. The AppKit preview includes a deterministic drawer
+backed by the real queue state machine and HLS parser, not a production download
 surface. See [the transfer architecture and remaining promotion
 work](docs/TRANSFERS.md).
 

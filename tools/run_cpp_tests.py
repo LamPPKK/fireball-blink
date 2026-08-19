@@ -29,6 +29,23 @@ HLS_SEGMENTS = tuple(
     )
     for index in range(HLS_SEGMENT_COUNT)
 )
+HLS_MASTER = (
+    b"#EXTM3U\n"
+    b"#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=640x360\n"
+    b"low/index.m3u8\n"
+    b"#EXT-X-STREAM-INF:BANDWIDTH=2400000,RESOLUTION=1920x1080\n"
+    b"high/index.m3u8\n"
+)
+HLS_MEDIA = (
+    b"#EXTM3U\n"
+    b"#EXT-X-VERSION:3\n"
+    b"#EXT-X-PLAYLIST-TYPE:VOD\n"
+    + b"".join(
+        f"#EXTINF:2.0,\n../segment-{index}.ts\n".encode()
+        for index in range(HLS_SEGMENT_COUNT)
+    )
+    + b"#EXT-X-ENDLIST\n"
+)
 
 
 class RangeRequestHandler(BaseHTTPRequestHandler):
@@ -37,7 +54,16 @@ class RangeRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler contract
         payload = PAYLOAD
         content_type = "application/octet-stream"
-        if self.path.startswith("/hls/segment-") and self.path.endswith(".ts"):
+        is_manifest = False
+        if self.path == "/hls/master.m3u8":
+            payload = HLS_MASTER
+            content_type = "application/vnd.apple.mpegurl"
+            is_manifest = True
+        elif self.path in {"/hls/low/index.m3u8", "/hls/high/index.m3u8"}:
+            payload = HLS_MEDIA
+            content_type = "application/vnd.apple.mpegurl"
+            is_manifest = True
+        elif self.path.startswith("/hls/segment-") and self.path.endswith(".ts"):
             match = re.fullmatch(r"/hls/segment-(\d+)\.ts", self.path)
             if not match or int(match.group(1)) >= len(HLS_SEGMENTS):
                 self.send_error(404)
@@ -69,6 +95,8 @@ class RangeRequestHandler(BaseHTTPRequestHandler):
 
         with self.server.counter_lock:  # type: ignore[attr-defined]
             self.server.total_requests += 1  # type: ignore[attr-defined]
+            if is_manifest:
+                self.server.manifest_requests += 1  # type: ignore[attr-defined]
         body = memoryview(payload)[start : end + 1]
         self.send_response(response_status)
         self.send_header("Content-Type", content_type)
@@ -98,6 +126,7 @@ class RangeServer(ThreadingHTTPServer):
         self.counter_lock = threading.Lock()
         self.range_requests = 0
         self.total_requests = 0
+        self.manifest_requests = 0
 
 
 class ConnectProxyHandler(socketserver.StreamRequestHandler):
@@ -225,6 +254,13 @@ def main() -> int:
                 "fireball/components/transfer/hls_vod.cc",
                 "tests/hls_vod_test.cc",
             ],
+            "hls_download_test": [
+                "fireball/components/transfer/transfer_types.cc",
+                "fireball/components/transfer/aria2_rpc_client.cc",
+                "fireball/components/transfer/hls_vod.cc",
+                "fireball/components/transfer/hls_download.cc",
+                "tests/hls_download_test.cc",
+            ],
             "navigation_policy_test": [
                 "fireball/browser/domain_model.cc",
                 "fireball/components/adblock/profile_policy.cc",
@@ -284,6 +320,7 @@ def main() -> int:
                 str(root / "fireball/components/transfer/transfer_types.cc"),
                 str(root / "fireball/components/transfer/aria2_rpc_client.cc"),
                 str(root / "fireball/components/transfer/aria2_sidecar.cc"),
+                str(root / "fireball/components/transfer/hls_download.cc"),
                 str(root / "fireball/components/transfer/hls_vod.cc"),
                 str(root / "fireball/components/transfer/transfer_queue.cc"),
                 str(root / "fireball/components/privacy/network_audit.cc"),
@@ -333,9 +370,16 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 1
+        if server.manifest_requests < 4:
+            print(
+                "fireball-cpp-tests: HLS coordinator did not fetch entry and variant manifests through both routes",
+                file=sys.stderr,
+            )
+            return 1
         print(
-            "fireball-cpp-tests: aria2 queue + HLS VOD + HTTP CONNECT passed "
+            "fireball-cpp-tests: aria2 queue + end-to-end HLS VOD + HTTP CONNECT passed "
             f"({server.range_requests} range requests, "
+            f"{server.manifest_requests} manifest requests, "
             f"{proxy.connect_requests} proxy tunnels)"
         )
     return 0

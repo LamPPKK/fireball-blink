@@ -27,7 +27,7 @@ struct DiscoveredMedia {
   bool hls_vod_downloadable = false;
 };
 
-// Internal hand-off to the HLS parser. Unlike DiscoveredMedia this contains a
+// Internal hand-off to HlsDownload. Unlike DiscoveredMedia this contains a
 // source URL and must not be persisted, logged or exposed to UI serialization.
 struct HlsManifestRequest {
   std::string uri;
@@ -36,7 +36,8 @@ struct HlsManifestRequest {
 
 // Stores network-observed media candidates in memory only. Public snapshots do
 // not contain source URLs. Direct media can be consumed once into a
-// TransferRequest; HLS/DASH remain visible but gated until an assembler exists.
+// TransferRequest; HLS can be consumed by HlsDownload, while DASH remains
+// visible but gated until an assembler exists.
 class MediaDiscovery final {
  public:
   bool Observe(std::string id,
