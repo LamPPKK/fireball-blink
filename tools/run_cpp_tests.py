@@ -20,18 +20,36 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PAYLOAD_SIZE = 8 * 1024 * 1024
 PAYLOAD = bytes((index * 31 + 17) % 251 for index in range(PAYLOAD_SIZE))
+HLS_SEGMENT_SIZE = 128 * 1024
+HLS_SEGMENT_COUNT = 3
+HLS_SEGMENTS = tuple(
+    bytes(
+        (offset * 17 + index * 29 + 3) % 251
+        for offset in range(HLS_SEGMENT_SIZE)
+    )
+    for index in range(HLS_SEGMENT_COUNT)
+)
 
 
 class RangeRequestHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     def do_GET(self) -> None:  # noqa: N802 - BaseHTTPRequestHandler contract
-        if self.path != "/fireball-range.bin":
+        payload = PAYLOAD
+        content_type = "application/octet-stream"
+        if self.path.startswith("/hls/segment-") and self.path.endswith(".ts"):
+            match = re.fullmatch(r"/hls/segment-(\d+)\.ts", self.path)
+            if not match or int(match.group(1)) >= len(HLS_SEGMENTS):
+                self.send_error(404)
+                return
+            payload = HLS_SEGMENTS[int(match.group(1))]
+            content_type = "video/mp2t"
+        elif self.path != "/fireball-range.bin":
             self.send_error(404)
             return
 
         start = 0
-        end = len(PAYLOAD) - 1
+        end = len(payload) - 1
         response_status = 200
         range_header = self.headers.get("Range")
         if range_header:
@@ -41,24 +59,24 @@ class RangeRequestHandler(BaseHTTPRequestHandler):
                 return
             start = int(match.group(1))
             end = int(match.group(2)) if match.group(2) else end
-            if start >= len(PAYLOAD) or end < start:
+            if start >= len(payload) or end < start:
                 self.send_error(416)
                 return
-            end = min(end, len(PAYLOAD) - 1)
+            end = min(end, len(payload) - 1)
             response_status = 206
             with self.server.counter_lock:  # type: ignore[attr-defined]
                 self.server.range_requests += 1  # type: ignore[attr-defined]
 
         with self.server.counter_lock:  # type: ignore[attr-defined]
             self.server.total_requests += 1  # type: ignore[attr-defined]
-        body = memoryview(PAYLOAD)[start : end + 1]
+        body = memoryview(payload)[start : end + 1]
         self.send_response(response_status)
-        self.send_header("Content-Type", "application/octet-stream")
+        self.send_header("Content-Type", content_type)
         self.send_header("Accept-Ranges", "bytes")
         self.send_header("Content-Length", str(len(body)))
         if response_status == 206:
             self.send_header(
-                "Content-Range", f"bytes {start}-{end}/{len(PAYLOAD)}"
+                "Content-Range", f"bytes {start}-{end}/{len(payload)}"
             )
         self.send_header("Connection", "close")
         self.end_headers()
@@ -201,6 +219,12 @@ def main() -> int:
                 "fireball/components/transfer/egress_transfer_policy.cc",
                 "tests/transfer_test.cc",
             ],
+            "hls_vod_test": [
+                "fireball/components/transfer/transfer_types.cc",
+                "fireball/components/transfer/aria2_rpc_client.cc",
+                "fireball/components/transfer/hls_vod.cc",
+                "tests/hls_vod_test.cc",
+            ],
         }
         for name, sources in cases.items():
             binary = pathlib.Path(temporary) / name
@@ -250,6 +274,7 @@ def main() -> int:
                 str(root / "fireball/components/transfer/transfer_types.cc"),
                 str(root / "fireball/components/transfer/aria2_rpc_client.cc"),
                 str(root / "fireball/components/transfer/aria2_sidecar.cc"),
+                str(root / "fireball/components/transfer/hls_vod.cc"),
                 str(root / "fireball/components/transfer/transfer_queue.cc"),
                 str(root / "fireball/components/privacy/network_audit.cc"),
                 str(root / "tests/aria2_integration_test.cc"),
@@ -273,6 +298,8 @@ def main() -> int:
                     url,
                     str(PAYLOAD_SIZE),
                     str(proxy.server_address[1]),
+                    str(HLS_SEGMENT_COUNT),
+                    str(HLS_SEGMENT_SIZE),
                 ],
                 check=True,
                 timeout=45,
@@ -297,7 +324,7 @@ def main() -> int:
             )
             return 1
         print(
-            "fireball-cpp-tests: aria2 queue + HTTP CONNECT passed "
+            "fireball-cpp-tests: aria2 queue + HLS VOD + HTTP CONNECT passed "
             f"({server.range_requests} range requests, "
             f"{proxy.connect_requests} proxy tunnels)"
         )

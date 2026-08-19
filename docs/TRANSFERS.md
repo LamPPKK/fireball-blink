@@ -13,9 +13,10 @@ Chromium response observer (B0 adapter)
         ▼
 MediaDiscovery — RAM only, bounded per Tab
         │  direct audio/video: one-time TransferRequest
-        │  HLS/DASH: visible but assembler-gated
+        │  HLS VOD: one-time manifest hand-off
+        │  DASH / unsupported HLS: visible but gated
         ▼
-TransferQueue — stable UUID, no source URL/metainfo retained
+TransferQueue / HlsVodSession — no source URL/metainfo in snapshots
         │
         ▼
 Aria2RpcClient — authenticated IPv4-loopback JSON-RPC
@@ -25,9 +26,10 @@ aria2 sidecar — one persistence + egress boundary
 ```
 
 The current AppKit Transfer Deck is driven by the real `TransferQueue` state
-machine and a deterministic fake backend. The integration test drives the same
-queue against a real aria2 1.37.0 process and byte-verifies an 8 MiB ranged
-download. The AppKit artifact remains a model preview, not Chromium UI.
+machine and HLS parser with a deterministic fake backend. The integration test
+drives the same queue and `HlsVodSession` against a real aria2 1.37.0 process,
+byte-verifies an 8 MiB ranged download and verifies a three-segment HLS output.
+The AppKit artifact remains a model preview, not Chromium UI.
 
 ## Queue lifecycle
 
@@ -60,9 +62,20 @@ for Chromium's response observer to call after B0.
 - Closing a Tab removes all of its candidates; a monotonic-time sweep expires
   older records.
 - Direct audio/video can be consumed once into a normal HTTP transfer.
-- HLS and DASH are detected but deliberately not downloadable yet. Treating a
-  manifest file as a finished video would be incorrect; a future assembler must
-  validate VOD playlists, segment origins, encryption, size and output muxing.
+- HLS candidates can be consumed once into the bounded parser. Master playlists
+  expose at most 32 validated variants and deterministic bandwidth selection.
+- The supported media-playlist lane requires `ENDLIST`, at most 2,048 MPEG-TS
+  segments, at most 12 hours and at most 32 GiB assembled output. It rejects
+  live/event streams, encryption, byte ranges, discontinuities, fMP4 maps,
+  unknown behavior-changing tags and low-latency HLS.
+- Each HLS segment is queued with an exact private filename and automatic
+  renaming disabled. Source URLs are discarded after enqueue; snapshots expose
+  only progress and stable error codes. Completion concatenates regular,
+  owner-controlled files in order, fsyncs a mode-0600 temporary file, removes
+  aria2 results and segment files, then publishes without overwriting an
+  existing destination.
+- DASH remains detected but deliberately gated. Downloading a manifest alone
+  is never presented as a completed video.
 - DRM/Widevine capture is out of scope.
 
 ## Torrent and egress policy
@@ -82,9 +95,11 @@ label a torrent private merely because the browser page itself uses WARP or Tor.
 - connect response/download observers to `MediaDiscovery` and `TransferQueue`;
 - surface save-location confirmation, OS quarantine metadata and file-open
   policy;
+- fetch the selected child media playlist through Chromium's profile-bound
+  network stack and pass its observed body to the HLS parser;
 - persist regular transfer metadata without persisting signed source URLs;
 - delete partial ephemeral files when their Profile/Burner Space closes;
-- implement bounded HLS/DASH VOD assembly and cancellation cleanup;
+- add DASH/fMP4 muxing and decide separately whether encrypted non-DRM HLS is
+  supportable without weakening the key lifecycle;
 - wire real Views controls and accessibility instead of the AppKit model drawer;
 - add hostile-server, disk-full, filename-conflict and reboot recovery tests.
-

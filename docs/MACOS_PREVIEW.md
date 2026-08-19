@@ -27,8 +27,10 @@ use keys `1`–`4` and the left/right arrow keys. The same in-memory
 
 Click `TRANSFER 02` or press `D` to toggle the Transfer Deck. The drawer uses
 the production `TransferQueue` state machine with a deterministic preview
-backend: one direct-video job is active and one torrent is paused. It proves UI
-mapping and privacy labels only; the real aria2 process is exercised separately
+backend: one direct-video job is active and one torrent is paused. Its HLS VOD
+readiness label is derived from the production bounded parser; DASH and
+unsupported HLS forms remain visibly gated. It proves UI mapping and privacy
+labels only; the real aria2 download/assembly process is exercised separately
 by `make check`.
 
 The Vertical layout renders the Arc-inspired Favorite/Pinned/Today hierarchy.

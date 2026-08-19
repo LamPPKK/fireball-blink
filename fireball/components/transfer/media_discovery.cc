@@ -79,6 +79,7 @@ bool MediaDiscovery::Observe(std::string id,
       content_length,
       observed_at_ms,
       IsDirect(kind),
+      kind == MediaCandidateKind::kHlsManifest,
   };
   const std::string key = candidate.id;
   const std::string owner = candidate.tab_id;
@@ -119,6 +120,19 @@ std::optional<TransferRequest> MediaDiscovery::ConsumeDirect(
   if (!request.has_value()) {
     return std::nullopt;
   }
+  records_.erase(record);
+  return request;
+}
+
+std::optional<HlsManifestRequest> MediaDiscovery::ConsumeHls(
+    std::string_view id) {
+  auto record = records_.find(id);
+  if (record == records_.end() ||
+      record->second.candidate.kind != MediaCandidateKind::kHlsManifest) {
+    return std::nullopt;
+  }
+  HlsManifestRequest request{std::move(record->second.source_uri),
+                             std::move(record->second.candidate.display_name)};
   records_.erase(record);
   return request;
 }

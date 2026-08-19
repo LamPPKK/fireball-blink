@@ -484,7 +484,9 @@ Aria2RpcResult<std::string> Aria2RpcClient::Enqueue(
     if (!IsSafeOutputName(*request.output_name)) {
       return {std::nullopt, "unsafe output filename"};
     }
-    options = "{\"out\":" + JsonQuote(*request.output_name) + "}";
+    options = "{\"out\":" + JsonQuote(*request.output_name) +
+              ",\"auto-file-renaming\":\"" +
+              (request.allow_automatic_renaming ? "true" : "false") + "\"}";
   }
   const std::string token = JsonQuote("token:" + secret_);
   Aria2RpcResult<std::string> result;

@@ -1,4 +1,5 @@
 #include "fireball/components/transfer/aria2_sidecar.h"
+#include "fireball/components/transfer/hls_vod.h"
 #include "fireball/components/transfer/transfer_queue.h"
 #include "fireball/components/transfer/transfer_types.h"
 
@@ -71,16 +72,39 @@ bool HasExpectedPayload(const std::filesystem::path& path,
   return stream.peek() == std::char_traits<char>::eof();
 }
 
+bool HasExpectedHlsPayload(const std::filesystem::path& path,
+                           std::size_t segment_count,
+                           std::size_t segment_size) {
+  std::ifstream stream(path, std::ios::binary);
+  if (!stream) {
+    return false;
+  }
+  for (std::size_t segment = 0; segment < segment_count; ++segment) {
+    for (std::size_t offset = 0; offset < segment_size; ++offset) {
+      char byte = 0;
+      const auto expected = static_cast<std::uint8_t>(
+          (offset * 17 + segment * 29 + 3) % 251);
+      if (!stream.get(byte) || static_cast<std::uint8_t>(byte) != expected) {
+        return false;
+      }
+    }
+  }
+  return stream.peek() == std::char_traits<char>::eof();
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
-  assert(argc == 5);
+  assert(argc == 7);
   const std::filesystem::path aria2_executable(argv[1]);
   const std::string download_url(argv[2]);
   const std::size_t payload_size = std::stoull(argv[3]);
   const std::uint16_t proxy_port =
       static_cast<std::uint16_t>(std::stoul(argv[4]));
+  const std::size_t hls_segment_count = std::stoull(argv[5]);
+  const std::size_t hls_segment_size = std::stoull(argv[6]);
   assert(proxy_port != 0);
+  assert(hls_segment_count > 0 && hls_segment_size > 0);
 
   std::string root_pattern = "/tmp/fireball-aria2-test-XXXXXX";
   std::vector<char> mutable_pattern(root_pattern.begin(), root_pattern.end());
@@ -187,6 +211,47 @@ int main(int argc, char** argv) {
          fireball::transfer::TransferState::kComplete);
   assert(queue.ForgetFinished(kHttpTransferId));
   assert(queue.Find(kHttpTransferId) == nullptr);
+
+  const std::size_t last_slash = download_url.rfind('/');
+  assert(last_slash != std::string::npos);
+  const std::string hls_origin = download_url.substr(0, last_slash);
+  const std::string hls_manifest_uri = hls_origin + "/hls/index.m3u8";
+  std::string hls_manifest =
+      "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-PLAYLIST-TYPE:VOD\n";
+  for (std::size_t index = 0; index < hls_segment_count; ++index) {
+    hls_manifest += "#EXTINF:2.0,\nsegment-" + std::to_string(index) +
+                    ".ts\n";
+  }
+  hls_manifest += "#EXT-X-ENDLIST\n";
+  auto hls_plan = fireball::transfer::ParseHlsVodPlaylist(
+      hls_manifest_uri, hls_manifest);
+  assert(hls_plan.ok());
+  fireball::transfer::HlsVodSession hls_session(
+      &sidecar->rpc(), fireball::transfer::TransferPersistence::kPersistent,
+      "60000000-0000-4000-8000-000000000010", downloads);
+  assert(hls_session.Start(std::move(*hls_plan.value), "fireball-hls-vod.ts"));
+  const auto hls_deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(15);
+  while (std::chrono::steady_clock::now() < hls_deadline &&
+         hls_session.snapshot().state !=
+             fireball::transfer::HlsVodJobState::kComplete) {
+    assert(hls_session.Refresh());
+    assert(hls_session.snapshot().state !=
+           fireball::transfer::HlsVodJobState::kFailed);
+    std::this_thread::sleep_for(std::chrono::milliseconds(25));
+  }
+  assert(hls_session.snapshot().state ==
+         fireball::transfer::HlsVodJobState::kComplete);
+  assert(hls_session.snapshot().segment_count == hls_segment_count);
+  assert(hls_session.snapshot().completed_segments == hls_segment_count);
+  assert(HasExpectedHlsPayload(downloads / "fireball-hls-vod.ts",
+                               hls_segment_count, hls_segment_size));
+  struct stat hls_status {};
+  assert(stat((downloads / "fireball-hls-vod.ts").c_str(), &hls_status) == 0);
+  assert((hls_status.st_mode & 0777) == 0600);
+  for (const auto& entry : std::filesystem::directory_iterator(downloads)) {
+    assert(!entry.path().filename().string().starts_with(".fireball-hls-"));
+  }
 
   auto torrent = fireball::transfer::MakeTorrentTransferRequest(
       LocalTorrentMetainfo(),

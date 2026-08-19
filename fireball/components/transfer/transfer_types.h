@@ -38,6 +38,9 @@ struct TransferRequest {
   std::string source;
   std::optional<std::string> output_name;
   std::vector<std::uint8_t> torrent_metainfo;
+  // Ordinary downloads may choose a collision-free name. Multi-file assembly
+  // jobs require exact private filenames and therefore disable this per RPC.
+  bool allow_automatic_renaming = true;
 };
 
 // Accepts only ordinary HTTP(S) downloads. Credentials and control characters

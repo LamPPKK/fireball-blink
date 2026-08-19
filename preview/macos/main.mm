@@ -7,6 +7,7 @@
 #include <string>
 
 #include "fireball/browser/domain_model.h"
+#include "fireball/components/transfer/hls_vod.h"
 #include "fireball/components/transfer/transfer_queue.h"
 
 namespace {
@@ -364,6 +365,17 @@ class PreviewModel final {
         transfers_.RefreshAll() != 2) {
       std::abort();
     }
+
+    auto hls = fireball::transfer::ParseHlsVodPlaylist(
+        "https://media.example.test/vod/index.m3u8",
+        "#EXTM3U\n#EXT-X-PLAYLIST-TYPE:VOD\n"
+        "#EXTINF:4,\nsegment-0.ts\n"
+        "#EXTINF:4,\nsegment-1.ts\n"
+        "#EXTINF:4,\nsegment-2.ts\n#EXT-X-ENDLIST\n");
+    if (!hls.ok()) {
+      std::abort();
+    }
+    hls_segment_count_ = hls.value->segments.size();
   }
 
   BrowserModel& model() { return model_; }
@@ -372,6 +384,7 @@ class PreviewModel final {
   const SpaceId& research_space() const { return *research_space_; }
   const SpaceId& burner_space() const { return *burner_space_; }
   const TransferQueue& transfers() const { return transfers_; }
+  std::size_t hls_segment_count() const { return hls_segment_count_; }
 
  private:
   TabId AddTab(const char* id,
@@ -396,6 +409,7 @@ class PreviewModel final {
   std::optional<SpaceId> main_space_;
   std::optional<SpaceId> research_space_;
   std::optional<SpaceId> burner_space_;
+  std::size_t hls_segment_count_ = 0;
 };
 
 }  // namespace
@@ -1055,7 +1069,7 @@ class PreviewModel final {
     y += 154;
   }
 
-  RoundedRect(NSMakeRect(806, 588, 560, 92), 13, RGB(0x101713),
+  RoundedRect(NSMakeRect(806, 588, 560, 108), 13, RGB(0x101713),
               RGB(0x344036));
   Text(@"MEDIA DISCOVERY", NSMakeRect(826, 606, 180, 18), MonoFont(8),
        RGB(0xFF7A3D));
@@ -1063,18 +1077,25 @@ class PreviewModel final {
        RGB(0xF4F1E8));
   Text(@"READY", NSMakeRect(1006, 635, 60, 18), MonoFont(7), RGB(0xB8FF3D),
        NSTextAlignmentRight);
-  Text(@"HLS + DASH", NSMakeRect(1100, 635, 100, 18), MonoFont(8),
+  NSString* hls_label = [NSString
+      stringWithFormat:@"HLS VOD · %02zu SEGMENTS",
+                       _preview.hls_segment_count()];
+  Text(hls_label, NSMakeRect(1080, 635, 160, 18), MonoFont(8),
        RGB(0xF4F1E8));
-  Text(@"DETECTED · GATED", NSMakeRect(1204, 635, 140, 18), MonoFont(7),
+  Text(@"READY", NSMakeRect(1284, 635, 60, 18), MonoFont(7), RGB(0xB8FF3D),
+       NSTextAlignmentRight);
+  Text(@"DASH / ENCRYPTED / LIVE", NSMakeRect(826, 663, 230, 18),
+       MonoFont(8), RGB(0xF4F1E8));
+  Text(@"DETECTED · GATED", NSMakeRect(1204, 663, 140, 18), MonoFont(7),
        RGB(0xFF9A6A), NSTextAlignmentRight);
 
-  RoundedRect(NSMakeRect(806, 696, 560, 126), 13, RGB(0x21110B),
+  RoundedRect(NSMakeRect(806, 710, 560, 112), 13, RGB(0x21110B),
               RGB(0x813513));
-  Text(@"PRIVATE BY CONSTRUCTION", NSMakeRect(826, 716, 260, 20), MonoFont(9),
+  Text(@"PRIVATE BY CONSTRUCTION", NSMakeRect(826, 726, 260, 20), MonoFont(9),
        RGB(0xFF9A6A));
   Text(@"No source URL in UI snapshots · no uploaded .torrent retained\n"
-        "Torrent peers disabled on WARP / Tor proxy routes",
-       NSMakeRect(826, 748, 500, 48), BodyFont(10), RGB(0xD3B6A3));
+        "HLS parts removed after atomic publish · P2P blocked on proxy routes",
+       NSMakeRect(826, 756, 500, 48), BodyFont(10), RGB(0xD3B6A3));
 }
 
 - (void)drawEngineBoundary:(NSRect)rect label:(NSString*)label {

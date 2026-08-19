@@ -9,7 +9,8 @@ permissions:
 
 jobs:
   tooling-foundation:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -21,8 +22,11 @@ jobs:
           rustup default 1.97.1
           rustc --version
       - name: Install aria2 integration dependency
+        timeout-minutes: 5
+        env:
+          DEBIAN_FRONTEND: noninteractive
         run: |
-          sudo apt-get update
-          sudo apt-get install --yes aria2
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
+          sudo apt-get -o Dpkg::Use-Pty=0 install --yes --no-install-recommends aria2
           aria2c --version
       - run: make check

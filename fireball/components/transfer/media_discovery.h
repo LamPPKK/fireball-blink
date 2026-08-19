@@ -24,6 +24,14 @@ struct DiscoveredMedia {
   std::uint64_t content_length = 0;
   std::uint64_t observed_at_ms = 0;
   bool directly_downloadable = false;
+  bool hls_vod_downloadable = false;
+};
+
+// Internal hand-off to the HLS parser. Unlike DiscoveredMedia this contains a
+// source URL and must not be persisted, logged or exposed to UI serialization.
+struct HlsManifestRequest {
+  std::string uri;
+  std::string display_name;
 };
 
 // Stores network-observed media candidates in memory only. Public snapshots do
@@ -43,6 +51,7 @@ class MediaDiscovery final {
   std::optional<TransferRequest> ConsumeDirect(
       std::string_view id,
       TransferPersistence persistence);
+  std::optional<HlsManifestRequest> ConsumeHls(std::string_view id);
   std::size_t ForgetTab(std::string_view tab_id);
   std::size_t ExpireBefore(std::uint64_t cutoff_ms);
   std::size_t size() const { return records_.size(); }

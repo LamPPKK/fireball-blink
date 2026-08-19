@@ -189,6 +189,15 @@ int main() {
                            300));
   assert(!discovery.ConsumeDirect(hls_id, TransferPersistence::kPersistent)
               .has_value());
+  candidates = discovery.SnapshotForTab(tab_id);
+  assert(candidates.size() == 2);
+  assert(candidates[0].id == hls_id);
+  assert(candidates[0].hls_vod_downloadable);
+  assert(!candidates[0].directly_downloadable);
+  auto hls_request = discovery.ConsumeHls(hls_id);
+  assert(hls_request.has_value());
+  assert(hls_request->uri == "https://cdn.example.test/master.m3u8");
+  assert(!discovery.ConsumeHls(hls_id).has_value());
   assert(!discovery.Observe(
       "50000000-0000-4000-8000-000000000004", tab_id,
       "https://user:password@cdn.example.test/movie.mp4", "video/mp4",
@@ -200,8 +209,8 @@ int main() {
   assert(media_request->source == signed_media);
   assert(media_request->output_name ==
          std::optional<std::string>("Launch film 4K.mp4"));
-  assert(discovery.SnapshotForTab(tab_id).size() == 1);
-  assert(discovery.ExpireBefore(301) == 1);
+  assert(discovery.SnapshotForTab(tab_id).empty());
+  assert(discovery.ExpireBefore(301) == 0);
   assert(discovery.size() == 0);
 
   for (std::uint32_t index = 0; index < 34; ++index) {
