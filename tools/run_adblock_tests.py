@@ -10,6 +10,7 @@ import pathlib
 import shutil
 import subprocess
 import sys
+import tempfile
 
 
 class Decision(ctypes.Structure):
@@ -133,6 +134,17 @@ def main() -> int:
         ctypes.c_size_t,
     ]
     library.fireball_adblock_engine_create_unverified_for_testing.restype = ctypes.c_void_p
+    library.fireball_adblock_engine_create_verified.argtypes = [
+        ctypes.POINTER(ctypes.c_uint8),
+        ctypes.c_size_t,
+        ctypes.POINTER(ctypes.c_uint8),
+        ctypes.c_size_t,
+        ctypes.POINTER(ctypes.c_uint8),
+        ctypes.c_size_t,
+        ctypes.POINTER(ctypes.c_uint8),
+        ctypes.c_size_t,
+    ]
+    library.fireball_adblock_engine_create_verified.restype = ctypes.c_void_p
     library.fireball_adblock_engine_destroy.argtypes = [ctypes.c_void_p]
     library.fireball_adblock_check_network.argtypes = [
         ctypes.c_void_p,
@@ -166,6 +178,70 @@ def main() -> int:
     ]
     library.fireball_adblock_hidden_selectors.restype = ctypes.c_void_p
     library.fireball_adblock_string_destroy.argtypes = [ctypes.c_void_p]
+
+    openssl = shutil.which("openssl")
+    if openssl is None:
+        raise RuntimeError("OpenSSL is required for signed artifact integration")
+    with tempfile.TemporaryDirectory(prefix="fireball-adblock-artifact-") as temporary:
+        output = pathlib.Path(temporary)
+        signing_key = output / "signing-key.pem"
+        signed_rules_path = output / "rules.txt"
+        signed_manifest_path = output / "manifest.json"
+        public_key_path = output / "public-key.bin"
+        subprocess.run(
+            [openssl, "genpkey", "-algorithm", "ED25519", "-out", str(signing_key)],
+            check=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        signing_key.chmod(0o600)
+        subprocess.run(
+            [
+                sys.executable,
+                str(root / "tools/adblock_rules.py"),
+                "build",
+                "--source-lock",
+                str(root / "tests/fixtures/adblock/source-lock.json"),
+                "--signing-key",
+                str(signing_key),
+                "--artifact-url",
+                "https://updates.fireball.example/adblock/rules-v1.txt",
+                "--minimum-app-version",
+                "0.1.0",
+                "--created-at",
+                "2026-08-20T00:00:00Z",
+                "--output-rules",
+                str(signed_rules_path),
+                "--output-manifest",
+                str(signed_manifest_path),
+                "--output-public-key",
+                str(public_key_path),
+                "--openssl",
+                openssl,
+            ],
+            check=True,
+        )
+        signed_rules = signed_rules_path.read_bytes()
+        signed_manifest = signed_manifest_path.read_bytes()
+        public_key = public_key_path.read_bytes()
+        current_version = b"0.1.0"
+        signed_buffers = [
+            byte_buffer(value)
+            for value in (signed_rules, signed_manifest, public_key, current_version)
+        ]
+        verified_engine = library.fireball_adblock_engine_create_verified(
+            signed_buffers[0],
+            len(signed_rules),
+            signed_buffers[1],
+            len(signed_manifest),
+            signed_buffers[2],
+            len(public_key),
+            signed_buffers[3],
+            len(current_version),
+        )
+        if not verified_engine:
+            raise RuntimeError("compiler output failed Rust signature verification")
+        library.fireball_adblock_engine_destroy(verified_engine)
 
     rules = b"\n".join(
         [
@@ -255,7 +331,9 @@ def main() -> int:
 
     run_cpp_request_policy_test(root, target, library_path)
 
-    print("fireball-adblock-tests: Rust engine, C ABI and C++ request policy passed")
+    print(
+        "fireball-adblock-tests: signed artifact, Rust engine, C ABI and C++ request policy passed"
+    )
     return 0
 
 

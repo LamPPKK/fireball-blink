@@ -27,7 +27,7 @@ const MAX_INJECTED_SCRIPT_BYTES: usize = 256 * 1024;
 const MAX_DOM_JSON_BYTES: usize = 256 * 1024;
 const ENGINE_NAME: &str = "adblock-rust";
 const ENGINE_VERSION: &str = "0.13.2";
-const SIGNING_CONTEXT: &str = "fireball-adblock-rules-v1";
+const SIGNING_CONTEXT: &str = "fireball-adblock-rules-v1-signature-v2";
 
 static DOMAIN_RESOLVER_READY: AtomicBool = AtomicBool::new(false);
 
@@ -238,15 +238,30 @@ fn hex_sha256(data: &[u8]) -> String {
 }
 
 fn signing_message(manifest: &RulesManifest) -> String {
-    format!(
-        "{}\n{}\n{}\n{}\n{}\n{}\n",
+    use std::fmt::Write as _;
+
+    let mut output = format!(
+        "{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n{}\n",
         SIGNING_CONTEXT,
-        manifest.artifact.size,
-        manifest.artifact.sha256,
-        manifest.engine.version,
+        manifest.schema_version,
         manifest.created_at,
         manifest.minimum_app_version,
-    )
+        manifest.engine.name,
+        manifest.engine.version,
+        manifest.artifact.url,
+        manifest.artifact.size,
+        manifest.artifact.sha256,
+        manifest.signature.algorithm,
+        manifest.signature.key_id,
+        manifest.sources.len(),
+    );
+    for source in &manifest.sources {
+        let _ = writeln!(output, "{}", source.name);
+        let _ = writeln!(output, "{}", source.url);
+        let _ = writeln!(output, "{}", source.revision);
+        let _ = writeln!(output, "{}", source.license);
+    }
+    output
 }
 
 fn verify_manifest(
@@ -294,7 +309,11 @@ fn verify_manifest(
             || !is_https_url(&source.url)
             || !is_canonical_sha1(&source.revision)
             || !is_ascii_token(&source.license, 64)
-    }) {
+    }) || manifest
+        .sources
+        .windows(2)
+        .any(|sources| sources[0].name >= sources[1].name)
+    {
         return false;
     }
 
@@ -872,12 +891,20 @@ publisher.example##.sponsored
                 "key_id": hex_sha256(&public_key),
                 "value": "pending",
             },
-            "sources": [{
-                "name": "easylist",
-                "url": "https://github.com/easylist/easylist.git",
-                "revision": "0123456789abcdef0123456789abcdef01234567",
-                "license": "GPL-3.0-or-later",
-            }],
+            "sources": [
+                {
+                    "name": "easylist",
+                    "url": "https://github.com/easylist/easylist.git",
+                    "revision": "0123456789abcdef0123456789abcdef01234567",
+                    "license": "GPL-3.0-or-later",
+                },
+                {
+                    "name": "easyprivacy",
+                    "url": "https://github.com/easylist/easylist.git",
+                    "revision": "89abcdef0123456789abcdef0123456789abcdef",
+                    "license": "GPL-3.0-or-later",
+                },
+            ],
         });
         let parsed: RulesManifest = serde_json::from_value(manifest.clone()).expect("manifest");
         let signature = signing_key.sign(signing_message(&parsed).as_bytes());
@@ -913,10 +940,45 @@ publisher.example##.sponsored
         let mut tampered = RULES.as_bytes().to_vec();
         tampered.push(b'!');
         assert!(!verify_manifest(&tampered, &encoded, &public_key, "0.1.0"));
-        manifest["minimum_app_version"] = json!("invalid");
+
+        for (pointer, replacement) in [
+            ("/minimum_app_version", json!("0.2.0")),
+            (
+                "/artifact/url",
+                json!("https://evil.example/adblock/rules.txt"),
+            ),
+            ("/sources/0/url", json!("https://evil.example/easylist.git")),
+            (
+                "/sources/0/revision",
+                json!("ffffffffffffffffffffffffffffffffffffffff"),
+            ),
+            ("/sources/0/license", json!("MIT")),
+        ] {
+            let mut modified = manifest.clone();
+            *modified.pointer_mut(pointer).expect("manifest field") = replacement;
+            assert!(!verify_manifest(
+                RULES.as_bytes(),
+                &serde_json::to_vec(&modified).expect("json"),
+                &public_key,
+                "0.2.0",
+            ));
+        }
+
+        let mut unsorted = manifest.clone();
+        unsorted["sources"]
+            .as_array_mut()
+            .expect("sources")
+            .swap(0, 1);
+        let parsed: RulesManifest =
+            serde_json::from_value(unsorted.clone()).expect("unsorted manifest");
+        unsorted["signature"]["value"] = json!(BASE64.encode(
+            signing_key
+                .sign(signing_message(&parsed).as_bytes())
+                .to_bytes()
+        ));
         assert!(!verify_manifest(
             RULES.as_bytes(),
-            &serde_json::to_vec(&manifest).expect("json"),
+            &serde_json::to_vec(&unsorted).expect("json"),
             &public_key,
             "0.1.0",
         ));

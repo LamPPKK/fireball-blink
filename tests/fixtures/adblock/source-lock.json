@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "name": "easyprivacy",
+      "url": "https://github.com/easylist/easylist.git",
+      "revision": "2222222222222222222222222222222222222222",
+      "license": "GPL-3.0-or-later",
+      "path": "easyprivacy.txt",
+      "sha256": "6c6e876b340589b01d75fc74f76f39873b8d62e03884711ad7acd1c1294ce58b"
+    },
+    {
+      "name": "easylist",
+      "url": "https://github.com/easylist/easylist.git",
+      "revision": "1111111111111111111111111111111111111111",
+      "license": "GPL-3.0-or-later",
+      "path": "easylist.txt",
+      "sha256": "d048a23f6eafd45de4bab1f751a02b0b60e3a117e6ff44a56c5ed4d973dbd1eb"
+    }
+  ]
+}

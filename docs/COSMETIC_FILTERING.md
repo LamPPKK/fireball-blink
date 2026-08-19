@@ -117,5 +117,6 @@ generic suppression, sink failure, Tab deletion and Profile teardown.
 
 This is a production-oriented native foundation, not yet a claim that ads are
 visually hidden in a Chromium build. That claim requires the renderer adapter,
-a signed EasyList/EasyPrivacy-derived artifact, real-page regression corpus and
-Linux control-versus-overlay build evidence.
+a production EasyList/EasyPrivacy release from the existing [signed artifact
+pipeline](ADBLOCK_RULE_ARTIFACTS.md), real-page regression corpus and Linux
+control-versus-overlay build evidence.

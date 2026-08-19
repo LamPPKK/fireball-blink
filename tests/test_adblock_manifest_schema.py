@@ -15,6 +15,11 @@ class AdblockManifestSchemaTests(unittest.TestCase):
                 encoding="utf-8"
             )
         )
+        self.source_lock_schema = json.loads(
+            (ROOT / "schemas/adblock-source-lock-v1.schema.json").read_text(
+                encoding="utf-8"
+            )
+        )
 
     def test_manifest_shape_is_closed_and_signed(self) -> None:
         self.assertFalse(self.schema["additionalProperties"])
@@ -42,6 +47,19 @@ class AdblockManifestSchemaTests(unittest.TestCase):
         artifact = self.schema["properties"]["artifact"]["properties"]
         self.assertEqual(artifact["size"]["maximum"], 16 * 1024 * 1024)
         self.assertEqual(artifact["sha256"]["pattern"], "^[0-9a-f]{64}$")
+
+    def test_source_lock_is_closed_and_pins_local_bytes(self) -> None:
+        schema = self.source_lock_schema
+        self.assertFalse(schema["additionalProperties"])
+        self.assertEqual(set(schema["required"]), {"schema_version", "sources"})
+        source = schema["properties"]["sources"]["items"]
+        self.assertFalse(source["additionalProperties"])
+        self.assertEqual(
+            set(source["required"]),
+            {"name", "url", "revision", "license", "path", "sha256"},
+        )
+        self.assertEqual(source["properties"]["revision"]["pattern"], "^[0-9a-f]{40}$")
+        self.assertEqual(source["properties"]["sha256"]["pattern"], "^[0-9a-f]{64}$")
 
 
 if __name__ == "__main__":

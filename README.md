@@ -116,6 +116,12 @@ checks. The unsigned constructor is compiled only for the FFI test feature.
 Rules updates will build a replacement immutable engine and swap it at a safe
 sequence boundary; they will not mutate an engine serving requests.
 
+`tools/adblock_rules.py` now compiles pinned local EasyList/EasyPrivacy inputs
+into a deterministic artifact and signs every security-relevant manifest field,
+including artifact URL and source provenance. Its output is loaded by the real
+Rust verifier during `make check`; tampered rules, URL, commit or license fail
+closed. See the [signed rule artifact contract](docs/ADBLOCK_RULE_ARTIFACTS.md).
+
 ## Profile request pipeline
 
 `fireball/components/navigation` now combines strict request validation,
@@ -132,13 +138,13 @@ and proves block, exception, third-party, exemption, site-specific cosmetic,
 generic selector and `$generichide` behavior. See the [request pipeline and
 Chromium adapter contract](docs/REQUEST_PIPELINE.md).
 
-This is not yet full Brave Shields or a Chromium network/renderer interceptor. The B0
-Chromium checkout still needs to supply trusted `GURL` fields, wire the Rust
-target into GN, apply decisions in navigation/URL-loader throttles, inject
-the validated cosmetic styles through an isolated world, and publish a real signed
-EasyList/EasyPrivacy-derived artifact and embedded production key. Until those
-steps land, the feature is a tested native foundation rather than a
-user-visible blocker.
+This is not yet full Brave Shields or a Chromium network/renderer interceptor.
+The B0 Chromium checkout still needs to supply trusted `GURL` fields, wire the
+Rust target into GN, apply decisions in navigation/URL-loader throttles, inject
+the validated cosmetic styles through an isolated world, and publish production
+EasyList/EasyPrivacy commits with an embedded production key. Until those steps
+land, the feature is a tested native foundation rather than a user-visible
+blocker.
 
 ## Download and torrent foundation
 
