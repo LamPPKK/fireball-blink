@@ -20,3 +20,8 @@ unsaved-form tabs are protected. The model never claims it released renderer
 memory: the Chromium adapter must release/recreate `WebContents` before
 committing residency. Tab layout remains presentation state and changing it
 does not recreate domain tabs. See [`docs/TAB_MANAGEMENT.md`](../../docs/TAB_MANAGEMENT.md).
+
+Profile identity also binds URL-cleaner settings, blocker mode/site exemptions
+and the committed Direct/WARP/Tor route. The standalone request policy refuses
+to evaluate a request until all three services recognize the same Profile; see
+[`docs/REQUEST_PIPELINE.md`](../../docs/REQUEST_PIPELINE.md).

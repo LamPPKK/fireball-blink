@@ -51,6 +51,10 @@ bool ProfilePolicy::RemoveProfile(const browser::ProfileId& profile_id) {
   return profiles_.erase(profile_id) == 1;
 }
 
+bool ProfilePolicy::HasProfile(const browser::ProfileId& profile_id) const {
+  return profiles_.contains(profile_id);
+}
+
 bool ProfilePolicy::SetMode(const browser::ProfileId& profile_id,
                             BlockingMode mode) {
   auto profile = profiles_.find(profile_id);

@@ -33,6 +33,43 @@ def shared_library(target: pathlib.Path) -> pathlib.Path:
     raise RuntimeError(f"unsupported adblock FFI test platform: {sys.platform}")
 
 
+def run_cpp_request_policy_test(
+    root: pathlib.Path, target: pathlib.Path, library_path: pathlib.Path
+) -> None:
+    compiler = os.environ.get("CXX") or shutil.which("c++")
+    if compiler is None:
+        raise RuntimeError("a C++20 compiler is required")
+    binary = target / "request_policy_ffi_test"
+    sources = [
+        "fireball/browser/domain_model.cc",
+        "fireball/components/adblock/profile_policy.cc",
+        "fireball/components/adblock/network_evaluator.cc",
+        "fireball/components/egress/egress_route.cc",
+        "fireball/components/egress/egress_controller.cc",
+        "fireball/components/navigation/url_cleaner.cc",
+        "fireball/components/navigation/request_policy.cc",
+        "fireball/components/privacy/network_audit.cc",
+        "tests/request_policy_ffi_test.cc",
+    ]
+    subprocess.run(
+        [
+            compiler,
+            "-std=c++20",
+            "-Wall",
+            "-Wextra",
+            "-Werror",
+            f"-I{root}",
+            *(str(root / source) for source in sources),
+            str(library_path),
+            f"-Wl,-rpath,{library_path.parent}",
+            "-o",
+            str(binary),
+        ],
+        check=True,
+    )
+    subprocess.run([str(binary)], check=True)
+
+
 def main() -> int:
     root = pathlib.Path(__file__).resolve().parents[1]
     manifest = root / "fireball/components/adblock/rust/Cargo.toml"
@@ -212,7 +249,9 @@ def main() -> int:
     finally:
         library.fireball_adblock_engine_destroy(engine)
 
-    print("fireball-adblock-tests: Rust engine and C ABI passed")
+    run_cpp_request_policy_test(root, target, library_path)
+
+    print("fireball-adblock-tests: Rust engine, C ABI and C++ request policy passed")
     return 0
 
 

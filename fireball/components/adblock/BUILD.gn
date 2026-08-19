@@ -1,10 +1,20 @@
 source_set("adblock_policy") {
   sources = [
+    "network_evaluator.h",
     "profile_policy.cc",
     "profile_policy.h",
   ]
 
   deps = [ "//fireball/browser:domain" ]
+}
+
+# Linked by the final Chromium target together with the generated Rust GN
+# target. Kept separate so the standalone overlay can compile policy code before
+# the Chromium/Rust toolchain seam exists.
+source_set("adblock_ffi_adapter") {
+  sources = [ "network_evaluator.cc" ]
+
+  deps = [ ":adblock_policy" ]
 }
 
 # The Rust engine is built as a pinned crate in rust/. Chromium GN/CXX wiring

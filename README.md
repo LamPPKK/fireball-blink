@@ -50,7 +50,7 @@ Brave overlay order and Helium provenance model visible in the interface.
 - Every imported patch must record its source repository/path, HTTPS license URL, exact source commit, exact verified Chromium commit, milestone range, security impact, required tests and SHA-256.
 - PartitionAlloc, Chromium's process model and sandbox remain intact.
 
-`make check` validates upstream/reference pins, generated network policy and the patch manifest; exercises apply, reverse, conflict, checksum and path-traversal fixtures; and compiles standalone C++ policy and domain tests. `make macos-preview-media` rebuilds the AppKit preview and deterministically regenerates all five repository screenshots. This repository does not fetch or build Chromium yet. The first full control build still needs a B0 builder with at least 8 cores, 32 GiB RAM and 300 GiB free disk; no Chromium artifact is claimed from this preview lane.
+`make check` validates upstream/reference pins, generated network policy and the patch manifest; exercises apply, reverse, conflict, checksum and path-traversal fixtures; compiles standalone C++ policy/domain tests; and links the C++ request pipeline to the real Rust blocker ABI. `make macos-preview-media` rebuilds the AppKit preview and deterministically regenerates all five repository screenshots. This repository does not fetch or build Chromium yet. The first full control build still needs a B0 builder with at least 8 cores, 32 GiB RAM and 300 GiB free disk; no Chromium artifact is claimed from this preview lane.
 
 ## Brave and Helium reference policy
 
@@ -102,12 +102,28 @@ checks. The unsigned constructor is compiled only for the FFI test feature.
 Rules updates will build a replacement immutable engine and swap it at a safe
 sequence boundary; they will not mutate an engine serving requests.
 
+## Profile request pipeline
+
+`fireball/components/navigation` now combines strict request validation,
+versioned URL cleaning, the per-Profile blocker policy and the committed
+Direct/WARP/Tor route into one deterministic decision. Main-frame `GET`
+navigations remove exact tracking-parameter names while retaining raw values,
+parameter order and fragments. Site exemptions remain inside their Profile.
+The adblock path fails closed on a missing engine, malformed result or unknown
+flags; only bounded subresource `data:` redirects and same-host, same-scheme
+rewrites are accepted.
+
+The integration gate links this C++ policy to the actual pinned Rust library
+and proves block, exception, third-party and exemption behavior. See the
+[request pipeline and Chromium adapter contract](docs/REQUEST_PIPELINE.md).
+
 This is not yet full Brave Shields or a Chromium network interceptor. The B0
-Chromium checkout still needs to wire the Rust target into GN, map Chromium
-request/resource types at the interception boundary, inject cosmetic resources
-through isolated worlds, and publish a real signed EasyList/EasyPrivacy-derived
-artifact and embedded production key. Until those steps land, the feature is a
-tested native foundation rather than a user-visible blocker.
+Chromium checkout still needs to supply trusted `GURL` fields, wire the Rust
+target into GN, apply decisions in navigation/URL-loader throttles, inject
+cosmetic resources through isolated worlds, and publish a real signed
+EasyList/EasyPrivacy-derived artifact and embedded production key. Until those
+steps land, the feature is a tested native foundation rather than a
+user-visible blocker.
 
 ## Download and torrent foundation
 

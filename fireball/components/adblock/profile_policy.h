@@ -23,6 +23,7 @@ class ProfilePolicy final {
   bool AddProfile(browser::ProfileId profile_id,
                   BlockingMode initial_mode = BlockingMode::kStandard);
   bool RemoveProfile(const browser::ProfileId& profile_id);
+  bool HasProfile(const browser::ProfileId& profile_id) const;
   bool SetMode(const browser::ProfileId& profile_id, BlockingMode mode);
   bool SetSiteExemption(const browser::ProfileId& profile_id,
                         std::string hostname,

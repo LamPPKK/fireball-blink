@@ -1,0 +1,14 @@
+source_set("navigation") {
+  sources = [
+    "request_policy.cc",
+    "request_policy.h",
+    "url_cleaner.cc",
+    "url_cleaner.h",
+  ]
+
+  deps = [
+    "//fireball/browser:domain",
+    "//fireball/components/adblock:adblock_policy",
+    "//fireball/components/egress",
+  ]
+}

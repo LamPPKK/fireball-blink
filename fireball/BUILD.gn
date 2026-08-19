@@ -3,6 +3,7 @@ group("fireball_overlay") {
     "//fireball/browser:domain",
     "//fireball/components/adblock:adblock_policy",
     "//fireball/components/egress",
+    "//fireball/components/navigation",
     "//fireball/components/privacy",
     "//fireball/components/transfer",
   ]

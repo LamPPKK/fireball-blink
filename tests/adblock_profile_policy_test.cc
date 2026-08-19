@@ -32,6 +32,8 @@ int main() {
   assert(policy.AddProfile(work));
   assert(policy.AddProfile(private_profile, BlockingMode::kAggressive));
   assert(!policy.AddProfile(work));
+  assert(policy.HasProfile(work));
+  assert(policy.HasProfile(private_profile));
   assert(policy.ShouldEvaluate(work, "news.example"));
   assert(policy.ShouldEvaluate(private_profile, "news.example"));
 
@@ -45,6 +47,7 @@ int main() {
   assert(!policy.ShouldEvaluate(work, "news.example"));
   assert(policy.GetMode(private_profile) == BlockingMode::kAggressive);
   assert(policy.RemoveProfile(private_profile));
+  assert(!policy.HasProfile(private_profile));
   assert(policy.GetMode(private_profile) == BlockingMode::kDisabled);
   return 0;
 }

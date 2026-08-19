@@ -225,6 +225,16 @@ def main() -> int:
                 "fireball/components/transfer/hls_vod.cc",
                 "tests/hls_vod_test.cc",
             ],
+            "navigation_policy_test": [
+                "fireball/browser/domain_model.cc",
+                "fireball/components/adblock/profile_policy.cc",
+                "fireball/components/egress/egress_route.cc",
+                "fireball/components/egress/egress_controller.cc",
+                "fireball/components/navigation/url_cleaner.cc",
+                "fireball/components/navigation/request_policy.cc",
+                "fireball/components/privacy/network_audit.cc",
+                "tests/navigation_policy_test.cc",
+            ],
         }
         for name, sources in cases.items():
             binary = pathlib.Path(temporary) / name
