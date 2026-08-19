@@ -1,4 +1,5 @@
 #include "fireball/components/transfer/aria2_rpc_client.h"
+#include "fireball/components/transfer/egress_transfer_policy.h"
 #include "fireball/components/transfer/transfer_types.h"
 
 #include <cassert>
@@ -92,5 +93,26 @@ int main() {
   assert(!invalid_client.IsConfigurationValid());
   assert(!invalid_client.GetVersion().ok());
   assert(!invalid_client.Pause("../../bad-gid").ok());
+  Aria2RpcClient proxied_client(0, secret, TransferPersistence::kPersistent,
+                                /*allow_peer_to_peer=*/false);
+  assert(!proxied_client.Enqueue(*magnet).ok());
+  auto torrent_request =
+      MakeTorrentTransferRequest(torrent, TransferPersistence::kPersistent);
+  assert(torrent_request.has_value());
+  assert(!proxied_client.Enqueue(*torrent_request).ok());
+
+  fireball::transfer::Aria2SidecarConfig sidecar_config;
+  std::string policy_error;
+  assert(fireball::transfer::ApplyEgressRoute(
+      fireball::egress::MakeDirectRoute(), &sidecar_config, &policy_error));
+  assert(!sidecar_config.outbound_http_proxy.has_value());
+  assert(sidecar_config.allow_peer_to_peer);
+  auto warp_route = fireball::egress::MakeWarpRoute(40000);
+  assert(warp_route.has_value());
+  assert(fireball::transfer::ApplyEgressRoute(
+      *warp_route, &sidecar_config, &policy_error));
+  assert(sidecar_config.outbound_http_proxy ==
+         std::optional<std::string>("http://127.0.0.1:40000"));
+  assert(!sidecar_config.allow_peer_to_peer);
   return 0;
 }

@@ -58,7 +58,7 @@ Compiler optimization ideas from Thorium stay in a separate benchmark lane. Gene
 
 ## Startup network policy
 
-`policies/startup_network.json` is default-deny and contains no allowed startup traffic. Its sole post-startup rule is the user-initiated aria2 transfer sidecar, which still requires explicit consent. `tools/network_policy.py` generates the C++ table used by the overlay and CI rejects stale generated output, unknown schema fields, implicit consent or a default-allow policy. Future services must declare a stable owner, phase, user-visible purpose and explicit opt-in before a rule can be added.
+`policies/startup_network.json` is default-deny and contains no allowed startup traffic. Its post-startup rules cover only user-initiated aria2, WARP and Tor activation, each with explicit consent. `tools/network_policy.py` generates the C++ table used by the overlay and CI rejects stale generated output, unknown schema fields, implicit consent or a default-allow policy. Future services must declare a stable owner, phase, user-visible purpose and explicit opt-in before a rule can be added.
 
 ## Security rebase gate
 
@@ -107,9 +107,9 @@ arguments—and is unlinked after authenticated RPC becomes ready. Uploaded
 torrent metadata is not retained, DHT/LPD/peer exchange and post-download
 seeding are disabled in this initial privacy lane, and an ephemeral request is
 rejected unless its download directory is a strict descendant of that private
-runtime directory. WARP/Tor routing is not claimed yet; the later egress
-adapter must place the entire sidecar process under the selected network
-policy before those modes can be enabled.
+runtime directory. HTTP(S) downloads can consume a verified route's loopback
+HTTP CONNECT endpoint. Magnet and `.torrent` requests fail closed on proxied
+routes until every peer socket can be proven to stay inside that egress.
 
 `make check` requires `aria2c` (1.37.0 is the development control), launches
 the real sidecar, downloads and byte-verifies an 8 MiB local fixture through
@@ -119,3 +119,17 @@ process shutdown. Install the dependency with `brew install aria2` on macOS or
 `apt install aria2` on Ubuntu. HLS/DASH assembly, Chromium download interception
 and the user-facing transfer shelf remain follow-up work; the candidate model
 does not present those streams as completed downloads.
+
+## WARP and Tor egress foundation
+
+`fireball/components/egress` now defines profile-scoped Direct, WARP and Tor
+routes, a transaction controller, a real loopback SOCKS5 readiness probe and an
+ephemeral Tor sidecar. WARP is accepted only as a preconfigured Local proxy
+after explicit user action; it is labeled encrypted egress rather than
+anonymity. Tor gets distinct SOCKS5 and HTTP CONNECT listeners per Profile.
+
+Chromium proxy rules contain no implicit Direct fallback. HTTP(S) downloads are
+mapped to the route's HTTP CONNECT listener, while peer-to-peer requests remain
+disabled on proxied routes. The detailed security boundary, external setup and
+remaining Chromium/public-IP/DNS-leak wiring are documented in
+[`docs/EGRESS.md`](docs/EGRESS.md).

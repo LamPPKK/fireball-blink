@@ -395,8 +395,12 @@ bool IsValidAria2Gid(std::string_view gid) {
 
 Aria2RpcClient::Aria2RpcClient(std::uint16_t port,
                                std::string secret,
-                               TransferPersistence persistence)
-    : port_(port), secret_(std::move(secret)), persistence_(persistence) {}
+                               TransferPersistence persistence,
+                               bool allow_peer_to_peer)
+    : port_(port),
+      secret_(std::move(secret)),
+      persistence_(persistence),
+      allow_peer_to_peer_(allow_peer_to_peer) {}
 
 Aria2RpcClient::~Aria2RpcClient() {
   volatile char* bytes = secret_.empty() ? nullptr : secret_.data();
@@ -468,6 +472,12 @@ Aria2RpcResult<std::string> Aria2RpcClient::Enqueue(
   if (request.persistence != persistence_) {
     return {std::nullopt,
             "transfer request does not match the sidecar storage boundary"};
+  }
+  if (!allow_peer_to_peer_ &&
+      (request.source_kind == TransferSourceKind::kMagnet ||
+       request.source_kind == TransferSourceKind::kTorrentMetainfo)) {
+    return {std::nullopt,
+            "peer-to-peer transfers are disabled for the active egress route"};
   }
   std::string options = "{}";
   if (request.output_name.has_value()) {

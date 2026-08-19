@@ -8,6 +8,20 @@
       "phase": "post_startup",
       "requires_user_consent": true,
       "purpose": "Download a URI or torrent after an explicit user action."
+    },
+    {
+      "id": "user_warp_egress",
+      "owner": "fireball.egress.warp",
+      "phase": "post_startup",
+      "requires_user_consent": true,
+      "purpose": "Route one profile through a user-configured WARP local proxy."
+    },
+    {
+      "id": "user_tor_egress",
+      "owner": "fireball.egress.tor",
+      "phase": "post_startup",
+      "requires_user_consent": true,
+      "purpose": "Start an isolated Tor client for one profile after an explicit user action."
     }
   ]
 }

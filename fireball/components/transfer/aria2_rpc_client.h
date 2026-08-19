@@ -44,7 +44,8 @@ class Aria2RpcClient final {
  public:
   Aria2RpcClient(std::uint16_t port,
                  std::string secret,
-                 TransferPersistence persistence);
+                 TransferPersistence persistence,
+                 bool allow_peer_to_peer = true);
   ~Aria2RpcClient();
 
   Aria2RpcClient(const Aria2RpcClient&) = delete;
@@ -69,6 +70,7 @@ class Aria2RpcClient final {
   std::uint16_t port_;
   std::string secret_;
   TransferPersistence persistence_;
+  bool allow_peer_to_peer_;
   std::uint64_t next_request_id_ = 1;
 };
 

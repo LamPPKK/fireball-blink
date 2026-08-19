@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "fireball/components/transfer/aria2_rpc_client.h"
@@ -19,6 +20,8 @@ struct Aria2SidecarConfig {
   std::uint16_t rpc_port = 0;
   int maximum_concurrent_downloads = 3;
   int connections_per_download = 4;
+  std::optional<std::string> outbound_http_proxy;
+  bool allow_peer_to_peer = true;
 };
 
 // Owns one foreground aria2 process for one Fireball storage boundary. The RPC
@@ -44,6 +47,7 @@ class Aria2Sidecar final {
                std::uint16_t rpc_port,
                std::string secret,
                TransferPersistence persistence,
+               bool allow_peer_to_peer,
                std::filesystem::path private_config_path);
 
   int process_id_;

@@ -1,0 +1,23 @@
+source_set("egress") {
+  sources = [
+    "egress_controller.cc",
+    "egress_controller.h",
+    "egress_route.cc",
+    "egress_route.h",
+    "runtime_backend.cc",
+    "runtime_backend.h",
+    "socks5_probe.cc",
+    "socks5_probe.h",
+    "tor_config.cc",
+    "tor_config.h",
+    "tor_sidecar.cc",
+    "tor_sidecar.h",
+    "warp_local_proxy.cc",
+    "warp_local_proxy.h",
+  ]
+
+  deps = [
+    "//fireball/browser:domain",
+    "//fireball/components/privacy",
+  ]
+}

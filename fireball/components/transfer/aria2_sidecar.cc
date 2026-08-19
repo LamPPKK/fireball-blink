@@ -25,8 +25,6 @@
 #include <utility>
 #include <vector>
 
-extern char** environ;
-
 namespace fireball::transfer {
 namespace {
 
@@ -34,6 +32,25 @@ bool ContainsLineBreak(const std::filesystem::path& path) {
   const std::string value = path.string();
   return value.find('\n') != std::string::npos ||
          value.find('\r') != std::string::npos;
+}
+
+bool IsLoopbackHttpProxy(std::string_view value) {
+  constexpr std::string_view prefix = "http://127.0.0.1:";
+  if (!value.starts_with(prefix)) {
+    return false;
+  }
+  value.remove_prefix(prefix.size());
+  if (value.empty() || value.size() > 5 ||
+      !std::all_of(value.begin(), value.end(), [](char character) {
+        return character >= '0' && character <= '9';
+      })) {
+    return false;
+  }
+  unsigned long port = 0;
+  for (const char character : value) {
+    port = port * 10 + static_cast<unsigned long>(character - '0');
+  }
+  return port > 0 && port <= 65535;
 }
 
 bool IsDirectory(const std::filesystem::path& path, struct stat* status) {
@@ -159,6 +176,10 @@ std::optional<std::filesystem::path> WritePrivateConfig(
       "max-download-result=100\n"
       "stop-with-process=" +
       std::to_string(getpid()) + "\n";
+  if (config.outbound_http_proxy.has_value()) {
+    content += "all-proxy=" + *config.outbound_http_proxy +
+               "\nproxy-method=tunnel\nno-proxy=\n";
+  }
 
   success = success && WriteAll(descriptor, content) && fsync(descriptor) == 0;
   std::fill(content.begin(), content.end(), '\0');
@@ -242,6 +263,13 @@ bool ValidateAria2SidecarConfig(const Aria2SidecarConfig& config,
     *error = "aria2 limits or loopback port are outside the supported range";
     return false;
   }
+  if (config.outbound_http_proxy.has_value() &&
+      (!IsLoopbackHttpProxy(*config.outbound_http_proxy) ||
+       config.allow_peer_to_peer)) {
+    *error =
+        "proxied aria2 requires a loopback HTTP proxy and disabled peer-to-peer";
+    return false;
+  }
   return true;
 }
 
@@ -250,9 +278,10 @@ Aria2Sidecar::Aria2Sidecar(
     std::uint16_t rpc_port,
     std::string secret,
     TransferPersistence persistence,
+    bool allow_peer_to_peer,
     std::filesystem::path private_config_path)
     : process_id_(process_id),
-      rpc_(rpc_port, std::move(secret), persistence),
+      rpc_(rpc_port, std::move(secret), persistence, allow_peer_to_peer),
       private_config_path_(std::move(private_config_path)) {}
 
 Aria2Sidecar::~Aria2Sidecar() {
@@ -304,9 +333,13 @@ std::unique_ptr<Aria2Sidecar> Aria2Sidecar::Launch(
   }
 
   pid_t process_id = -1;
+  std::array<char*, 2> clean_environment = {
+      const_cast<char*>("LANG=C"),
+      nullptr,
+  };
   const int spawn_result = posix_spawn(
       &process_id, executable.c_str(), &actions, nullptr, arguments.data(),
-      environ);
+      clean_environment.data());
   posix_spawn_file_actions_destroy(&actions);
   if (spawn_result != 0) {
     *error = "could not launch aria2 sidecar: " +
@@ -318,6 +351,7 @@ std::unique_ptr<Aria2Sidecar> Aria2Sidecar::Launch(
 
   auto sidecar = std::unique_ptr<Aria2Sidecar>(new Aria2Sidecar(
       process_id, config.rpc_port, *secret, config.persistence,
+      config.allow_peer_to_peer,
       std::move(*config_path)));
   std::fill(secret->begin(), secret->end(), '\0');
   const auto deadline =

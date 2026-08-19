@@ -4,9 +4,14 @@ source_set("transfer") {
     "aria2_rpc_client.h",
     "aria2_sidecar.cc",
     "aria2_sidecar.h",
+    "egress_transfer_policy.cc",
+    "egress_transfer_policy.h",
     "transfer_types.cc",
     "transfer_types.h",
   ]
 
-  deps = [ "//fireball/components/privacy" ]
+  deps = [
+    "//fireball/components/egress",
+    "//fireball/components/privacy",
+  ]
 }

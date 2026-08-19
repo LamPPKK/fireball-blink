@@ -6,7 +6,10 @@ from __future__ import annotations
 import os
 import pathlib
 import re
+import select
 import shutil
+import socket
+import socketserver
 import subprocess
 import sys
 import tempfile
@@ -79,6 +82,69 @@ class RangeServer(ThreadingHTTPServer):
         self.total_requests = 0
 
 
+class ConnectProxyHandler(socketserver.StreamRequestHandler):
+    def handle(self) -> None:
+        request_line = self.rfile.readline(4096)
+        try:
+            method, target, version = request_line.decode("ascii").strip().split()
+        except (UnicodeDecodeError, ValueError):
+            return
+        if method != "CONNECT" or version not in {"HTTP/1.0", "HTTP/1.1"}:
+            self.wfile.write(b"HTTP/1.1 405 Method Not Allowed\r\n\r\n")
+            return
+        header_bytes = 0
+        for _ in range(64):
+            line = self.rfile.readline(4096)
+            header_bytes += len(line)
+            if not line or line in {b"\r\n", b"\n"}:
+                break
+            if header_bytes > 32 * 1024:
+                return
+        expected = f"127.0.0.1:{self.server.target_port}"  # type: ignore[attr-defined]
+        if target != expected:
+            self.wfile.write(b"HTTP/1.1 403 Forbidden\r\n\r\n")
+            return
+        try:
+            upstream = socket.create_connection(
+                ("127.0.0.1", self.server.target_port), timeout=2  # type: ignore[attr-defined]
+            )
+        except OSError:
+            self.wfile.write(b"HTTP/1.1 502 Bad Gateway\r\n\r\n")
+            return
+        with self.server.counter_lock:  # type: ignore[attr-defined]
+            self.server.connect_requests += 1  # type: ignore[attr-defined]
+        self.wfile.write(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+        self.wfile.flush()
+        with upstream:
+            peers = {self.connection: upstream, upstream: self.connection}
+            while True:
+                readable, _, _ = select.select(list(peers), [], [], 5)
+                if not readable:
+                    return
+                for source in readable:
+                    try:
+                        data = source.recv(64 * 1024)
+                    except (ConnectionResetError, OSError):
+                        return
+                    if not data:
+                        return
+                    try:
+                        peers[source].sendall(data)
+                    except (BrokenPipeError, ConnectionResetError, OSError):
+                        return
+
+
+class ConnectProxyServer(socketserver.ThreadingTCPServer):
+    allow_reuse_address = True
+    daemon_threads = True
+
+    def __init__(self, target_port: int) -> None:
+        super().__init__(("127.0.0.1", 0), ConnectProxyHandler)
+        self.target_port = target_port
+        self.counter_lock = threading.Lock()
+        self.connect_requests = 0
+
+
 def main() -> int:
     root = pathlib.Path(__file__).resolve().parents[1]
     compiler = os.environ.get("CXX") or shutil.which("c++")
@@ -103,9 +169,34 @@ def main() -> int:
             "adblock_ffi_header_test": [
                 "tests/adblock_ffi_header_test.cc",
             ],
+            "egress_test": [
+                "fireball/browser/domain_model.cc",
+                "fireball/components/privacy/network_audit.cc",
+                "fireball/components/egress/egress_route.cc",
+                "fireball/components/egress/egress_controller.cc",
+                "fireball/components/egress/runtime_backend.cc",
+                "fireball/components/egress/socks5_probe.cc",
+                "fireball/components/egress/tor_config.cc",
+                "fireball/components/egress/tor_sidecar.cc",
+                "fireball/components/egress/warp_local_proxy.cc",
+                "tests/egress_test.cc",
+            ],
+            "tor_sidecar_integration_test": [
+                "fireball/browser/domain_model.cc",
+                "fireball/components/privacy/network_audit.cc",
+                "fireball/components/egress/egress_route.cc",
+                "fireball/components/egress/egress_controller.cc",
+                "fireball/components/egress/runtime_backend.cc",
+                "fireball/components/egress/socks5_probe.cc",
+                "fireball/components/egress/tor_config.cc",
+                "fireball/components/egress/tor_sidecar.cc",
+                "tests/tor_sidecar_integration_test.cc",
+            ],
             "transfer_test": [
+                "fireball/components/egress/egress_route.cc",
                 "fireball/components/transfer/transfer_types.cc",
                 "fireball/components/transfer/aria2_rpc_client.cc",
+                "fireball/components/transfer/egress_transfer_policy.cc",
                 "tests/transfer_test.cc",
             ],
         }
@@ -118,6 +209,7 @@ def main() -> int:
                     "-Wall",
                     "-Wextra",
                     "-Werror",
+                    "-pthread",
                     f"-I{root}",
                     *(str(root / source) for source in sources),
                     "-o",
@@ -166,14 +258,26 @@ def main() -> int:
         server = RangeServer()
         server_thread = threading.Thread(target=server.serve_forever, daemon=True)
         server_thread.start()
+        proxy = ConnectProxyServer(server.server_port)
+        proxy_thread = threading.Thread(target=proxy.serve_forever, daemon=True)
+        proxy_thread.start()
         try:
             url = f"http://127.0.0.1:{server.server_port}/fireball-range.bin"
             subprocess.run(
-                [str(integration_binary), aria2, url, str(PAYLOAD_SIZE)],
+                [
+                    str(integration_binary),
+                    aria2,
+                    url,
+                    str(PAYLOAD_SIZE),
+                    str(proxy.server_address[1]),
+                ],
                 check=True,
-                timeout=30,
+                timeout=45,
             )
         finally:
+            proxy.shutdown()
+            proxy.server_close()
+            proxy_thread.join(timeout=5)
             server.shutdown()
             server.server_close()
             server_thread.join(timeout=5)
@@ -183,9 +287,16 @@ def main() -> int:
                 file=sys.stderr,
             )
             return 1
+        if proxy.connect_requests < 2:
+            print(
+                "fireball-cpp-tests: proxied aria2 did not use HTTP CONNECT",
+                file=sys.stderr,
+            )
+            return 1
         print(
-            "fireball-cpp-tests: aria2 integration passed "
-            f"({server.range_requests} range requests)"
+            "fireball-cpp-tests: aria2 direct + HTTP CONNECT passed "
+            f"({server.range_requests} range requests, "
+            f"{proxy.connect_requests} proxy tunnels)"
         )
     return 0
 

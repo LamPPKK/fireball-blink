@@ -72,10 +72,13 @@ bool HasExpectedPayload(const std::filesystem::path& path,
 }  // namespace
 
 int main(int argc, char** argv) {
-  assert(argc == 4);
+  assert(argc == 5);
   const std::filesystem::path aria2_executable(argv[1]);
   const std::string download_url(argv[2]);
   const std::size_t payload_size = std::stoull(argv[3]);
+  const std::uint16_t proxy_port =
+      static_cast<std::uint16_t>(std::stoul(argv[4]));
+  assert(proxy_port != 0);
 
   std::string root_pattern = "/tmp/fireball-aria2-test-XXXXXX";
   std::vector<char> mutable_pattern(root_pattern.begin(), root_pattern.end());
@@ -113,6 +116,17 @@ int main(int argc, char** argv) {
   config.persistence = fireball::transfer::TransferPersistence::kPersistent;
   config.downloads_directory = downloads;
   assert(std::filesystem::remove(ephemeral_downloads));
+  config.outbound_http_proxy = "http://127.0.0.1:40000";
+  error.clear();
+  assert(!fireball::transfer::ValidateAria2SidecarConfig(config, &error));
+  config.allow_peer_to_peer = false;
+  error.clear();
+  assert(fireball::transfer::ValidateAria2SidecarConfig(config, &error));
+  config.outbound_http_proxy = "socks5://127.0.0.1:40000";
+  error.clear();
+  assert(!fireball::transfer::ValidateAria2SidecarConfig(config, &error));
+  config.outbound_http_proxy.reset();
+  config.allow_peer_to_peer = true;
   error.clear();
   auto sidecar = fireball::transfer::Aria2Sidecar::Launch(config, &error);
   assert(sidecar != nullptr && error.empty());
@@ -182,6 +196,47 @@ int main(int argc, char** argv) {
   sidecar->Stop();
   assert(kill(process_id, 0) == -1 && errno == ESRCH);
   sidecar.reset();
+
+  config.rpc_port = FindAvailableLoopbackPort();
+  config.outbound_http_proxy =
+      "http://127.0.0.1:" + std::to_string(proxy_port);
+  config.allow_peer_to_peer = false;
+  error.clear();
+  auto proxied_sidecar =
+      fireball::transfer::Aria2Sidecar::Launch(config, &error);
+  assert(proxied_sidecar != nullptr && error.empty());
+  auto proxied_request = fireball::transfer::MakeUriTransferRequest(
+      download_url, fireball::transfer::TransferPersistence::kPersistent,
+      "fireball-proxied.bin");
+  assert(proxied_request.has_value());
+  auto proxied_added = proxied_sidecar->rpc().Enqueue(*proxied_request);
+  assert(proxied_added.ok());
+  auto blocked_torrent = fireball::transfer::MakeTorrentTransferRequest(
+      LocalTorrentMetainfo(),
+      fireball::transfer::TransferPersistence::kPersistent);
+  assert(blocked_torrent.has_value());
+  assert(!proxied_sidecar->rpc().Enqueue(*blocked_torrent).ok());
+
+  const auto proxy_deadline =
+      std::chrono::steady_clock::now() + std::chrono::seconds(15);
+  bool proxy_complete = false;
+  while (std::chrono::steady_clock::now() < proxy_deadline) {
+    auto status = proxied_sidecar->rpc().TellStatus(*proxied_added.value);
+    assert(status.ok());
+    if (status.value->state ==
+        fireball::transfer::Aria2TransferState::kComplete) {
+      proxy_complete = true;
+      break;
+    }
+    assert(status.value->state !=
+           fireball::transfer::Aria2TransferState::kError);
+    std::this_thread::sleep_for(std::chrono::milliseconds(25));
+  }
+  assert(proxy_complete);
+  assert(HasExpectedPayload(downloads / "fireball-proxied.bin", payload_size));
+  proxied_sidecar->Stop();
+  proxied_sidecar.reset();
+
   std::filesystem::remove_all(root);
   return 0;
 }
