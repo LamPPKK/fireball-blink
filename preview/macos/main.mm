@@ -16,6 +16,8 @@ using fireball::browser::SpaceKind;
 using fireball::browser::StorageMode;
 using fireball::browser::TabId;
 using fireball::browser::TabLayout;
+using fireball::browser::TabPlacement;
+using fireball::browser::TabResidency;
 
 constexpr CGFloat kCanvasWidth = 1440.0;
 constexpr CGFloat kCanvasHeight = 900.0;
@@ -143,6 +145,21 @@ NSString* LayoutName(TabLayout layout) {
   }
 }
 
+NSString* PlacementName(TabPlacement placement) {
+  switch (placement) {
+    case TabPlacement::kFavorite:
+      return @"FAVORITE";
+    case TabPlacement::kPinned:
+      return @"PINNED";
+    case TabPlacement::kToday:
+      return @"TODAY";
+  }
+}
+
+NSString* ResidencyName(TabResidency residency) {
+  return residency == TabResidency::kLoaded ? @"LIVE" : @"SLEEP";
+}
+
 std::optional<TabLayout> ParseLayout(NSString* name) {
   NSString* normalized = name.lowercaseString;
   if ([normalized isEqualToString:@"classic"]) {
@@ -181,18 +198,30 @@ class PreviewModel final {
     model_.AddSpace(*burner_space_, *burner_profile_, SpaceKind::kBurner);
 
     AddTab("30000000-0000-4000-8000-000000000001", *main_space_,
-           "https://fireball.example/architecture", "Architecture", false);
+           "https://fireball.example/architecture", "Architecture", false,
+           TabPlacement::kFavorite);
     AddTab("30000000-0000-4000-8000-000000000002", *main_space_,
-           "https://chromium.googlesource.com/chromium/src", "Chromium", false);
+           "https://chromium.googlesource.com/chromium/src", "Chromium",
+           false, TabPlacement::kPinned);
     AddTab("30000000-0000-4000-8000-000000000003", *main_space_,
-           "https://github.com/brave/brave-core", "Brave overlay", true);
-    AddTab("30000000-0000-4000-8000-000000000004", *main_space_,
-           "https://github.com/imputnet/helium", "Helium provenance", false);
+           "https://github.com/brave/brave-core", "Brave Shields", true,
+           TabPlacement::kPinned);
+    const TabId helium = AddTab(
+        "30000000-0000-4000-8000-000000000004", *main_space_,
+        "https://github.com/imputnet/helium", "Helium provenance", false,
+        TabPlacement::kToday);
     AddTab("30000000-0000-4000-8000-000000000005", *research_space_,
            "https://chromiumdash.appspot.com/releases", "Security releases",
-           true);
+           true, TabPlacement::kPinned);
     AddTab("30000000-0000-4000-8000-000000000006", *burner_space_,
-           "https://private.invalid/", "Burner tab", true);
+           "https://private.invalid/", "Burner tab", true,
+           TabPlacement::kToday);
+    AddTab("30000000-0000-4000-8000-000000000007", *main_space_,
+           "https://fireball.example/transfers", "Transfer deck", false,
+           TabPlacement::kToday);
+    if (!model_.MarkTabDiscarded(helium)) {
+      std::abort();
+    }
   }
 
   BrowserModel& model() { return model_; }
@@ -202,12 +231,17 @@ class PreviewModel final {
   const SpaceId& burner_space() const { return *burner_space_; }
 
  private:
-  void AddTab(const char* id,
-              const SpaceId& space,
-              const char* url,
-              const char* title,
-              bool activate) {
-    model_.AddTab(ParseId<TabId>(id), space, url, title, activate);
+  TabId AddTab(const char* id,
+               const SpaceId& space,
+               const char* url,
+               const char* title,
+               bool activate,
+               TabPlacement placement) {
+    TabId tab_id = ParseId<TabId>(id);
+    if (!model_.AddTab(tab_id, space, url, title, activate, placement)) {
+      std::abort();
+    }
+    return tab_id;
   }
 
   BrowserModel model_;
@@ -235,6 +269,10 @@ class PreviewModel final {
   if (self != nil) {
     _layout = layout;
     _preview.model().SetTabLayout(layout);
+    self.accessibilityRole = NSAccessibilityGroupRole;
+    self.accessibilityLabel = @"Fireball Blink tab-layout model preview";
+    self.accessibilityHelp =
+        @"Use keys 1 through 4 or the arrow keys to switch layouts.";
   }
   return self;
 }
@@ -245,6 +283,53 @@ class PreviewModel final {
 
 - (BOOL)acceptsFirstResponder {
   return YES;
+}
+
+- (void)viewDidMoveToWindow {
+  [super viewDidMoveToWindow];
+  [self.window makeFirstResponder:self];
+}
+
+- (void)resetCursorRects {
+  [super resetCursorRects];
+  const CGFloat scale_x = self.bounds.size.width / kCanvasWidth;
+  const CGFloat scale_y = self.bounds.size.height / kCanvasHeight;
+  [self addCursorRect:NSMakeRect(493 * scale_x, 20 * scale_y, 464 * scale_x,
+                                 38 * scale_y)
+               cursor:NSCursor.pointingHandCursor];
+}
+
+- (void)selectLayoutAtIndex:(NSInteger)index {
+  const TabLayout layouts[] = {
+      TabLayout::kChromiumClassic,
+      TabLayout::kSafariFloating,
+      TabLayout::kVerticalSidebar,
+      TabLayout::kTabGrid,
+  };
+  if (index < 0 || index >= 4) {
+    return;
+  }
+  _layout = layouts[index];
+  _preview.model().SetTabLayout(_layout);
+  self.needsDisplay = YES;
+}
+
+- (void)keyDown:(NSEvent*)event {
+  NSString* characters = event.charactersIgnoringModifiers;
+  if (characters.length == 1) {
+    unichar key = [characters characterAtIndex:0];
+    if (key >= '1' && key <= '4') {
+      [self selectLayoutAtIndex:key - '1'];
+      return;
+    }
+    if (key == NSLeftArrowFunctionKey || key == NSRightArrowFunctionKey) {
+      NSInteger current = static_cast<NSInteger>(_layout);
+      NSInteger delta = key == NSLeftArrowFunctionKey ? -1 : 1;
+      [self selectLayoutAtIndex:(current + delta + 4) % 4];
+      return;
+    }
+  }
+  [super keyDown:event];
 }
 
 - (void)drawRect:(NSRect)dirtyRect {
@@ -274,15 +359,7 @@ class PreviewModel final {
   if (point.y >= 20.0 && point.y <= 58.0 && point.x >= segment_x &&
       point.x < segment_x + segment_width * 4.0) {
     NSInteger index = (NSInteger)((point.x - segment_x) / segment_width);
-    const TabLayout layouts[] = {
-        TabLayout::kChromiumClassic,
-        TabLayout::kSafariFloating,
-        TabLayout::kVerticalSidebar,
-        TabLayout::kTabGrid,
-    };
-    _layout = layouts[index];
-    _preview.model().SetTabLayout(_layout);
-    self.needsDisplay = YES;
+    [self selectLayoutAtIndex:index];
   }
 }
 
@@ -373,17 +450,16 @@ class PreviewModel final {
 
   Text(@"02 / ORBITS", NSMakeRect(42, 260, 180, 22), MonoFont(10),
        RGB(0xFF7A3D));
-  const Space* main = _preview.model().FindSpace(_preview.main_space());
-  const Space* research =
-      _preview.model().FindSpace(_preview.research_space());
   const Space* burner = _preview.model().FindSpace(_preview.burner_space());
   [self drawSpace:@"MAIN"
-            count:main == nullptr ? 0 : main->tab_order.size()
+            count:_preview.model().VisibleTabOrder(_preview.main_space()).size()
                 y:290
          selected:YES
            burner:NO];
   [self drawSpace:@"RESEARCH"
-            count:research == nullptr ? 0 : research->tab_order.size()
+            count:_preview.model()
+                      .VisibleTabOrder(_preview.research_space())
+                      .size()
                 y:344
          selected:NO
            burner:NO];
@@ -393,24 +469,43 @@ class PreviewModel final {
          selected:NO
            burner:YES];
 
-  Text(@"03 / NETWORK LAUNCH", NSMakeRect(42, 486, 190, 22), MonoFont(10),
+  Text(@"03 / TAB LIFECYCLE", NSMakeRect(42, 474, 190, 22), MonoFont(10),
        RGB(0xFF7A3D));
-  RoundedRect(NSMakeRect(40, 518, 214, 108), 12, RGB(0x111611),
+  RoundedRect(NSMakeRect(40, 506, 214, 114), 12, RGB(0x111611),
               RGB(0x394239));
-  Text(@"DEFAULT DENY", NSMakeRect(56, 538, 170, 25), MonoFont(13),
+  size_t loaded = 0;
+  size_t sleeping = 0;
+  for (const TabId& id :
+       _preview.model().VisibleTabOrder(_preview.main_space())) {
+    const fireball::browser::Tab* tab = _preview.model().FindTab(id);
+    if (tab != nullptr && tab->residency == TabResidency::kDiscarded) {
+      ++sleeping;
+    } else if (tab != nullptr) {
+      ++loaded;
+    }
+  }
+  Text([NSString stringWithFormat:@"%zu LIVE · %zu SLEEP", loaded, sleeping],
+       NSMakeRect(56, 526, 180, 25), MonoFont(12),
        RGB(0xF4F1E8));
-  Text(@"Every startup request needs\nan owner, purpose and opt-in.",
-       NSMakeRect(56, 573, 182, 48), BodyFont(11), RGB(0xA8B0A6));
+  Text(@"LRU releases background state.\nAudio · capture · forms stay live.",
+       NSMakeRect(56, 560, 182, 46), BodyFont(10), RGB(0xA8B0A6));
 
-  Line(NSMakePoint(40, 660), NSMakePoint(254, 660), RGB(0x303830));
-  Text(@"REFERENCE FLIGHT PLAN", NSMakeRect(42, 680, 196, 20), MonoFont(8),
-       RGB(0x727C72));
-  Text(@"BRAVE", NSMakeRect(42, 712, 82, 22), MonoFont(12), RGB(0xF4F1E8));
-  Text(@"overlay → override → patch", NSMakeRect(42, 736, 198, 20),
-       BodyFont(10), RGB(0xA8B0A6));
-  Text(@"HELIUM", NSMakeRect(42, 772, 82, 22), MonoFont(12), RGB(0xF4F1E8));
-  Text(@"pin → checksum → provenance", NSMakeRect(42, 796, 202, 20),
-       BodyFont(10), RGB(0xA8B0A6));
+  Text(@"04 / PRIVATE ROUTES", NSMakeRect(42, 648, 190, 22), MonoFont(10),
+       RGB(0xFF7A3D));
+  RoundedRect(NSMakeRect(40, 680, 214, 126), 12, RGB(0x111611),
+              RGB(0x394239));
+  RoundedRect(NSMakeRect(56, 700, 8, 8), 4, RGB(0xB8FF3D));
+  Text(@"WARP", NSMakeRect(76, 692, 70, 22), MonoFont(10),
+       RGB(0xF4F1E8));
+  Text(@"LOCAL PROXY", NSMakeRect(144, 693, 92, 20), MonoFont(7),
+       RGB(0x8C978F), NSTextAlignmentRight);
+  RoundedRect(NSMakeRect(56, 736, 8, 8), 4, RGB(0xFF7A3D));
+  Text(@"TOR", NSMakeRect(76, 728, 70, 22), MonoFont(10), RGB(0xF4F1E8));
+  Text(@"SIDECAR", NSMakeRect(144, 729, 92, 20), MonoFont(7),
+       RGB(0x8C978F), NSTextAlignmentRight);
+  Line(NSMakePoint(56, 762), NSMakePoint(238, 762), RGB(0x2D372F));
+  Text(@"CONSENT + LEAK TEST REQUIRED", NSMakeRect(56, 775, 182, 16),
+       MonoFont(7), RGB(0xA8B0A6));
   RoundedRect(NSMakeRect(40, 832, 214, 26), 6, RGB(0x21110B), RGB(0x813513));
   Text(@"PREVIEW · NOT A BROWSER BUILD", NSMakeRect(48, 839, 198, 14),
        MonoFont(7), RGB(0xFF9A6A), NSTextAlignmentCenter);
@@ -436,25 +531,32 @@ class PreviewModel final {
   const NSRect stage = NSMakeRect(292, 98, 1126, 774);
   RoundedRect(stage, 16, RGB(0x0B0F0C, 0.985), RGB(0x293229));
 
-  Text(@"‹", NSMakeRect(306, 108, 26, 34), BodyFont(27), RGB(0x657168));
-  Text(@"›", NSMakeRect(344, 108, 26, 34), BodyFont(27), RGB(0x657168));
-  Text(@"↻", NSMakeRect(388, 110, 28, 30), BodyFont(22), RGB(0xD5DAD6));
+  RoundedRect(NSMakeRect(312, 121, 10, 10), 5, RGB(0xFF5F57));
+  RoundedRect(NSMakeRect(329, 121, 10, 10), 5, RGB(0xFEBB2E));
+  RoundedRect(NSMakeRect(346, 121, 10, 10), 5, RGB(0x28C840));
+  Text(@"‹", NSMakeRect(376, 108, 26, 34), BodyFont(27), RGB(0x657168));
+  Text(@"›", NSMakeRect(410, 108, 26, 34), BodyFont(27), RGB(0x657168));
+  Text(@"↻", NSMakeRect(444, 110, 28, 30), BodyFont(22), RGB(0xD5DAD6));
 
-  RoundedRect(NSMakeRect(432, 106, 696, 42), 10, RGB(0x151A14),
+  RoundedRect(NSMakeRect(478, 106, 550, 42), 13, RGB(0x151A14),
               RGB(0x3A4339));
-  RoundedRect(NSMakeRect(448, 123, 8, 8), 4, RGB(0xB8FF3D));
-  Text(@"fireball://architecture", NSMakeRect(468, 117, 540, 24),
+  RoundedRect(NSMakeRect(494, 123, 8, 8), 4, RGB(0xB8FF3D));
+  Text(@"fireball://architecture", NSMakeRect(514, 117, 386, 24),
        MonoFont(12), RGB(0xD1D5CE));
-  Text(@"LOCAL MODEL", NSMakeRect(1006, 118, 102, 22), MonoFont(8),
+  Text(@"PRIVATE PROFILE", NSMakeRect(902, 118, 106, 22), MonoFont(7),
        RGB(0x727C72), NSTextAlignmentRight);
 
-  RoundedRect(NSMakeRect(1142, 106, 108, 42), 10, RGB(0x182117),
+  RoundedRect(NSMakeRect(1042, 106, 108, 42), 11, RGB(0x182117),
               RGB(0x455542));
-  Text(@"SHIELDS", NSMakeRect(1160, 118, 88, 20), MonoFont(9),
+  Text(@"BLOCKER", NSMakeRect(1052, 118, 88, 20), MonoFont(8),
        RGB(0xB8FF3D), NSTextAlignmentCenter);
-  RoundedRect(NSMakeRect(1262, 106, 132, 42), 10, RGB(0x21110B),
+  RoundedRect(NSMakeRect(1162, 106, 108, 42), 11, RGB(0x121812),
+              RGB(0x3A4339));
+  Text(@"TRANSFER", NSMakeRect(1172, 118, 88, 20), MonoFont(8),
+       RGB(0xD1D5CE), NSTextAlignmentCenter);
+  RoundedRect(NSMakeRect(1282, 106, 112, 42), 11, RGB(0x21110B),
               RGB(0x813513));
-  Text(@"B0 / GATED", NSMakeRect(1272, 118, 112, 20), MonoFont(9),
+  Text(@"B0 / GATED", NSMakeRect(1292, 118, 92, 20), MonoFont(8),
        RGB(0xFF9A6A), NSTextAlignmentCenter);
 
   switch (_layout) {
@@ -479,7 +581,8 @@ class PreviewModel final {
     return @[];
   }
   NSMutableArray* result = [[NSMutableArray alloc] init];
-  for (const TabId& id : space->tab_order) {
+  for (const TabId& id :
+       _preview.model().VisibleTabOrder(_preview.main_space())) {
     const fireball::browser::Tab* tab = _preview.model().FindTab(id);
     if (tab == nullptr) {
       continue;
@@ -488,6 +591,8 @@ class PreviewModel final {
       @"title" : [NSString stringWithUTF8String:tab->title.c_str()],
       @"url" : [NSString stringWithUTF8String:tab->url.c_str()],
       @"active" : space->active_tab == id ? @"1" : @"0",
+      @"placement" : PlacementName(tab->placement),
+      @"residency" : ResidencyName(tab->residency),
     }];
   }
   return result;
@@ -495,19 +600,25 @@ class PreviewModel final {
 
 - (void)drawClassicLayout {
   NSArray* tabs = [self tabs];
-  RoundedRect(NSMakeRect(300, 164, 1098, 54), 12, RGB(0x0E1712),
+  RoundedRect(NSMakeRect(300, 164, 1098, 60), 12, RGB(0x0E1712),
               RGB(0x29382F));
-  CGFloat x = 312;
+  CGFloat x = 310;
   for (NSDictionary* tab in tabs) {
     const BOOL active = [tab[@"active"] isEqualToString:@"1"];
-    NSRect rect = NSMakeRect(x, 174, 236, 36);
+    const BOOL sleeping = [tab[@"residency"] isEqualToString:@"SLEEP"];
+    NSRect rect = NSMakeRect(x, 173, 206, 42);
     RoundedRect(rect, 9, active ? RGB(0x1A2820) : RGB(0x101713),
                 active ? RGB(0xB8FF3D) : nil);
-    Text(tab[@"title"], NSInsetRect(rect, 14, 9), BodyFont(11),
+    Text(tab[@"title"], NSMakeRect(x + 12, 179, 126, 18), BodyFont(10),
          active ? RGB(0xF4F1E8) : RGB(0x89958D));
-    x += 246;
+    Text(sleeping ? @"SLEEP" : tab[@"placement"],
+         NSMakeRect(x + 140, 180, 54, 16), MonoFont(6),
+         sleeping ? RGB(0xFF9A6A) : RGB(0x657168), NSTextAlignmentRight);
+    Text(tab[@"url"], NSMakeRect(x + 12, 198, 180, 12), MonoFont(6),
+         RGB(0x5E6962));
+    x += 216;
   }
-  [self drawEngineBoundary:NSMakeRect(300, 230, 1098, 620)
+  [self drawEngineBoundary:NSMakeRect(300, 236, 1098, 614)
                      label:@"CHROMIUM CLASSIC"];
 }
 
@@ -515,38 +626,107 @@ class PreviewModel final {
   const NSRect viewport = NSMakeRect(300, 218, 1098, 632);
   [self drawEngineBoundary:viewport label:@"SAFARI FLOATING"];
   NSArray* tabs = [self tabs];
-  CGFloat x = 332;
+  CGFloat x = 316;
   for (NSDictionary* tab in tabs) {
     const BOOL active = [tab[@"active"] isEqualToString:@"1"];
-    NSRect rect = NSMakeRect(x, 174, 220, 40);
-    RoundedRect(rect, 20, active ? RGB(0xB8FF3D) : RGB(0x151F19, 0.95),
+    const BOOL sleeping = [tab[@"residency"] isEqualToString:@"SLEEP"];
+    NSRect rect = NSMakeRect(x, 174, 198, 40);
+    RoundedRect(rect, 14, active ? RGB(0xF4F1E8) : RGB(0x151F19, 0.98),
                 active ? nil : RGB(0x3A4A40));
-    Text(tab[@"title"], NSInsetRect(rect, 16, 11), MonoFont(9),
+    RoundedRect(NSMakeRect(x + 12, 190, 7, 7), 3.5,
+                sleeping ? RGB(0xFF7A3D) : RGB(0xB8FF3D));
+    Text(tab[@"title"], NSMakeRect(x + 28, 184, 118, 18), BodyFont(9),
          active ? RGB(0x07100A) : RGB(0xC3CBC5));
-    x += 232;
+    Text(sleeping ? @"SLEEP" : tab[@"placement"],
+         NSMakeRect(x + 142, 185, 44, 16), MonoFont(6),
+         active ? RGB(0x344035) : RGB(0x718078), NSTextAlignmentRight);
+    x += 214;
   }
 }
 
 - (void)drawVerticalLayout {
-  RoundedRect(NSMakeRect(300, 164, 248, 686), 15, RGB(0x0E1712),
+  RoundedRect(NSMakeRect(300, 164, 300, 686), 15, RGB(0x0E1712),
               RGB(0x29382F));
-  Text(@"OPEN TABS", NSMakeRect(322, 188, 180, 20), MonoFont(10),
+  Text(@"MAIN / PRIMARY", NSMakeRect(322, 186, 180, 20), DisplayFont(15),
+       RGB(0xF4F1E8));
+  Text(@"ARC-STYLE TAB LIBRARY", NSMakeRect(322, 211, 210, 18), MonoFont(7),
        RGB(0x718078));
   NSArray* tabs = [self tabs];
-  CGFloat y = 222;
+  NSMutableArray* favorites = [[NSMutableArray alloc] init];
+  NSMutableArray* pinned = [[NSMutableArray alloc] init];
+  NSMutableArray* today = [[NSMutableArray alloc] init];
   for (NSDictionary* tab in tabs) {
-    const BOOL active = [tab[@"active"] isEqualToString:@"1"];
-    NSRect rect = NSMakeRect(316, y, 216, 72);
-    RoundedRect(rect, 12, active ? RGB(0x19251E) : RGB(0x101713),
-                active ? RGB(0xB8FF3D) : RGB(0x243129));
-    Text(tab[@"title"], NSMakeRect(332, y + 14, 182, 22), BodyFont(12),
-         active ? RGB(0xF4F1E8) : RGB(0xA0AAA3));
-    Text(tab[@"url"], NSMakeRect(332, y + 42, 182, 16), MonoFont(8),
-         RGB(0x657168));
-    y += 82;
+    if ([tab[@"placement"] isEqualToString:@"FAVORITE"]) {
+      [favorites addObject:tab];
+    } else if ([tab[@"placement"] isEqualToString:@"PINNED"]) {
+      [pinned addObject:tab];
+    } else {
+      [today addObject:tab];
+    }
   }
-  [self drawEngineBoundary:NSMakeRect(560, 164, 838, 686)
-                     label:@"VERTICAL SIDEBAR"];
+
+  Text(@"FAVORITES · EVERY SPACE", NSMakeRect(322, 246, 240, 18),
+       MonoFont(8), RGB(0xFF7A3D));
+  CGFloat favorite_x = 322;
+  for (NSDictionary* tab in favorites) {
+    const BOOL active = [tab[@"active"] isEqualToString:@"1"];
+    NSRect tile = NSMakeRect(favorite_x, 272, 58, 58);
+    RoundedRect(tile, 14, active ? RGB(0xF4F1E8) : RGB(0x172019),
+                active ? RGB(0xB8FF3D) : RGB(0x243129));
+    NSString* initial = [tab[@"title"] substringToIndex:1];
+    Text(initial, NSMakeRect(favorite_x, 286, 58, 28), DisplayFont(22),
+         active ? RGB(0x07100A) : RGB(0xB8FF3D), NSTextAlignmentCenter);
+    favorite_x += 68;
+  }
+
+  Text(@"PINNED", NSMakeRect(322, 354, 220, 18), MonoFont(8),
+       RGB(0x718078));
+  CGFloat y = 380;
+  for (NSDictionary* tab in pinned) {
+    const BOOL active = [tab[@"active"] isEqualToString:@"1"];
+    NSRect rect = NSMakeRect(316, y, 268, 56);
+    RoundedRect(rect, 11, active ? RGB(0xF4F1E8) : RGB(0x101713),
+                active ? nil : RGB(0x243129));
+    RoundedRect(NSMakeRect(330, y + 22, 7, 7), 3.5,
+                active ? RGB(0xFF5A1F) : RGB(0xB8FF3D));
+    Text(tab[@"title"], NSMakeRect(350, y + 11, 164, 20), BodyFont(11),
+         active ? RGB(0x07100A) : RGB(0xD0D6D1));
+    Text(@"PIN", NSMakeRect(522, y + 12, 44, 18), MonoFont(7),
+         active ? RGB(0x4B554C) : RGB(0x657168), NSTextAlignmentRight);
+    Text(tab[@"url"], NSMakeRect(350, y + 32, 214, 14), MonoFont(7),
+         active ? RGB(0x4B554C) : RGB(0x657168));
+    y += 64;
+  }
+
+  Text(@"TODAY · AUTO ARCHIVE 12H", NSMakeRect(322, 524, 240, 18),
+       MonoFont(8), RGB(0x718078));
+  y = 550;
+  for (NSDictionary* tab in today) {
+    const BOOL active = [tab[@"active"] isEqualToString:@"1"];
+    const BOOL sleeping = [tab[@"residency"] isEqualToString:@"SLEEP"];
+    NSRect rect = NSMakeRect(316, y, 268, 56);
+    RoundedRect(rect, 11, active ? RGB(0x19251E) : RGB(0x101713),
+                active ? RGB(0xB8FF3D) : RGB(0x243129));
+    RoundedRect(NSMakeRect(330, y + 22, 7, 7), 3.5,
+                sleeping ? RGB(0xFF7A3D) : RGB(0x657168));
+    Text(tab[@"title"], NSMakeRect(350, y + 11, 154, 20), BodyFont(11),
+         active ? RGB(0xF4F1E8) : RGB(0xA0AAA3));
+    Text(sleeping ? @"SLEEP" : @"LIVE", NSMakeRect(510, y + 12, 56, 18),
+         MonoFont(7), sleeping ? RGB(0xFF9A6A) : RGB(0x8A958D),
+         NSTextAlignmentRight);
+    Text(tab[@"url"], NSMakeRect(350, y + 32, 214, 14), MonoFont(7),
+         RGB(0x657168));
+    y += 64;
+  }
+
+  Line(NSMakePoint(322, 764), NSMakePoint(578, 764), RGB(0x2B3930));
+  Text(@"⌘T  COMMAND BAR", NSMakeRect(322, 784, 180, 20), MonoFont(8),
+       RGB(0xA8B0A6));
+  Text(@"ARCHIVE 02", NSMakeRect(478, 784, 100, 20), MonoFont(8),
+       RGB(0xFF7A3D), NSTextAlignmentRight);
+
+  [self drawEngineBoundary:NSMakeRect(612, 164, 786, 686)
+                     label:@"VERTICAL / SAFARI STAGE"];
 }
 
 - (void)drawGridLayout {
@@ -554,38 +734,38 @@ class PreviewModel final {
               RGB(0x29382F));
   Text(@"TAB GRID / MAIN SPACE", NSMakeRect(328, 190, 260, 26), MonoFont(12),
        RGB(0xB8FF3D));
-  Text(@"One domain model. Four presentations. No WebContents reload.",
-       NSMakeRect(328, 220, 520, 24), BodyFont(12), RGB(0x929D95));
+  Text(@"Favorite · Pinned · Today · lifecycle state — one stable tab model.",
+       NSMakeRect(328, 220, 620, 24), BodyFont(12), RGB(0x929D95));
   NSArray* tabs = [self tabs];
-  CGFloat x = 328;
-  CGFloat y = 270;
   NSInteger index = 0;
   for (NSDictionary* tab in tabs) {
+    const NSInteger column = index % 3;
+    const NSInteger row = index / 3;
+    const CGFloat x = 328 + column * 348;
+    const CGFloat y = 270 + row * 238;
     const BOOL active = [tab[@"active"] isEqualToString:@"1"];
-    NSRect card = NSMakeRect(x, y, 498, 236);
+    const BOOL sleeping = [tab[@"residency"] isEqualToString:@"SLEEP"];
+    NSRect card = NSMakeRect(x, y, 332, 218);
     RoundedRect(card, 16, active ? RGB(0x14241A) : RGB(0x101713),
                 active ? RGB(0xB8FF3D) : RGB(0x2C3931), active ? 2 : 1);
     Text([NSString stringWithFormat:@"0%ld", (long)index + 1],
          NSMakeRect(x + 22, y + 22, 54, 24), MonoFont(11),
          active ? RGB(0xB8FF3D) : RGB(0x657168));
-    Text(active ? @"ACTIVE" : @"BACKGROUND",
-         NSMakeRect(x + 320, y + 22, 150, 22), MonoFont(9),
+    Text(tab[@"placement"], NSMakeRect(x + 146, y + 22, 164, 22), MonoFont(8),
          active ? RGB(0xB8FF3D) : RGB(0x657168), NSTextAlignmentRight);
-    Text(tab[@"title"], NSMakeRect(x + 22, y + 74, 440, 38),
-         DisplayFont(25), RGB(0xF4F1E8));
-    Text(tab[@"url"], NSMakeRect(x + 22, y + 122, 440, 22), MonoFont(9),
+    Text(tab[@"title"], NSMakeRect(x + 22, y + 66, 288, 34),
+         DisplayFont(21), RGB(0xF4F1E8));
+    Text(tab[@"url"], NSMakeRect(x + 22, y + 108, 288, 22), MonoFont(8),
          RGB(0x87938B));
-    Line(NSMakePoint(x + 22, y + 174), NSMakePoint(x + 476, y + 174),
+    Line(NSMakePoint(x + 22, y + 154), NSMakePoint(x + 310, y + 154),
          RGB(0x2B3930));
-    Text(@"MODEL STATE RETAINED", NSMakeRect(x + 22, y + 193, 220, 20),
-         MonoFont(9), RGB(0xAAB4AD));
+    RoundedRect(NSMakeRect(x + 22, y + 177, 7, 7), 3.5,
+                sleeping ? RGB(0xFF7A3D) : RGB(0xB8FF3D));
+    Text(sleeping ? @"DISCARDED · RESTORE ON ACTIVATE"
+                  : (active ? @"ACTIVE · PROTECTED" : @"LOADED · LRU ELIGIBLE"),
+         NSMakeRect(x + 40, y + 170, 270, 20), MonoFont(7),
+         sleeping ? RGB(0xFF9A6A) : RGB(0xAAB4AD));
     ++index;
-    if (index % 2 == 0) {
-      x = 328;
-      y += 252;
-    } else {
-      x = 842;
-    }
   }
 }
 
@@ -593,20 +773,21 @@ class PreviewModel final {
   RoundedRect(rect, 15, RGB(0x0C1410), RGB(0x29382F));
   Text(label, NSMakeRect(rect.origin.x + 28, rect.origin.y + 28, 260, 24),
        MonoFont(11), RGB(0xB8FF3D));
-  Text(@"ENGINE BOUNDARY", NSMakeRect(rect.origin.x + 28, rect.origin.y + 86,
-                                      rect.size.width - 56, 62),
-       DisplayFont(44), RGB(0xF4F1E8));
-  Text(@"The macOS artifact exercises Fireball's C++ Profile / Space / Tab model.\nChromium Profile and WebContents adapters are intentionally absent until B0.",
+  Text(@"FOCUS, THEN FLY.",
+       NSMakeRect(rect.origin.x + 28, rect.origin.y + 86,
+                  rect.size.width - 56, 62),
+       DisplayFont(rect.size.width < 820 ? 38 : 44), RGB(0xF4F1E8));
+  Text(@"A Safari-like stage around Arc-style organization, native blocking and a discard-safe lifecycle.\nThis artifact exercises the C++ model; Chromium adapters remain behind B0.",
        NSMakeRect(rect.origin.x + 30, rect.origin.y + 156,
                   rect.size.width - 60, 58),
-       BodyFont(15), RGB(0x9EA9A1));
+       BodyFont(rect.size.width < 820 ? 12 : 14), RGB(0x9EA9A1));
 
   const CGFloat available = rect.size.width - 76;
   const CGFloat card_width = (available - 32) / 3;
   NSArray<NSArray<NSString*>*>* cards = @[
-    @[@"PROFILE", @"Storage boundary", @"Persistent + off-the-record"],
-    @[@"SPACE", @"Tab collection", @"Multiple spaces / profile"],
-    @[@"BURNER", @"Never restorable", @"Off-the-record enforced"],
+    @[@"BLOCK", @"Native adblock core", @"Pinned adblock-rust · profile policy"],
+    @[@"ORGANIZE", @"Favorite / Pin / Today", @"Spaces share only one Profile"],
+    @[@"SLEEP", @"Discard-safe LRU", @"Protect audio · capture · forms"],
   ];
   for (NSInteger index = 0; index < 3; ++index) {
     CGFloat x = rect.origin.x + 30 + index * (card_width + 16);
@@ -614,7 +795,7 @@ class PreviewModel final {
     RoundedRect(NSMakeRect(x, y, card_width, 144), 13, RGB(0x121B16),
                 RGB(0x314038));
     Text(cards[index][0], NSMakeRect(x + 18, y + 18, card_width - 36, 22),
-         MonoFont(10), index == 2 ? RGB(0xFF8D5B) : RGB(0xB8FF3D));
+         MonoFont(9), index == 2 ? RGB(0xFF8D5B) : RGB(0xB8FF3D));
     Text(cards[index][1], NSMakeRect(x + 18, y + 54, card_width - 36, 28),
          DisplayFont(17), RGB(0xF4F1E8));
     Text(cards[index][2], NSMakeRect(x + 18, y + 94, card_width - 36, 34),
@@ -628,7 +809,7 @@ class PreviewModel final {
        NSMakeRect(rect.origin.x + 52, NSMaxY(rect) - 112,
                   rect.size.width - 104, 24),
        MonoFont(11), RGB(0xFF9A6A));
-  Text(@"This preview is documentation evidence for domain state and layout direction—not a browser binary, rendered webpage, sandbox, or security-rebase artifact.",
+  Text(@"Model/UI evidence only—not a browser binary, rendered webpage, sandbox, released blocker, or measured memory claim.",
        NSMakeRect(rect.origin.x + 52, NSMaxY(rect) - 78,
                   rect.size.width - 104, 36),
        BodyFont(11), RGB(0xD3B6A3));

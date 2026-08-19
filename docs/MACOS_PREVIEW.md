@@ -2,8 +2,9 @@
 
 The macOS artifact is an AppKit documentation preview backed by
 `fireball/browser/domain_model.cc`. It proves that the current Profile, Space,
-Tab, Burner Space, and `TabLayout` state can drive four presentations without
-mutating tab identity.
+Tab, Burner Space, Favorite/Pinned/Today placement, archive policy,
+Loaded/Discarded residency, and `TabLayout` state can drive four presentations
+without mutating tab identity.
 
 It is intentionally **not** a Fireball Blink browser build. It contains no
 Chromium checkout, `content::WebContents`, Chromium Profile adapter, renderer,
@@ -20,8 +21,15 @@ make macos-preview
 open "out/macos-preview/Fireball Blink Preview.app"
 ```
 
-Click `CLASSIC`, `FLOATING`, `VERTICAL`, or `GRID` to change presentation. The
-same in-memory `BrowserModel` and tab IDs remain attached.
+Click `CLASSIC`, `FLOATING`, `VERTICAL`, or `GRID` to change presentation, or
+use keys `1`–`4` and the left/right arrow keys. The same in-memory
+`BrowserModel` and tab IDs remain attached.
+
+The Vertical layout renders the Arc-inspired Favorite/Pinned/Today hierarchy.
+The Safari Floating layout uses a unified location surface and floating tab
+chrome. Grid exposes the residency policy, including a deterministic discarded
+tab that restores when activated. These are model states rather than measured
+renderer-memory savings; the Chromium adapter and benchmark remain B0 work.
 
 ## Reproduce repository screenshots
 

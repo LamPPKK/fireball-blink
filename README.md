@@ -66,7 +66,23 @@ Compiler optimization ideas from Thorium stay in a separate benchmark lane. Gene
 
 ## Profiles, Spaces and Burner state
 
-`fireball/browser/domain_model.*` establishes the B2 ownership boundary without replacing Chromium objects: Profile owns persistent or off-the-record storage identity, Space owns a tab collection and points to exactly one Profile, and Tab has a stable UUID. Multiple regular Spaces can share a persistent Profile; Burner Spaces require an off-the-record Profile and cannot be restored. The four tab layouts are presentation state, so switching layout preserves every domain tab. Chromium Profile/WebContents adapters and the full isolation test remain blocked on the B0 checkout/build.
+`fireball/browser/domain_model.*` establishes the B2 ownership boundary without
+replacing Chromium objects: Profile owns persistent or off-the-record storage
+identity, Space owns a tab collection and points to exactly one Profile, and
+Tab has a stable UUID. Multiple regular Spaces can share a persistent Profile;
+Burner Spaces require an off-the-record Profile and cannot be restored.
+
+The Arc-inspired library now implements Profile-wide Favorites, Space-scoped
+Pinned tabs, temporary Today tabs, per-Profile auto archive and same-Profile tab
+moves. Its lightweight lifecycle ranks safe background discard candidates by
+placement and LRU activity while protecting active, audible, capture-active and
+unsaved-form tabs. The four layouts are presentation state, so switching layout
+preserves every domain tab. See [the tab-management and Chromium adapter
+contract](docs/TAB_MANAGEMENT.md).
+
+This is not yet measured Helium-level memory usage. Chromium
+Profile/WebContents adapters, a full isolation test and control-vs-overlay
+benchmarks remain blocked on the B0 checkout/build.
 
 ## Native adblock foundation
 
