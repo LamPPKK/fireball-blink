@@ -15,6 +15,20 @@
         "bittorrent",
         "json-rpc"
       ]
+    },
+    {
+      "name": "adblock-rust",
+      "version": "0.13.2",
+      "license": "MPL-2.0",
+      "integration": "rust-c-abi",
+      "bundled": true,
+      "source_url": "https://crates.io/api/v1/crates/adblock/0.13.2/download",
+      "source_sha256": "77420e48225975c472eaea1b7c767af6caebea02d910043b0af7a1271d47ec9c",
+      "domain_resolver": "external-chromium",
+      "features": [
+        "full-regex-handling",
+        "single-thread"
+      ]
     }
   ]
 }

@@ -149,10 +149,16 @@ def validate_runtime_dependencies(document: dict[str, Any]) -> None:
     if set(document) != {"schema_version", "dependencies"} or document.get("schema_version") != 1:
         raise PinError("runtime dependencies must use the exact schema_version 1 shape")
     dependencies = document["dependencies"]
-    if not isinstance(dependencies, list) or len(dependencies) != 1:
-        raise PinError("runtime dependencies: aria2 is required exactly once")
-    aria2 = dependencies[0]
-    expected_fields = {
+    if not isinstance(dependencies, list) or len(dependencies) != 2:
+        raise PinError("runtime dependencies: aria2 and adblock-rust are required")
+    if not all(isinstance(dependency, dict) for dependency in dependencies):
+        raise PinError("runtime dependencies: each entry must be an object")
+    by_name = {dependency.get("name"): dependency for dependency in dependencies}
+    if set(by_name) != {"aria2", "adblock-rust"} or len(by_name) != len(dependencies):
+        raise PinError("runtime dependencies: names must be unique and complete")
+
+    aria2 = by_name["aria2"]
+    aria2_fields = {
         "name",
         "version",
         "license",
@@ -163,7 +169,7 @@ def validate_runtime_dependencies(document: dict[str, Any]) -> None:
         "rpc_scope",
         "required_features",
     }
-    if not isinstance(aria2, dict) or set(aria2) != expected_fields:
+    if set(aria2) != aria2_fields:
         raise PinError("aria2 runtime dependency: unexpected entry shape")
     expected_values = {
         "name": "aria2",
@@ -184,6 +190,35 @@ def validate_runtime_dependencies(document: dict[str, Any]) -> None:
         raise PinError("aria2 runtime dependency: source SHA-256 is required")
     if aria2["required_features"] != ["https", "bittorrent", "json-rpc"]:
         raise PinError("aria2 runtime dependency: required features changed")
+
+    adblock = by_name["adblock-rust"]
+    adblock_fields = {
+        "name",
+        "version",
+        "license",
+        "integration",
+        "bundled",
+        "source_url",
+        "source_sha256",
+        "domain_resolver",
+        "features",
+    }
+    if set(adblock) != adblock_fields:
+        raise PinError("adblock-rust runtime dependency: unexpected entry shape")
+    expected_adblock = {
+        "name": "adblock-rust",
+        "version": "0.13.2",
+        "license": "MPL-2.0",
+        "integration": "rust-c-abi",
+        "bundled": True,
+        "source_url": "https://crates.io/api/v1/crates/adblock/0.13.2/download",
+        "source_sha256": "77420e48225975c472eaea1b7c767af6caebea02d910043b0af7a1271d47ec9c",
+        "domain_resolver": "external-chromium",
+        "features": ["full-regex-handling", "single-thread"],
+    }
+    for field, expected in expected_adblock.items():
+        if adblock[field] != expected:
+            raise PinError(f"adblock-rust runtime dependency: unexpected {field}")
 
 
 def validate_repository(repository_root: pathlib.Path) -> None:

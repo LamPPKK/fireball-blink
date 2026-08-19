@@ -95,6 +95,14 @@ def main() -> int:
                 "fireball/browser/domain_model.cc",
                 "tests/browser_domain_test.cc",
             ],
+            "adblock_profile_policy_test": [
+                "fireball/browser/domain_model.cc",
+                "fireball/components/adblock/profile_policy.cc",
+                "tests/adblock_profile_policy_test.cc",
+            ],
+            "adblock_ffi_header_test": [
+                "tests/adblock_ffi_header_test.cc",
+            ],
             "transfer_test": [
                 "fireball/components/transfer/transfer_types.cc",
                 "fireball/components/transfer/aria2_rpc_client.cc",

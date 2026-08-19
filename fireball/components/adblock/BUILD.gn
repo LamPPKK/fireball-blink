@@ -1,0 +1,12 @@
+source_set("adblock_policy") {
+  sources = [
+    "profile_policy.cc",
+    "profile_policy.h",
+  ]
+
+  deps = [ "//fireball/browser:domain" ]
+}
+
+# The Rust engine is built as a pinned crate in rust/. Chromium GN/CXX wiring
+# is intentionally deferred until the B0 checkout establishes the upstream
+# Rust toolchain target; the C ABI header is already compile-checked in CI.

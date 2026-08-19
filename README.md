@@ -68,6 +68,29 @@ Compiler optimization ideas from Thorium stay in a separate benchmark lane. Gene
 
 `fireball/browser/domain_model.*` establishes the B2 ownership boundary without replacing Chromium objects: Profile owns persistent or off-the-record storage identity, Space owns a tab collection and points to exactly one Profile, and Tab has a stable UUID. Multiple regular Spaces can share a persistent Profile; Burner Spaces require an off-the-record Profile and cannot be restored. The four tab layouts are presentation state, so switching layout preserves every domain tab. Chromium Profile/WebContents adapters and the full isolation test remain blocked on the B0 checkout/build.
 
+## Native adblock foundation
+
+`fireball/components/adblock` contains a real, pinned `adblock-rust` 0.13.2
+engine behind a panic-contained C ABI plus a C++ per-profile policy boundary.
+Network rules, exceptions, third-party matching, site-specific cosmetic rules
+and generic class/ID selectors are exercised through the actual engine. The
+single-thread feature is selected for this first memory-conscious lane; a
+generic build remains the performance control.
+
+Release engine creation fails closed until Chromium registers its
+registry-controlled-domain resolver and a rules artifact passes bounded input,
+SHA-256, Ed25519, source provenance, engine-version and minimum-app-version
+checks. The unsigned constructor is compiled only for the FFI test feature.
+Rules updates will build a replacement immutable engine and swap it at a safe
+sequence boundary; they will not mutate an engine serving requests.
+
+This is not yet full Brave Shields or a Chromium network interceptor. The B0
+Chromium checkout still needs to wire the Rust target into GN, map Chromium
+request/resource types at the interception boundary, inject cosmetic resources
+through isolated worlds, and publish a real signed EasyList/EasyPrivacy-derived
+artifact and embedded production key. Until those steps land, the feature is a
+tested native foundation rather than a user-visible blocker.
+
 ## Download and torrent foundation
 
 `fireball/components/transfer` now contains the first production transfer

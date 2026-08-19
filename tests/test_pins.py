@@ -58,14 +58,29 @@ class PinTests(unittest.TestCase):
 
     def test_aria2_checksum_is_required(self) -> None:
         document = copy.deepcopy(self.runtime_dependencies)
-        document["dependencies"][0]["source_sha256"] = "unverified"
+        aria2 = next(item for item in document["dependencies"] if item["name"] == "aria2")
+        aria2["source_sha256"] = "unverified"
         with self.assertRaisesRegex(PinError, "SHA-256"):
             validate_runtime_dependencies(document)
 
     def test_aria2_cannot_silently_be_bundled(self) -> None:
         document = copy.deepcopy(self.runtime_dependencies)
-        document["dependencies"][0]["bundled"] = True
+        aria2 = next(item for item in document["dependencies"] if item["name"] == "aria2")
+        aria2["bundled"] = True
         with self.assertRaisesRegex(PinError, "bundled"):
+            validate_runtime_dependencies(document)
+
+    def test_adblock_engine_version_and_checksum_are_locked(self) -> None:
+        document = copy.deepcopy(self.runtime_dependencies)
+        adblock = next(
+            item for item in document["dependencies"] if item["name"] == "adblock-rust"
+        )
+        adblock["version"] = "latest"
+        with self.assertRaisesRegex(PinError, "version"):
+            validate_runtime_dependencies(document)
+        adblock["version"] = "0.13.2"
+        adblock["source_sha256"] = "0" * 64
+        with self.assertRaisesRegex(PinError, "source_sha256"):
             validate_runtime_dependencies(document)
 
 
