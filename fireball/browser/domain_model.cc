@@ -374,6 +374,7 @@ std::vector<TabId> BrowserModel::SelectDiscardCandidates(
       case TabPlacement::kFavorite:
         return 2;
     }
+    return 3;
   };
   std::sort(candidates.begin(), candidates.end(),
             [&priority](const Tab* left, const Tab* right) {
