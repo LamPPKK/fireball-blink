@@ -126,7 +126,7 @@ std::optional<std::string> ReadBoundedManifest(
     std::fill(body.begin(), body.end(), '\0');
     return std::nullopt;
   }
-  return std::move(body);
+  return body;
 }
 
 std::string_view ParseFailureCode(HlsVodError first, HlsVodError second) {
