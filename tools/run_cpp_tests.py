@@ -224,6 +224,14 @@ def main() -> int:
                 "fireball/components/navigation/document_cosmetic_policy.cc",
                 "tests/cosmetic_evaluator_test.cc",
             ],
+            "cosmetic_controller_test": [
+                "fireball/browser/domain_model.cc",
+                "fireball/components/adblock/profile_policy.cc",
+                "fireball/components/navigation/url_cleaner.cc",
+                "fireball/components/navigation/document_cosmetic_policy.cc",
+                "fireball/components/navigation/document_cosmetic_controller.cc",
+                "tests/cosmetic_controller_test.cc",
+            ],
             "egress_test": [
                 "fireball/browser/domain_model.cc",
                 "fireball/components/privacy/network_audit.cc",

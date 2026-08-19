@@ -2,8 +2,9 @@
 
 Fireball browser UI and product services live here. Prefer a GN dependency or a `chromium_src` override before adding a direct Chromium patch. The overlay must not replace Chromium's sandbox, process model or PartitionAlloc.
 
-`domain_model` defines stable UUID-backed Profile, Space and Tab identities
-without owning Chromium runtime objects. A Profile is the storage boundary;
+`domain_model` defines stable UUID-backed Profile, Space, Tab and ephemeral
+Document identities without owning Chromium runtime objects. A Profile is the
+storage boundary;
 multiple regular Spaces may reference one persistent Profile. A Burner Space is
 accepted only when it references an off-the-record Profile and is never
 restorable.
@@ -25,3 +26,9 @@ Profile identity also binds URL-cleaner settings, blocker mode/site exemptions
 and the committed Direct/WARP/Tor route. The standalone request policy refuses
 to evaluate a request until all three services recognize the same Profile; see
 [`docs/REQUEST_PIPELINE.md`](../../docs/REQUEST_PIPELINE.md).
+
+`DocumentId` is the renderer-lifecycle identity and is never restored as tab
+metadata. The cosmetic controller allows only one live document per Tab,
+rejects stale DOM revisions and revokes its stylesheet layers on navigation,
+Tab teardown or Profile policy changes; see
+[`docs/COSMETIC_FILTERING.md`](../../docs/COSMETIC_FILTERING.md).

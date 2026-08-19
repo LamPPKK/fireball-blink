@@ -103,6 +103,12 @@ engine scriptlets are reported as skipped and never executed. The future
 Chromium renderer adapter must use an isolated-world stylesheet API and may not
 inject HTML or page-world script. See the [cosmetic filtering contract](docs/COSMETIC_FILTERING.md).
 
+A document lifecycle controller now binds those style plans to UUID-backed
+`DocumentId` and the owning Tab/Profile. It replaces the previous document on
+navigation, rejects stale or out-of-order DOM revisions, and revokes both style
+layers when a Tab closes or Shields policy changes. Its result DTO exposes only
+counts and stable error codes—never URLs, selectors or DOM tokens.
+
 Release engine creation fails closed until Chromium registers its
 registry-controlled-domain resolver and a rules artifact passes bounded input,
 SHA-256, Ed25519, source provenance, engine-version and minimum-app-version

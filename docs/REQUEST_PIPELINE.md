@@ -80,8 +80,10 @@ policy implementation:
 - response observation can pass bounded media candidates to `MediaDiscovery`,
   but must not persist complete browsing URLs or re-evaluate policy elsewhere.
 - the renderer adapter must install validated cosmetic styles through a
-  browser-owned isolated-world stylesheet seam, bind each plan to its Profile
-  and document, and submit only bounded class/ID tokens for generic matching.
+  browser-owned isolated-world stylesheet seam, map committed document tokens
+  to `DocumentId`, route navigation/revocation through
+  `DocumentCosmeticController`, and submit only bounded, monotonically
+  revisioned class/ID snapshots for generic matching.
 
 The current repository proves the platform-neutral network/cosmetic policies
 and native FFI seams. It does not claim a Chromium interceptor, user-visible

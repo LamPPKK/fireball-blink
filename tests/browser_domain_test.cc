@@ -18,6 +18,7 @@ Id Parse(const char* value) {
 
 int main() {
   using fireball::browser::BrowserModel;
+  using fireball::browser::DocumentId;
   using fireball::browser::ProfileId;
   using fireball::browser::SpaceId;
   using fireball::browser::SpaceKind;
@@ -31,6 +32,10 @@ int main() {
   assert(!ProfileId::Parse("00000000-0000-0000-0000-000000000000")
               .has_value());
   assert(!ProfileId::Parse("AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")
+              .has_value());
+  assert(DocumentId::Parse("40000000-0000-4000-8000-000000000001")
+             .has_value());
+  assert(!DocumentId::Parse("00000000-0000-0000-0000-000000000000")
               .has_value());
 
   const ProfileId regular_profile =

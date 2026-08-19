@@ -1,5 +1,7 @@
 source_set("navigation") {
   sources = [
+    "document_cosmetic_controller.cc",
+    "document_cosmetic_controller.h",
     "document_cosmetic_policy.cc",
     "document_cosmetic_policy.h",
     "request_policy.cc",

@@ -45,10 +45,12 @@ class StableId final {
 struct ProfileIdTag;
 struct SpaceIdTag;
 struct TabIdTag;
+struct DocumentIdTag;
 
 using ProfileId = internal::StableId<ProfileIdTag>;
 using SpaceId = internal::StableId<SpaceIdTag>;
 using TabId = internal::StableId<TabIdTag>;
+using DocumentId = internal::StableId<DocumentIdTag>;
 
 enum class StorageMode {
   kPersistent,

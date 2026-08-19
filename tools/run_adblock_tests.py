@@ -48,6 +48,7 @@ def run_cpp_request_policy_test(
         "fireball/components/egress/egress_route.cc",
         "fireball/components/egress/egress_controller.cc",
         "fireball/components/navigation/url_cleaner.cc",
+        "fireball/components/navigation/document_cosmetic_controller.cc",
         "fireball/components/navigation/document_cosmetic_policy.cc",
         "fireball/components/navigation/request_policy.cc",
         "fireball/components/privacy/network_audit.cc",
