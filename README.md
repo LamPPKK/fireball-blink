@@ -209,9 +209,9 @@ process shutdown. Install dependencies with `brew install aria2 ffmpeg` on macOS
 or `apt install aria2 ffmpeg` on Ubuntu. Chromium-side grant minting, the
 origin-aware private-media backend and the user-facing Chromium transfer shelf
 remain follow-up work. The AppKit preview includes a
-deterministic drawer backed by the real queue state machine and HLS parser, not
-a production download surface. See [the transfer architecture and remaining
-promotion work](docs/TRANSFERS.md).
+deterministic drawer backed by the real queue state machine plus HLS and DASH
+parsers, not a production download surface. See [the transfer architecture and
+remaining promotion work](docs/TRANSFERS.md).
 
 ## WARP and Tor egress foundation
 

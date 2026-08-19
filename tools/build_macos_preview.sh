@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+repo_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 output_root=${1:-"$repo_root/out/macos-preview"}
 app="$output_root/Fireball Blink Preview.app"
 executable="$app/Contents/MacOS/FireballBlinkPreview"
@@ -24,6 +24,7 @@ DEVELOPER_DIR=${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer} \
   "$repo_root/fireball/browser/domain_model.cc" \
   "$repo_root/fireball/components/transfer/transfer_types.cc" \
   "$repo_root/fireball/components/transfer/aria2_rpc_client.cc" \
+  "$repo_root/fireball/components/transfer/dash_vod.cc" \
   "$repo_root/fireball/components/transfer/hls_vod.cc" \
   "$repo_root/fireball/components/transfer/transfer_queue.cc" \
   -framework Cocoa \

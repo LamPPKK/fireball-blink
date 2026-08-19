@@ -7,6 +7,7 @@
 #include <string>
 
 #include "fireball/browser/domain_model.h"
+#include "fireball/components/transfer/dash_vod.h"
 #include "fireball/components/transfer/hls_vod.h"
 #include "fireball/components/transfer/transfer_queue.h"
 
@@ -376,6 +377,30 @@ class PreviewModel final {
       std::abort();
     }
     hls_segment_count_ = hls.value->segments.size();
+
+    auto dash = fireball::transfer::ParseDashVodManifest(
+        "https://media.example.test/vod/manifest.mpd",
+        R"xml(<MPD type="static" mediaPresentationDuration="PT2S">
+  <Period>
+    <AdaptationSet contentType="video" mimeType="video/mp4"
+                   codecs="avc1.4d401e">
+      <SegmentTemplate timescale="1000" duration="1000"
+          initialization="video-init.mp4" media="video-$Number$.m4s"/>
+      <Representation id="video" bandwidth="800000" width="640" height="360"/>
+    </AdaptationSet>
+    <AdaptationSet contentType="audio" mimeType="audio/mp4"
+                   codecs="mp4a.40.2">
+      <SegmentTemplate timescale="1000" duration="1000"
+          initialization="audio-init.mp4" media="audio-$Number$.m4s"/>
+      <Representation id="audio" bandwidth="128000"/>
+    </AdaptationSet>
+  </Period>
+</MPD>)xml");
+    if (!dash.ok() || !dash.value->audio.has_value()) {
+      std::abort();
+    }
+    dash_video_segment_count_ = dash.value->video.segment_uris.size();
+    dash_audio_segment_count_ = dash.value->audio->segment_uris.size();
   }
 
   BrowserModel& model() { return model_; }
@@ -385,6 +410,12 @@ class PreviewModel final {
   const SpaceId& burner_space() const { return *burner_space_; }
   const TransferQueue& transfers() const { return transfers_; }
   std::size_t hls_segment_count() const { return hls_segment_count_; }
+  std::size_t dash_video_segment_count() const {
+    return dash_video_segment_count_;
+  }
+  std::size_t dash_audio_segment_count() const {
+    return dash_audio_segment_count_;
+  }
 
  private:
   TabId AddTab(const char* id,
@@ -410,6 +441,8 @@ class PreviewModel final {
   std::optional<SpaceId> research_space_;
   std::optional<SpaceId> burner_space_;
   std::size_t hls_segment_count_ = 0;
+  std::size_t dash_video_segment_count_ = 0;
+  std::size_t dash_audio_segment_count_ = 0;
 };
 
 }  // namespace
@@ -1069,32 +1102,47 @@ class PreviewModel final {
     y += 154;
   }
 
-  RoundedRect(NSMakeRect(806, 588, 560, 108), 13, RGB(0x101713),
+  RoundedRect(NSMakeRect(806, 584, 560, 112), 13, RGB(0x101713),
               RGB(0x344036));
-  Text(@"MEDIA DISCOVERY", NSMakeRect(826, 606, 180, 18), MonoFont(8),
+  Text(@"MEDIA DISCOVERY", NSMakeRect(826, 599, 180, 18), MonoFont(8),
        RGB(0xFF7A3D));
-  Text(@"DIRECT AUDIO / VIDEO", NSMakeRect(826, 635, 190, 18), MonoFont(8),
-       RGB(0xF4F1E8));
-  Text(@"READY", NSMakeRect(1006, 635, 60, 18), MonoFont(7), RGB(0xB8FF3D),
-       NSTextAlignmentRight);
-  NSString* hls_label = [NSString
-      stringWithFormat:@"HLS VOD · %02zu SEGMENTS",
-                       _preview.hls_segment_count()];
-  Text(hls_label, NSMakeRect(1080, 635, 160, 18), MonoFont(8),
-       RGB(0xF4F1E8));
-  Text(@"READY", NSMakeRect(1284, 635, 60, 18), MonoFont(7), RGB(0xB8FF3D),
-       NSTextAlignmentRight);
-  Text(@"DASH / ENCRYPTED / LIVE", NSMakeRect(826, 663, 230, 18),
-       MonoFont(8), RGB(0xF4F1E8));
-  Text(@"DETECTED · GATED", NSMakeRect(1204, 663, 140, 18), MonoFont(7),
-       RGB(0xFF9A6A), NSTextAlignmentRight);
+  Text(@"BOUNDED PARSERS", NSMakeRect(1176, 599, 168, 18), MonoFont(7),
+       RGB(0x718078), NSTextAlignmentRight);
+
+  NSArray<NSArray<NSString*>*>* media_lanes = @[
+    @[@"DIRECT MEDIA", @"RANGE · READY"],
+    @[
+      @"HLS VOD",
+      [NSString stringWithFormat:@"%02zu TS · READY",
+                                 _preview.hls_segment_count()]
+    ],
+    @[
+      @"DASH VOD",
+      [NSString stringWithFormat:@"%02zuV + %02zuA · READY",
+                                 _preview.dash_video_segment_count(),
+                                 _preview.dash_audio_segment_count()]
+    ],
+  ];
+  for (NSInteger index = 0; index < 3; ++index) {
+    const CGFloat x = 826 + index * 174;
+    RoundedRect(NSMakeRect(x, 624, 160, 45), 9, RGB(0x152018),
+                RGB(0x3B4A3F));
+    RoundedRect(NSMakeRect(x + 12, 637, 6, 6), 3, RGB(0xB8FF3D));
+    Text(media_lanes[index][0], NSMakeRect(x + 26, 629, 122, 17), MonoFont(8),
+         RGB(0xF4F1E8));
+    Text(media_lanes[index][1], NSMakeRect(x + 12, 649, 136, 15), MonoFont(7),
+         RGB(0xB8FF3D));
+  }
+  Text(@"LIVE · DRM · ENCRYPTED MEDIA REMAIN BLOCKED",
+       NSMakeRect(826, 677, 518, 14), MonoFont(7), RGB(0xFF9A6A),
+       NSTextAlignmentCenter);
 
   RoundedRect(NSMakeRect(806, 710, 560, 112), 13, RGB(0x21110B),
               RGB(0x813513));
   Text(@"PRIVATE BY CONSTRUCTION", NSMakeRect(826, 726, 260, 20), MonoFont(9),
        RGB(0xFF9A6A));
   Text(@"No source URL in UI snapshots · no uploaded .torrent retained\n"
-        "HLS parts removed after atomic publish · P2P blocked on proxy routes",
+        "HLS/DASH parts removed after publish · P2P blocked on proxy routes",
        NSMakeRect(826, 756, 500, 48), BodyFont(10), RGB(0xD3B6A3));
 }
 
