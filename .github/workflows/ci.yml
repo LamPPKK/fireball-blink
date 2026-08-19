@@ -22,11 +22,14 @@ jobs:
           rustup default 1.97.1
           rustc --version
       - name: Install aria2 integration dependency
-        timeout-minutes: 5
+        timeout-minutes: 10
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
-          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
-          sudo apt-get -o Dpkg::Use-Pty=0 install --yes --no-install-recommends aria2
+          if [[ -f /etc/apt/apt-mirrors.txt ]]; then
+            sudo sed -i 's#http://azure.archive.ubuntu.com/ubuntu#https://archive.ubuntu.com/ubuntu#g' /etc/apt/apt-mirrors.txt
+          fi
+          sudo apt-get -o Acquire::ForceIPv4=true -o Acquire::Retries=5 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::ForceIPv4=true -o Dpkg::Use-Pty=0 install --yes --no-install-recommends aria2
           aria2c --version
       - run: make check
