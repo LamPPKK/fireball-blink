@@ -273,6 +273,10 @@ def main() -> int:
                 "fireball/chromium/browser_cosmetic_transport_state.cc",
                 "tests/browser_cosmetic_transport_state_test.cc",
             ],
+            "browser_cosmetic_document_state_test": [
+                "fireball/chromium/browser_cosmetic_document_state.cc",
+                "tests/browser_cosmetic_document_state_test.cc",
+            ],
             "egress_test": [
                 "fireball/browser/domain_model.cc",
                 "fireball/components/privacy/network_audit.cc",

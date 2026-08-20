@@ -61,12 +61,15 @@ class FireballCosmeticStyleTransport final {
   void Invalidate();
 
   bool ready() const { return state_.ready(); }
+  BrowserCosmeticTransportPhase phase() const { return state_.phase(); }
 
  private:
   content::RenderFrameHost* ActivePrimaryDocument() const;
   void OnDocumentEpoch(BrowserCosmeticTransportTicket ticket,
                        std::uint64_t document_epoch);
-  void OnDocumentBound(BrowserCosmeticTransportTicket ticket, bool bound);
+  void OnDocumentBound(BrowserCosmeticTransportTicket ticket,
+                       bool bound,
+                       std::uint64_t binding_generation);
   void OnMutationCompleted(BrowserCosmeticTransportTicket ticket,
                            bool accepted);
   void OnDisconnected();

@@ -67,16 +67,17 @@ void FireballCosmeticStyleAgent::BindDocument(
   if (!parsed.has_value() ||
       !CurrentDocument(&document, /*require_bound_token=*/false) ||
       !state_.BindDocument(std::move(*parsed), expected_document_epoch)) {
-    std::move(callback).Run(false);
+    std::move(callback).Run(false, 0);
     return;
   }
   bound_document_token_ = document.Token();
-  std::move(callback).Run(true);
+  std::move(callback).Run(true, state_.binding_generation());
 }
 
 void FireballCosmeticStyleAgent::SetStylesheet(
     const std::string& document_id,
     std::uint64_t expected_document_epoch,
+    std::uint64_t expected_binding_generation,
     fireball::mojom::CosmeticStyleLayer mojo_layer,
     const std::string& stylesheet,
     SetStylesheetCallback callback) {
@@ -88,8 +89,9 @@ void FireballCosmeticStyleAgent::SetStylesheet(
     std::move(callback).Run(false);
     return;
   }
-  RendererStyleMutation mutation = state_.PrepareMutation(
-      *parsed, expected_document_epoch, *layer, stylesheet);
+  RendererStyleMutation mutation =
+      state_.PrepareMutation(*parsed, expected_document_epoch,
+                             expected_binding_generation, *layer, stylesheet);
   if (IsRejected(mutation)) {
     std::move(callback).Run(false);
     return;
@@ -139,6 +141,7 @@ void FireballCosmeticStyleAgent::SetStylesheet(
 void FireballCosmeticStyleAgent::RemoveDocumentStyles(
     const std::string& document_id,
     std::uint64_t expected_document_epoch,
+    std::uint64_t expected_binding_generation,
     RemoveDocumentStylesCallback callback) {
   auto parsed = browser::DocumentId::Parse(document_id);
   blink::WebDocument document;
@@ -147,24 +150,14 @@ void FireballCosmeticStyleAgent::RemoveDocumentStyles(
     std::move(callback).Run(false);
     return;
   }
-  const RendererStyleMutation probe =
-      state_.PrepareMutation(*parsed, expected_document_epoch,
-                             navigation::CosmeticStyleLayer::kDocument, "");
+  const RendererStyleMutation probe = state_.PrepareMutation(
+      *parsed, expected_document_epoch, expected_binding_generation,
+      navigation::CosmeticStyleLayer::kDocument, "");
   if (IsRejected(probe)) {
     std::move(callback).Run(false);
     return;
   }
-  for (const navigation::CosmeticStyleLayer layer :
-       {navigation::CosmeticStyleLayer::kDocument,
-        navigation::CosmeticStyleLayer::kGeneric}) {
-    const std::string key = state_.CurrentKey(layer);
-    if (!key.empty()) {
-      document.RemoveInsertedStyleSheet(blink::WebString::FromUtf8(key),
-                                        blink::WebCssOrigin::kUser);
-    }
-  }
-  bound_document_token_.reset();
-  state_.UnbindDocument();
+  RemoveBoundStylesAndSuspend();
   std::move(callback).Run(true);
 }
 
@@ -172,7 +165,8 @@ void FireballCosmeticStyleAgent::BindReceiver(
     mojo::PendingAssociatedReceiver<fireball::mojom::CosmeticStyleAgent>
         receiver) {
   if (receiver_.is_bound()) {
-    return;
+    RemoveBoundStylesAndSuspend();
+    receiver_.reset();
   }
   receiver_.Bind(std::move(receiver));
   receiver_.set_disconnect_handler(
@@ -182,6 +176,27 @@ void FireballCosmeticStyleAgent::BindReceiver(
 
 void FireballCosmeticStyleAgent::OnReceiverDisconnected() {
   receiver_.reset();
+  RemoveBoundStylesAndSuspend();
+}
+
+void FireballCosmeticStyleAgent::RemoveBoundStylesAndSuspend() {
+  if (render_frame() != nullptr && render_frame()->GetWebFrame() != nullptr) {
+    blink::WebDocument document = render_frame()->GetWebFrame()->GetDocument();
+    if (!document.IsNull() && bound_document_token_.has_value() &&
+        document.Token() == *bound_document_token_) {
+      for (const navigation::CosmeticStyleLayer layer :
+           {navigation::CosmeticStyleLayer::kDocument,
+            navigation::CosmeticStyleLayer::kGeneric}) {
+        const std::string key = state_.CurrentKey(layer);
+        if (!key.empty()) {
+          document.RemoveInsertedStyleSheet(blink::WebString::FromUtf8(key),
+                                            blink::WebCssOrigin::kUser);
+        }
+      }
+    }
+  }
+  bound_document_token_.reset();
+  state_.SuspendBinding();
 }
 
 bool FireballCosmeticStyleAgent::CurrentDocument(

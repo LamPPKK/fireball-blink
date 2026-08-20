@@ -1,7 +1,7 @@
 # Chromium cosmetic stylesheet adapter
 
-Status: **compile-gated renderer endpoint and browser transport, not activated
-in Chrome**.
+Status: **compile-gated renderer endpoint, browser transport and document
+lifecycle owner; not activated in Chrome**.
 
 This slice moves Fireball's cosmetic filtering boundary from a standalone sink
 contract to a target wired to compile against the exact Blink renderer API
@@ -25,11 +25,14 @@ Mojo interface has one authoritative receiver and accepts an opaque UUID
 `DocumentId`, one of two typed layers and the already compiled stylesheet. The
 renderer increments a document epoch in `DidCreateNewDocument`; the browser
 must retrieve that epoch while holding a still-valid `WeakDocumentPtr` and echo
-it on every bind or mutation. A queued call from an earlier navigation then
-fails even if it arrives after the new document exists. Binding also captures
-the current Blink `DocumentToken`, and navigation resets the binding and all
-layer keys. Calls fail closed for an old epoch, unbound or different document,
-inactive frame, non-HTTP(S) URL, non-HTML/XHTML document or invalid stylesheet.
+it on every bind or mutation. Every successful bind also rotates a
+renderer-owned binding generation, which the browser must echo on mutations.
+A queued call from an earlier navigation or an older BFCache remote then fails
+even if it arrives after a new bind. Binding also captures the current Blink
+`DocumentToken`, and navigation resets the binding and all layer keys. Calls
+fail closed for an old epoch or binding generation, unbound or different
+document, inactive frame, non-HTTP(S) URL, non-HTML/XHTML document or invalid
+stylesheet.
 
 The renderer revalidates the exact selector-only output format even though the
 browser policy already validated it. Empty text removes a layer. Replacement
@@ -48,7 +51,7 @@ retain CSS, URL, hostname, DOM tokens or selector text.
 
 Mojom does not provide a schema annotation for a maximum string length. The
 renderer therefore rejects a non-UUID ID and any stylesheet over 512 KiB
-immediately after deserialization, and the future browser transport must apply
+immediately after deserialization. The compile-gated browser transport applies
 the same bounds before sending. This associated interface is exposed only to
 the browser process, never through a page script or renderer interface broker.
 
@@ -61,22 +64,53 @@ allowed only while that exact document remains valid, active and in the primary
 main frame.
 
 The transport opens one `AssociatedRemote`, requests the renderer epoch, echoes
-it when binding the Fireball `DocumentId`, then includes the same epoch on every
-stylesheet or revoke mutation. A standalone state machine gives each async
-boundary a new generation ticket. Late callbacks, duplicate operations,
-zero/stale epochs, inactive/BFCache documents, disconnects and renderer
-rejections all fail closed. The transport never blocks a browser sequence with
-a sync Mojo wait and reports only a status plus stable error code.
+it when binding the Fireball `DocumentId`, records the returned non-zero binding
+generation, then includes both values on every stylesheet or revoke mutation.
+A standalone state machine gives each browser async boundary a separate
+generation ticket. Late callbacks, duplicate operations, zero/stale renderer
+epochs or bind generations, inactive/BFCache documents, disconnects and
+renderer rejections all fail closed. The transport never blocks a browser
+sequence with a sync Mojo wait and reports only a status plus stable error code.
 
 The transport validates the 512 KiB selector-only stylesheet contract before
 sending, while the renderer independently validates it again after receipt.
 It supports one in-flight operation; successful full revocation drops the
 remote. `Invalidate()` cancels pending callbacks through an explicit error and
-is the hook the future lifecycle owner must call before document/Tab teardown.
+is the hook the compile-gated lifecycle owner calls before document/Tab
+teardown.
 
 This class is not yet the lifecycle owner and does not adapt the current
 synchronous `CosmeticStyleSink`. Therefore it cannot publish
 `DocumentCosmeticController` state or claim user-visible filtering by itself.
+
+## Document and page lifecycle
+
+`FireballCosmeticDocumentHost` uses Chromium
+[`DocumentUserData`](https://chromium.googlesource.com/chromium/src/+/4b1c7520055f77780fe76d89bb89b76e4d19f64c/content/public/browser/document_user_data.h)
+instead of retaining a raw `RenderFrameHost`. One CSPRNG UUID identifies the
+same Blink document while it is active or stored in BFCache. Suspension drops
+the browser remote and invalidates every pending generation; restore opens a
+new remote and repeats the epoch handshake using the same UUID.
+
+The renderer accepts that rebind only when both the UUID and renderer epoch
+still match. Closing or replacing the associated receiver removes both style
+layers and suspends the live binding while retaining the first UUID claimed by
+that Blink document. Only that UUID can rebind, and a successful rebind rotates
+its binding generation. A mutation queued before disconnect may run first
+because of associated-pipe ordering, but the later disconnect cleanup removes
+its result. A mutation delivered after rebind carries an old generation and is
+rejected. The lifecycle delegate must resend the desired two-layer plan after
+every successful restore handshake.
+
+`FireballCosmeticLifecycleOwner` follows Chromium's preferred
+[`PrimaryPageChanged` and `RenderFrameHostStateChanged`](https://chromium.googlesource.com/chromium/src/+/4b1c7520055f77780fe76d89bb89b76e4d19f64c/content/public/browser/web_contents_observer.h)
+callbacks rather than resetting state in `DidFinishNavigation`. It suspends an
+active document on BFCache/navigation transitions and explicitly deletes stale
+`DocumentUserData` after a primary renderer crash, so crash reinitialization
+receives a fresh UUID. The delegate exposes no URL, selector or epoch.
+
+The owner is compiled but no Chrome tab constructs it yet. Its delegate is the
+future seam for the asynchronous controller bridge.
 
 ## Brave and Helium decisions
 
@@ -98,9 +132,8 @@ operations and commit `DocumentCosmeticController` state only after the
 renderer confirms the exact document/layer mutation. Activation must also:
 
 1. register the renderer agent from Fireball's `ContentRendererClient` overlay;
-2. create one transport only after a committed primary-main-frame document and
-   observe `RenderFrameHostStateChanged` so BFCache/prerender transitions call
-   `Invalidate()` before any controller state can advance;
+2. construct the lifecycle owner from the Chrome tab lifecycle and destroy it
+   before its delegate;
 3. refactor the synchronous sink/controller seam into an async prepare → apply
    → acknowledge flow with pending-operation cancellation;
 4. install document rules before first paint, or record a measured limitation;
@@ -118,15 +151,22 @@ filtering as a native foundation rather than a user-visible blocker.
 
 - `renderer_cosmetic_style_state_test` executes document binding, strict
   stylesheet validation, fresh-key replacement, old-epoch bind/mutation
-  rejection, independent layers, removal and navigation reset.
+  rejection, disconnect cleanup after a queued mutation, stale
+  binding-generation rejection, independent layers, removal and navigation
+  reset.
 - `browser_cosmetic_transport_state_test` executes epoch handshake, single
-  in-flight mutation, stale callback rejection, invalidation, revocation and
-  renderer rejection without a Chromium checkout.
+  in-flight mutation, binding-generation capture, stale callback rejection,
+  invalidation, revocation and renderer rejection without a Chromium checkout.
+- `browser_cosmetic_document_state_test` executes activate, suspend, stale
+  callback rejection, BFCache-style restore, revoke and failed retry.
 - `tests/test_chromium_cosmetic_adapter.py` locks the typed Mojo/GN wiring,
   exact Blink API use, document-token checks and absence of script injection.
 - `tests/test_chromium_cosmetic_transport.py` locks the `WeakDocumentPtr`,
   active-primary-frame, associated-remote, async generation and fail-closed
   boundaries.
+- `tests/test_chromium_cosmetic_lifecycle.py` locks `DocumentUserData`, UUID
+  rotation on crash, primary-page/lifecycle callbacks, suspend/rebind behavior
+  and the absence of a `DidFinishNavigation` reset path.
 - The checksum-pinned overlay includes the `.mojom` source and the protected
   `//fireball:overlay_smoke` graph compiles the renderer target against the
   pinned Chromium checkout when that builder lane runs.

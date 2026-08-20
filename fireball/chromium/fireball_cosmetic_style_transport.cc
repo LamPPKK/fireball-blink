@@ -88,8 +88,8 @@ void FireballCosmeticStyleTransport::SetStylesheet(
 
   pending_callback_ = std::move(callback);
   remote_->SetStylesheet(
-      document_id_.value(), state_.document_epoch(), ConvertLayer(layer),
-      stylesheet,
+      document_id_.value(), state_.document_epoch(),
+      state_.binding_generation(), ConvertLayer(layer), stylesheet,
       base::BindOnce(&FireballCosmeticStyleTransport::OnMutationCompleted,
                      weak_factory_.GetWeakPtr(), *ticket));
 }
@@ -116,6 +116,7 @@ void FireballCosmeticStyleTransport::RemoveDocumentStyles(
   pending_callback_ = std::move(callback);
   remote_->RemoveDocumentStyles(
       document_id_.value(), state_.document_epoch(),
+      state_.binding_generation(),
       base::BindOnce(&FireballCosmeticStyleTransport::OnMutationCompleted,
                      weak_factory_.GetWeakPtr(), *ticket));
 }
@@ -159,7 +160,8 @@ void FireballCosmeticStyleTransport::OnDocumentEpoch(
 
 void FireballCosmeticStyleTransport::OnDocumentBound(
     BrowserCosmeticTransportTicket ticket,
-    bool bound) {
+    bool bound,
+    std::uint64_t binding_generation) {
   if (!state_.IsCurrent(ticket)) {
     return;
   }
@@ -167,7 +169,8 @@ void FireballCosmeticStyleTransport::OnDocumentBound(
     FailCurrent(ticket, "COSMETIC_TRANSPORT_DOCUMENT_INACTIVE");
     return;
   }
-  if (!state_.CompleteBinding(ticket, bound) || !bound) {
+  if (!state_.CompleteBinding(ticket, bound, binding_generation) || !bound ||
+      binding_generation == 0) {
     FailCurrent(ticket, "COSMETIC_TRANSPORT_BIND_REJECTED");
     return;
   }

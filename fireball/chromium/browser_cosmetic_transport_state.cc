@@ -26,6 +26,7 @@ bool BrowserCosmeticTransportState::AcceptDocumentEpoch(
     if (IsCurrent(ticket)) {
       phase_ = BrowserCosmeticTransportPhase::kFailed;
       document_epoch_ = 0;
+      binding_generation_ = 0;
     }
     return false;
   }
@@ -36,15 +37,20 @@ bool BrowserCosmeticTransportState::AcceptDocumentEpoch(
 
 bool BrowserCosmeticTransportState::CompleteBinding(
     const BrowserCosmeticTransportTicket& ticket,
-    bool accepted) {
+    bool accepted,
+    std::uint64_t binding_generation) {
   if (!IsCurrent(ticket) ||
       phase_ != BrowserCosmeticTransportPhase::kBindingDocument) {
     return false;
   }
-  phase_ = accepted ? BrowserCosmeticTransportPhase::kReady
-                    : BrowserCosmeticTransportPhase::kFailed;
-  if (!accepted) {
+  const bool valid = accepted && binding_generation != 0;
+  phase_ = valid ? BrowserCosmeticTransportPhase::kReady
+                 : BrowserCosmeticTransportPhase::kFailed;
+  if (!valid) {
     document_epoch_ = 0;
+    binding_generation_ = 0;
+  } else {
+    binding_generation_ = binding_generation;
   }
   return true;
 }
@@ -76,12 +82,14 @@ bool BrowserCosmeticTransportState::CompleteMutation(
   if (!accepted) {
     phase_ = BrowserCosmeticTransportPhase::kFailed;
     document_epoch_ = 0;
+    binding_generation_ = 0;
     return true;
   }
   phase_ = revoking ? BrowserCosmeticTransportPhase::kRevoked
                     : BrowserCosmeticTransportPhase::kReady;
   if (revoking) {
     document_epoch_ = 0;
+    binding_generation_ = 0;
   }
   return true;
 }
@@ -90,6 +98,7 @@ void BrowserCosmeticTransportState::Invalidate() {
   AdvanceGeneration();
   phase_ = BrowserCosmeticTransportPhase::kFailed;
   document_epoch_ = 0;
+  binding_generation_ = 0;
 }
 
 bool BrowserCosmeticTransportState::IsCurrent(
@@ -106,6 +115,7 @@ BrowserCosmeticTransportState::AdvanceGeneration() {
     generation_ = 0;
     phase_ = BrowserCosmeticTransportPhase::kFailed;
     document_epoch_ = 0;
+    binding_generation_ = 0;
     return std::nullopt;
   }
   ++generation_;

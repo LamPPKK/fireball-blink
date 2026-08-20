@@ -11,12 +11,19 @@ interface CosmeticStyleAgent {
   // Renderer-owned and incremented for every new Blink document. The browser
   // must discard the reply if its document-scoped WeakDocumentPtr expired.
   GetDocumentEpoch() => (uint64 document_epoch);
+  // Every successful bind rotates a renderer-owned generation. Mutations must
+  // echo both values so queued messages from an older remote fail closed even
+  // when BFCache restores the same Blink document and Fireball DocumentId.
+  // The first DocumentId claim remains locked until a new Blink document.
   BindDocument(string document_id,
-               uint64 expected_document_epoch) => (bool bound);
+               uint64 expected_document_epoch) =>
+      (bool bound, uint64 binding_generation);
   SetStylesheet(string document_id,
                 uint64 expected_document_epoch,
+                uint64 expected_binding_generation,
                 CosmeticStyleLayer layer,
                 string stylesheet) => (bool applied);
   RemoveDocumentStyles(string document_id,
-                       uint64 expected_document_epoch) => (bool removed);
+                       uint64 expected_document_epoch,
+                       uint64 expected_binding_generation) => (bool removed);
 };

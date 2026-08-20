@@ -5,7 +5,7 @@ real pinned `adblock-rust` engine. The implementation is intentionally split at
 the renderer boundary: this repository proves rule evaluation, strict decoding,
 Profile policy, safe stylesheet construction and a compile-gated native Blink
 stylesheet endpoint plus its asynchronous browser transport. Controller and
-lifecycle activation remain open, so no real-page hiding is claimed.
+Chrome activation remain open, so no real-page hiding is claimed.
 
 ## Two-phase document plan
 
@@ -89,20 +89,37 @@ an allowlisted instruction format and dedicated security tests.
 
 `FireballCosmeticStyleAgent` now supplies a typed frame-associated Mojo endpoint
 inside the renderer. It binds a `DocumentId` to the active main-frame Blink
-`DocumentToken` and a renderer-owned document epoch, revalidates the exact
-compiled CSS format and installs two independent user-origin layers through
-`WebDocument::InsertStyleSheet`. Every replacement gets a fresh key; a new
-document advances the epoch and clears binding and layer state, so stale IPC
-cannot rebind an old `DocumentId` to the new page. It rejects non-HTTP(S),
-inactive and non-HTML/XHTML documents and contains no JavaScript or page-markup
-injection path.
+`DocumentToken`, a renderer-owned document epoch and a renderer-owned binding
+generation, revalidates the exact compiled CSS format and installs two
+independent user-origin layers through `WebDocument::InsertStyleSheet`. Every
+replacement gets a fresh key; every bind rotates its generation; and a new
+document advances the epoch and clears binding and layer state. Stale IPC
+therefore cannot rebind an old `DocumentId` to a new page. Receiver disconnect
+or replacement removes both style layers and suspends the binding while
+retaining the first UUID claimed for that Blink document. Only that UUID can
+rebind; a late mutation after rebind is rejected by its old generation. The
+lifecycle delegate must reapply the desired two-layer plan after restore. The
+endpoint rejects
+non-HTTP(S), inactive and non-HTML/XHTML documents and contains no JavaScript
+or page-markup injection path.
 
 `FireballCosmeticStyleTransport` now owns the other side of that Mojo channel
 for one document-scoped Chromium `WeakDocumentPtr`. It accepts only an active
-primary-main-frame document, echoes the renderer epoch on every operation and
-uses generation tickets to reject late async callbacks. Disconnect,
-invalidation, BFCache/inactive state and renderer rejection fail closed. It is
-not yet connected to the synchronous controller seam.
+primary-main-frame document, echoes the renderer epoch, records the bind
+generation and sends both values on every mutation. Separate browser
+generation tickets reject late async callbacks. Disconnect, invalidation,
+BFCache/inactive state and renderer rejection fail closed. It is not yet
+connected to the synchronous controller seam.
+
+A compile-gated `DocumentUserData` host now owns that transport for the exact
+Blink document. The host survives BFCache with one UUID, suspends and drops its
+remote while inactive, then performs a fresh epoch handshake on restore. The
+renderer accepts a repeated bind only for the same UUID and epoch, then rotates
+the binding generation. Disconnect cleanup removes any mutation that was
+already ordered on the older pipe; later old-generation mutations fail. A
+`WebContentsObserver` owner uses `PrimaryPageChanged` and
+`RenderFrameHostStateChanged`, and rotates the UUID after renderer crash.
+Neither the owner nor its delegate is constructed by Chrome yet.
 
 The production browser adapter must keep this policy as the only source of
 cosmetic decisions and satisfy all of the following:
@@ -113,7 +130,8 @@ cosmetic decisions and satisfy all of the following:
    one policy/engine sequence to the owning Chromium Profile, and route every
    navigation/tab/Profile teardown through `DocumentCosmeticController`.
 3. Refactor the controller/sink seam to send the initial stylesheet through the
-   async transport, then commit controller state only after its acknowledgement.
+   lifecycle delegate and async transport, then commit controller state only
+   after its acknowledgement.
    Never use `innerHTML`, `document.write` or script strings.
 4. Collect only bounded class/ID tokens for the generic phase. Do not serialize
    text content, attributes, forms, page URLs or DOM subtrees.
@@ -136,11 +154,13 @@ generic suppression, sink failure, Tab deletion and Profile teardown.
 fresh-key replacement, stale commits, independent layers and navigation reset.
 `tests/browser_cosmetic_transport_state_test.cc` covers browser epoch/generation
 state, stale callbacks, invalidation and revocation.
+`tests/browser_cosmetic_document_state_test.cc` covers activation, suspension,
+restore, stale acknowledgement rejection and revocation.
 The [Chromium cosmetic adapter contract](CHROMIUM_COSMETIC_ADAPTER.md) records
 the exact upstream seam and remaining activation work.
 
 This is a production-oriented native foundation, not yet a claim that ads are
-visually hidden in a Chromium build. That claim requires async controller and
-lifecycle integration, renderer registration, a production EasyList/EasyPrivacy
+visually hidden in a Chromium build. That claim requires the async controller
+bridge, Chrome lifecycle construction, renderer registration, a production EasyList/EasyPrivacy
 release from the existing [signed artifact pipeline](ADBLOCK_RULE_ARTIFACTS.md),
 a real-page regression corpus and Linux control-versus-overlay build evidence.

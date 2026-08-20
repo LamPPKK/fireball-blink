@@ -11,9 +11,10 @@ group("fireball_overlay") {
   ]
 }
 
-# B1 component-link gate. It compiles the browser request adapters and typed
-# renderer stylesheet endpoint against Chromium public APIs, but deliberately
-# does not claim their browser lifecycle hooks or cosmetic transport are wired.
+# B1 component-link gate. It compiles the browser request adapters, typed
+# renderer stylesheet endpoint, document transport and lifecycle owner against
+# Chromium public APIs, but deliberately does not claim the owner is constructed
+# by Chrome or connected to the asynchronous cosmetic controller bridge.
 executable("overlay_smoke") {
   testonly = true
   output_name = "fireball_overlay_smoke"

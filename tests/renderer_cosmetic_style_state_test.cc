@@ -47,8 +47,9 @@ int main() {
   RendererCosmeticStyleState state;
 
   assert(state.document_epoch() == 0);
-  auto mutation = state.PrepareMutation(first, 1, CosmeticStyleLayer::kDocument,
-                                        ".advert{display:none!important;}\n");
+  auto mutation =
+      state.PrepareMutation(first, 1, 1, CosmeticStyleLayer::kDocument,
+                            ".advert{display:none!important;}\n");
   assert(mutation.action == RendererStyleMutationAction::kReject);
   assert(mutation.error_code == "COSMETIC_RENDERER_EPOCH_MISMATCH");
 
@@ -57,15 +58,21 @@ int main() {
   assert(first_epoch == 1);
   assert(!state.BindDocument(first, first_epoch + 1));
   assert(state.BindDocument(first, first_epoch));
-  assert(!state.BindDocument(first, first_epoch));
-  mutation = state.PrepareMutation(
-      first, first_epoch, CosmeticStyleLayer::kDocument, "body{color:red;}\n");
+  const std::uint64_t first_binding = state.binding_generation();
+  assert(first_binding == 1);
+  assert(state.BindDocument(first, first_epoch));
+  const std::uint64_t restored_binding = state.binding_generation();
+  assert(restored_binding == first_binding + 1);
+  assert(!state.BindDocument(second, first_epoch));
+  mutation = state.PrepareMutation(first, first_epoch, restored_binding,
+                                   CosmeticStyleLayer::kDocument,
+                                   "body{color:red;}\n");
   assert(mutation.action == RendererStyleMutationAction::kReject);
   assert(mutation.error_code == "COSMETIC_RENDERER_STYLESHEET_INVALID");
 
-  mutation =
-      state.PrepareMutation(first, first_epoch, CosmeticStyleLayer::kDocument,
-                            ".advert{display:none!important;}\n");
+  mutation = state.PrepareMutation(first, first_epoch, restored_binding,
+                                   CosmeticStyleLayer::kDocument,
+                                   ".advert{display:none!important;}\n");
   assert(mutation.action == RendererStyleMutationAction::kInstall);
   assert(mutation.previous_key.empty());
   assert(mutation.new_key == "fireball-cosmetic-document-1");
@@ -76,57 +83,88 @@ int main() {
          "fireball-cosmetic-document-1");
   assert(!state.CommitMutation(uncommitted));
 
-  mutation =
-      state.PrepareMutation(first, first_epoch, CosmeticStyleLayer::kDocument,
-                            ".sponsor{display:none!important;}\n");
+  mutation = state.PrepareMutation(first, first_epoch, first_binding,
+                                   CosmeticStyleLayer::kDocument,
+                                   ".late-binding{display:none!important;}\n");
+  assert(mutation.action == RendererStyleMutationAction::kReject);
+  assert(mutation.error_code == "COSMETIC_RENDERER_BINDING_MISMATCH");
+
+  mutation = state.PrepareMutation(first, first_epoch, restored_binding,
+                                   CosmeticStyleLayer::kDocument,
+                                   ".sponsor{display:none!important;}\n");
   assert(mutation.action == RendererStyleMutationAction::kInstall);
   assert(mutation.previous_key == "fireball-cosmetic-document-1");
   assert(mutation.new_key == "fireball-cosmetic-document-2");
   assert(state.CommitMutation(mutation));
 
-  mutation =
-      state.PrepareMutation(first, first_epoch, CosmeticStyleLayer::kGeneric,
-                            ".global-ad{display:none!important;}\n");
+  mutation = state.PrepareMutation(first, first_epoch, restored_binding,
+                                   CosmeticStyleLayer::kGeneric,
+                                   ".global-ad{display:none!important;}\n");
   assert(mutation.action == RendererStyleMutationAction::kInstall);
   assert(mutation.new_key == "fireball-cosmetic-generic-3");
   assert(state.CommitMutation(mutation));
 
-  mutation = state.PrepareMutation(first, first_epoch,
+  mutation = state.PrepareMutation(first, first_epoch, restored_binding,
                                    CosmeticStyleLayer::kDocument, "");
   assert(mutation.action == RendererStyleMutationAction::kRemove);
   assert(mutation.previous_key == "fireball-cosmetic-document-2");
   assert(state.CommitMutation(mutation));
   assert(state.CurrentKey(CosmeticStyleLayer::kDocument).empty());
-  mutation = state.PrepareMutation(first, first_epoch,
+  mutation = state.PrepareMutation(first, first_epoch, restored_binding,
                                    CosmeticStyleLayer::kDocument, "");
   assert(mutation.action == RendererStyleMutationAction::kNoop);
   assert(state.CommitMutation(mutation));
 
+  mutation = state.PrepareMutation(
+      first, first_epoch, restored_binding, CosmeticStyleLayer::kDocument,
+      ".queued-before-disconnect{display:none!important;}\n");
+  assert(mutation.action == RendererStyleMutationAction::kInstall);
+  assert(state.CommitMutation(mutation));
+  assert(!state.CurrentKey(CosmeticStyleLayer::kDocument).empty());
+  state.SuspendBinding();
+  assert(!state.HasBoundDocument());
+  assert(state.CurrentKey(CosmeticStyleLayer::kDocument).empty());
+  assert(state.CurrentKey(CosmeticStyleLayer::kGeneric).empty());
+  assert(!state.BindDocument(second, first_epoch));
+  assert(state.BindDocument(first, first_epoch));
+  const std::uint64_t rebound_generation = state.binding_generation();
+  assert(rebound_generation == restored_binding + 1);
+  mutation = state.PrepareMutation(
+      first, first_epoch, restored_binding, CosmeticStyleLayer::kDocument,
+      ".stale-after-rebind{display:none!important;}\n");
+  assert(mutation.action == RendererStyleMutationAction::kReject);
+  assert(mutation.error_code == "COSMETIC_RENDERER_BINDING_MISMATCH");
+
   assert(state.BeginDocument());
   const std::uint64_t second_epoch = state.document_epoch();
   assert(second_epoch == first_epoch + 1);
+  assert(state.binding_generation() == 0);
   assert(!state.HasBoundDocument());
-  mutation =
-      state.PrepareMutation(first, first_epoch, CosmeticStyleLayer::kGeneric,
-                            ".late{display:none!important;}\n");
+  mutation = state.PrepareMutation(first, first_epoch, rebound_generation,
+                                   CosmeticStyleLayer::kGeneric,
+                                   ".late{display:none!important;}\n");
   assert(mutation.action == RendererStyleMutationAction::kReject);
   assert(mutation.error_code == "COSMETIC_RENDERER_EPOCH_MISMATCH");
   assert(!state.BindDocument(first, first_epoch));
   assert(state.BindDocument(second, second_epoch));
-  mutation =
-      state.PrepareMutation(first, second_epoch, CosmeticStyleLayer::kGeneric,
-                            ".cross-document{display:none!important;}\n");
+  const std::uint64_t second_binding = state.binding_generation();
+  assert(second_binding == 1);
+  mutation = state.PrepareMutation(
+      first, second_epoch, second_binding, CosmeticStyleLayer::kGeneric,
+      ".cross-document{display:none!important;}\n");
   assert(mutation.action == RendererStyleMutationAction::kReject);
-  mutation =
-      state.PrepareMutation(second, second_epoch, CosmeticStyleLayer::kGeneric,
-                            ".fresh{display:none!important;}\n");
+  mutation = state.PrepareMutation(second, second_epoch, second_binding,
+                                   CosmeticStyleLayer::kGeneric,
+                                   ".fresh{display:none!important;}\n");
   assert(mutation.action == RendererStyleMutationAction::kInstall);
-  assert(mutation.new_key == "fireball-cosmetic-generic-4");
+  assert(mutation.new_key == "fireball-cosmetic-generic-5");
   assert(state.CommitMutation(mutation));
 
-  state.UnbindDocument();
+  state.SuspendBinding();
   assert(!state.HasBoundDocument());
   assert(state.document_epoch() == second_epoch);
+  assert(!state.BindDocument(first, second_epoch));
   assert(state.BindDocument(second, second_epoch));
+  assert(state.binding_generation() == second_binding + 1);
   return 0;
 }

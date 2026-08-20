@@ -16,6 +16,8 @@ class ChromiumCosmeticAdapterSourceTests(unittest.TestCase):
         self.assertIn("interface CosmeticStyleAgent", mojom)
         self.assertIn("GetDocumentEpoch()", mojom)
         self.assertIn("uint64 expected_document_epoch", mojom)
+        self.assertIn("uint64 binding_generation", mojom)
+        self.assertIn("uint64 expected_binding_generation", mojom)
         self.assertIn("BindDocument(string document_id,", mojom)
         self.assertIn("SetStylesheet(string document_id", mojom)
         self.assertIn("RemoveDocumentStyles(string document_id,", mojom)
@@ -36,8 +38,25 @@ class ChromiumCosmeticAdapterSourceTests(unittest.TestCase):
         self.assertIn("void DidCreateNewDocument() override", header)
         self.assertIn("state_.BeginDocument()", source)
         self.assertIn("state_.document_epoch()", source)
+        self.assertIn("state_.binding_generation()", source)
         self.assertIn("expected_document_epoch", source)
+        self.assertIn("expected_binding_generation", source)
+        self.assertIn("RemoveBoundStylesAndSuspend()", source)
+        self.assertIn("OnReceiverDisconnected()", source)
+        self.assertIn("state_.SuspendBinding()", source)
         self.assertIn("if (receiver_.is_bound())", source)
+        bind_receiver = source.index("void FireballCosmeticStyleAgent::BindReceiver")
+        disconnected = source.index(
+            "void FireballCosmeticStyleAgent::OnReceiverDisconnected",
+            bind_receiver,
+        )
+        bind_source = source[bind_receiver:disconnected]
+        self.assertLess(
+            bind_source.index("RemoveBoundStylesAndSuspend()"),
+            bind_source.index("receiver_.reset()"),
+        )
+        disconnect_source = source[disconnected:]
+        self.assertIn("RemoveBoundStylesAndSuspend()", disconnect_source)
         did_create = source.index("DidCreateNewDocument()")
         get_epoch = source.index("GetDocumentEpoch(", did_create)
         self.assertIn("receiver_.reset()", source[did_create:get_epoch])

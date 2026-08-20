@@ -47,7 +47,7 @@ Brave overlay order and Helium provenance model visible in the interface.
 - Product code starts in the `fireball/` GN overlay.
 - Chromium-relative overrides live in `chromium_src/` only when an overlay seam is insufficient.
 - Direct patches are last-resort entries in `patches/manifest.json`.
-- `overlay/manifest.json` checksum-pins the complete staged Fireball GN tree; the protected B1 [component-link gate](docs/CHROMIUM_OVERLAY_BUILD.md) refuses unmanaged overrides or stale bytes. The graph now includes [Chromium request adapters](docs/CHROMIUM_NAVIGATION_ADAPTER.md): a Profile-owned policy bundle, primary-main-frame `NavigationThrottle`, sequence-safe subresource `URLLoaderThrottle`, a typed [renderer stylesheet endpoint](docs/CHROMIUM_COSMETIC_ADAPTER.md) and its document-scoped async browser transport. Their browser lifecycle/controller hooks are intentionally not activated until signed production rules and keepalive/prefetch coverage are ready.
+- `overlay/manifest.json` checksum-pins the complete staged Fireball GN tree; the protected B1 [component-link gate](docs/CHROMIUM_OVERLAY_BUILD.md) refuses unmanaged overrides or stale bytes. The graph now includes [Chromium request adapters](docs/CHROMIUM_NAVIGATION_ADAPTER.md): a Profile-owned policy bundle, primary-main-frame `NavigationThrottle`, sequence-safe subresource `URLLoaderThrottle`, a typed [renderer stylesheet endpoint](docs/CHROMIUM_COSMETIC_ADAPTER.md), its document-scoped async browser transport and a BFCache-aware lifecycle owner. Chrome construction and the async controller bridge remain deliberately inactive until signed production rules and keepalive/prefetch coverage are ready.
 - Every imported patch must record its source repository/path, HTTPS license URL, exact source commit, exact verified Chromium commit, milestone range, security impact, required tests and SHA-256.
 - PartitionAlloc, Chromium's process model and sandbox remain intact.
 
@@ -104,9 +104,14 @@ engine scriptlets are reported as skipped and never executed. A compile-gated
 Chromium renderer agent now revalidates the generated CSS and uses Blink's
 native user-origin stylesheet API; it contains no HTML or script injection. An
 async browser transport now binds the exact active `WeakDocumentPtr` with
-renderer epoch and callback-generation checks. Controller/lifecycle integration
-and renderer registration remain open. See the [cosmetic filtering
-contract](docs/COSMETIC_FILTERING.md).
+renderer epoch, renderer binding-generation and callback-generation checks. A
+`DocumentUserData` host keeps the same Fireball document identity through
+BFCache, drops the remote while inactive, rebinds idempotently on restore and
+rotates identity after a renderer crash. Renderer disconnect/rebind clears both
+style layers before the future controller reapplies its desired plan.
+Controller integration, Chrome construction and renderer registration remain
+open. See the
+[cosmetic filtering contract](docs/COSMETIC_FILTERING.md).
 
 A document lifecycle controller now binds those style plans to UUID-backed
 `DocumentId` and the owning Tab/Profile. It replaces the previous document on
@@ -152,8 +157,8 @@ Chromium adapter contract](docs/REQUEST_PIPELINE.md).
 This is not yet full Brave Shields or an activated Chromium network/renderer
 interceptor. The B0 Chromium integration still needs to wire the Rust target,
 register the request throttles and renderer agent, bridge the asynchronous
-cosmetic transport into the controller/lifecycle owner, cover generic DOM
-collection, and publish
+cosmetic lifecycle delegate into the controller, construct the owner from the
+Chrome tab lifecycle, cover generic DOM collection, and publish
 production EasyList/EasyPrivacy commits with an embedded production key. Until
 those steps land, the feature is a tested native foundation rather than a
 user-visible blocker.

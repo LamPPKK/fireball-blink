@@ -6,6 +6,8 @@ mojom("cosmetic_style_agent_mojom") {
 
 source_set("adapter_contract") {
   sources = [
+    "browser_cosmetic_document_state.cc",
+    "browser_cosmetic_document_state.h",
     "browser_cosmetic_transport_state.cc",
     "browser_cosmetic_transport_state.h",
     "navigation_adapter_contract.cc",
@@ -50,6 +52,10 @@ source_set("chromium_renderer_adapter") {
 # exact upstream revision in the protected builder.
 source_set("chromium_adapter") {
   sources = [
+    "fireball_cosmetic_document_host.cc",
+    "fireball_cosmetic_document_host.h",
+    "fireball_cosmetic_lifecycle_owner.cc",
+    "fireball_cosmetic_lifecycle_owner.h",
     "fireball_cosmetic_style_transport.cc",
     "fireball_cosmetic_style_transport.h",
     "fireball_navigation_throttle.cc",

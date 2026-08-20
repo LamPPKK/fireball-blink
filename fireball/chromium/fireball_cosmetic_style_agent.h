@@ -41,11 +41,13 @@ class FireballCosmeticStyleAgent final
                     BindDocumentCallback callback) override;
   void SetStylesheet(const std::string& document_id,
                      std::uint64_t expected_document_epoch,
+                     std::uint64_t expected_binding_generation,
                      fireball::mojom::CosmeticStyleLayer layer,
                      const std::string& stylesheet,
                      SetStylesheetCallback callback) override;
   void RemoveDocumentStyles(const std::string& document_id,
                             std::uint64_t expected_document_epoch,
+                            std::uint64_t expected_binding_generation,
                             RemoveDocumentStylesCallback callback) override;
 
  private:
@@ -56,6 +58,7 @@ class FireballCosmeticStyleAgent final
       mojo::PendingAssociatedReceiver<fireball::mojom::CosmeticStyleAgent>
           receiver);
   void OnReceiverDisconnected();
+  void RemoveBoundStylesAndSuspend();
   bool CurrentDocument(blink::WebDocument* document,
                        bool require_bound_token) const;
   static std::optional<navigation::CosmeticStyleLayer> ConvertLayer(

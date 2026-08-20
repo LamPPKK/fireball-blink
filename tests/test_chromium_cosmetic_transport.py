@@ -32,11 +32,14 @@ class ChromiumCosmeticTransportSourceTests(unittest.TestCase):
         self.assertIn("GetDocumentEpoch", self.source)
         self.assertIn("AcceptDocumentEpoch", self.source)
         self.assertIn("state_.document_epoch()", self.source)
+        self.assertIn("state_.binding_generation()", self.source)
         self.assertIn("BrowserCosmeticTransportTicket", self.header)
         self.assertIn("state_.IsCurrent(ticket)", self.source)
-        self.assertIn("expected_document_epoch", (
+        mojom = (
             ROOT / "fireball/chromium/cosmetic_style_agent.mojom"
-        ).read_text(encoding="utf-8"))
+        ).read_text(encoding="utf-8")
+        self.assertIn("expected_document_epoch", mojom)
+        self.assertIn("expected_binding_generation", mojom)
         self.assertIn("generation_", self.state)
 
     def test_transport_is_async_fail_closed_and_script_free(self) -> None:

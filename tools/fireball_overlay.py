@@ -464,7 +464,7 @@ def build_link_evidence(
             "subresource-lifecycle-hook-not-wired",
             "keepalive-and-prefetch-policy-not-wired",
             "renderer-cosmetic-controller-bridge-not-wired",
-            "renderer-cosmetic-lifecycle-owner-not-wired",
+            "renderer-cosmetic-lifecycle-owner-not-activated",
             "renderer-content-client-registration-not-wired",
             "adblock-rust-ffi-not-linked-by-this-target",
             "not-release-or-packaging-evidence",

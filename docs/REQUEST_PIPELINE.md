@@ -82,8 +82,10 @@ policy implementation:
 - the compile-gated renderer endpoint installs revalidated cosmetic styles
   through Blink's browser-owned user-origin stylesheet API; its browser
   transport now binds an active document-scoped `WeakDocumentPtr` through an
-  epoch/generation handshake. Remaining wiring must route acknowledged
-  navigation/revocation mutations through `DocumentCosmeticController` and
+  epoch/generation handshake. A `DocumentUserData` host and primary-page
+  lifecycle owner suspend it across BFCache/navigation and rotate identity on
+  renderer crash. Remaining wiring must route acknowledged mutations through
+  `DocumentCosmeticController` and
   submit only bounded, monotonically revisioned class/ID snapshots for generic
   matching.
 

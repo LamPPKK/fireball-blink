@@ -33,7 +33,8 @@ class BrowserCosmeticTransportState final {
   bool AcceptDocumentEpoch(const BrowserCosmeticTransportTicket& ticket,
                            std::uint64_t document_epoch);
   bool CompleteBinding(const BrowserCosmeticTransportTicket& ticket,
-                       bool accepted);
+                       bool accepted,
+                       std::uint64_t binding_generation);
 
   std::optional<BrowserCosmeticTransportTicket> BeginMutation(
       bool revoke_document);
@@ -46,6 +47,7 @@ class BrowserCosmeticTransportState final {
   bool ready() const { return phase_ == BrowserCosmeticTransportPhase::kReady; }
   BrowserCosmeticTransportPhase phase() const { return phase_; }
   std::uint64_t document_epoch() const { return document_epoch_; }
+  std::uint64_t binding_generation() const { return binding_generation_; }
 
  private:
   std::optional<BrowserCosmeticTransportTicket> AdvanceGeneration();
@@ -54,6 +56,7 @@ class BrowserCosmeticTransportState final {
       BrowserCosmeticTransportPhase::kUnbound;
   std::uint64_t generation_ = 0;
   std::uint64_t document_epoch_ = 0;
+  std::uint64_t binding_generation_ = 0;
   bool generation_exhausted_ = false;
 };
 

@@ -221,7 +221,7 @@ class FireballOverlayTests(unittest.TestCase):
                 evidence["limitations"],
             )
             self.assertIn(
-                "renderer-cosmetic-lifecycle-owner-not-wired",
+                "renderer-cosmetic-lifecycle-owner-not-activated",
                 evidence["limitations"],
             )
             self.assertIn(

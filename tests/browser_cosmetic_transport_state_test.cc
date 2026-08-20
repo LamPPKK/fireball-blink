@@ -22,8 +22,9 @@ int main() {
   assert(state.AcceptDocumentEpoch(*bind_ticket, 41));
   assert(state.phase() == BrowserCosmeticTransportPhase::kBindingDocument);
   assert(state.document_epoch() == 41);
-  assert(state.CompleteBinding(*bind_ticket, true));
+  assert(state.CompleteBinding(*bind_ticket, true, 7));
   assert(state.ready());
+  assert(state.binding_generation() == 7);
 
   auto apply_ticket = state.BeginMutation(/*revoke_document=*/false);
   assert(apply_ticket.has_value());
@@ -39,6 +40,7 @@ int main() {
   state.Invalidate();
   assert(state.phase() == BrowserCosmeticTransportPhase::kFailed);
   assert(state.document_epoch() == 0);
+  assert(state.binding_generation() == 0);
   assert(!state.IsCurrent(*stale_ticket));
   assert(!state.CompleteMutation(*stale_ticket, true));
 
@@ -46,7 +48,7 @@ int main() {
   auto second_bind = revoke_state.BeginBinding();
   assert(second_bind.has_value());
   assert(revoke_state.AcceptDocumentEpoch(*second_bind, 99));
-  assert(revoke_state.CompleteBinding(*second_bind, true));
+  assert(revoke_state.CompleteBinding(*second_bind, true, 11));
   auto revoke_ticket = revoke_state.BeginMutation(/*revoke_document=*/true);
   assert(revoke_ticket.has_value());
   assert(revoke_state.phase() ==
@@ -54,18 +56,29 @@ int main() {
   assert(revoke_state.CompleteMutation(*revoke_ticket, true));
   assert(revoke_state.phase() == BrowserCosmeticTransportPhase::kRevoked);
   assert(revoke_state.document_epoch() == 0);
+  assert(revoke_state.binding_generation() == 0);
   assert(!revoke_state.BeginMutation(/*revoke_document=*/false).has_value());
 
   BrowserCosmeticTransportState rejected_mutation;
   auto third_bind = rejected_mutation.BeginBinding();
   assert(third_bind.has_value());
   assert(rejected_mutation.AcceptDocumentEpoch(*third_bind, 7));
-  assert(rejected_mutation.CompleteBinding(*third_bind, true));
+  assert(rejected_mutation.CompleteBinding(*third_bind, true, 3));
   auto failed_apply =
       rejected_mutation.BeginMutation(/*revoke_document=*/false);
   assert(failed_apply.has_value());
   assert(rejected_mutation.CompleteMutation(*failed_apply, false));
   assert(rejected_mutation.phase() == BrowserCosmeticTransportPhase::kFailed);
   assert(rejected_mutation.document_epoch() == 0);
+  assert(rejected_mutation.binding_generation() == 0);
+
+  BrowserCosmeticTransportState rejected_binding;
+  auto fourth_bind = rejected_binding.BeginBinding();
+  assert(fourth_bind.has_value());
+  assert(rejected_binding.AcceptDocumentEpoch(*fourth_bind, 8));
+  assert(rejected_binding.CompleteBinding(*fourth_bind, true, 0));
+  assert(rejected_binding.phase() == BrowserCosmeticTransportPhase::kFailed);
+  assert(rejected_binding.document_epoch() == 0);
+  assert(rejected_binding.binding_generation() == 0);
   return 0;
 }

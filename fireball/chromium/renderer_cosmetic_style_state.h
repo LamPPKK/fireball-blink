@@ -35,18 +35,25 @@ struct RendererStyleMutation {
 class RendererCosmeticStyleState final {
  public:
   bool BeginDocument();
-  void UnbindDocument();
+  // Drops the live receiver binding and stylesheet keys while retaining the
+  // first DocumentId claimed for this Blink document.
+  void SuspendBinding();
   bool BindDocument(browser::DocumentId document_id,
                     std::uint64_t expected_document_epoch);
 
-  RendererStyleMutation PrepareMutation(const browser::DocumentId& document_id,
-                                        std::uint64_t expected_document_epoch,
-                                        navigation::CosmeticStyleLayer layer,
-                                        std::string_view stylesheet);
+  RendererStyleMutation PrepareMutation(
+      const browser::DocumentId& document_id,
+      std::uint64_t expected_document_epoch,
+      std::uint64_t expected_binding_generation,
+      navigation::CosmeticStyleLayer layer,
+      std::string_view stylesheet);
   bool CommitMutation(const RendererStyleMutation& mutation);
 
-  bool HasBoundDocument() const { return document_id_.has_value(); }
+  bool HasBoundDocument() const {
+    return binding_active_ && document_id_.has_value();
+  }
   std::uint64_t document_epoch() const;
+  std::uint64_t binding_generation() const;
   const std::string& CurrentKey(navigation::CosmeticStyleLayer layer) const;
 
  private:
@@ -58,7 +65,10 @@ class RendererCosmeticStyleState final {
   std::uint64_t state_revision_ = 0;
   std::uint64_t key_sequence_ = 0;
   std::uint64_t document_epoch_ = 0;
+  std::uint64_t binding_generation_ = 0;
   bool document_epoch_exhausted_ = false;
+  bool binding_generation_exhausted_ = false;
+  bool binding_active_ = false;
 };
 
 }  // namespace fireball::chromium

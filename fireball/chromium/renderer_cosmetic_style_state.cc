@@ -26,6 +26,9 @@ bool RendererCosmeticStyleState::BeginDocument() {
   document_id_.reset();
   document_key_.clear();
   generic_key_.clear();
+  binding_generation_ = 0;
+  binding_generation_exhausted_ = false;
+  binding_active_ = false;
   ++state_revision_;
   if (document_epoch_exhausted_ ||
       document_epoch_ == std::numeric_limits<std::uint64_t>::max()) {
@@ -37,35 +40,55 @@ bool RendererCosmeticStyleState::BeginDocument() {
   return true;
 }
 
-void RendererCosmeticStyleState::UnbindDocument() {
-  document_id_.reset();
+void RendererCosmeticStyleState::SuspendBinding() {
   document_key_.clear();
   generic_key_.clear();
+  binding_active_ = false;
   ++state_revision_;
 }
 
 bool RendererCosmeticStyleState::BindDocument(
     browser::DocumentId document_id,
     std::uint64_t expected_document_epoch) {
-  if (document_id_.has_value() || expected_document_epoch == 0 ||
+  if (expected_document_epoch == 0 ||
       expected_document_epoch != document_epoch()) {
     return false;
   }
-  document_id_ = std::move(document_id);
+  if (binding_generation_exhausted_ ||
+      binding_generation_ == std::numeric_limits<std::uint64_t>::max()) {
+    binding_generation_exhausted_ = true;
+    binding_generation_ = 0;
+    return false;
+  }
+  if (document_id_.has_value()) {
+    if (*document_id_ != document_id) {
+      return false;
+    }
+  } else {
+    document_id_ = std::move(document_id);
+  }
+  binding_active_ = true;
   ++state_revision_;
+  ++binding_generation_;
   return true;
 }
 
 RendererStyleMutation RendererCosmeticStyleState::PrepareMutation(
     const browser::DocumentId& document_id,
     std::uint64_t expected_document_epoch,
+    std::uint64_t expected_binding_generation,
     navigation::CosmeticStyleLayer layer,
     std::string_view stylesheet) {
   if (expected_document_epoch == 0 ||
       expected_document_epoch != document_epoch()) {
     return Reject("COSMETIC_RENDERER_EPOCH_MISMATCH");
   }
-  if (!document_id_.has_value() || *document_id_ != document_id) {
+  if (expected_binding_generation == 0 ||
+      expected_binding_generation != binding_generation()) {
+    return Reject("COSMETIC_RENDERER_BINDING_MISMATCH");
+  }
+  if (!binding_active_ || !document_id_.has_value() ||
+      *document_id_ != document_id) {
     return Reject("COSMETIC_RENDERER_DOCUMENT_MISMATCH");
   }
   if (!navigation::IsValidCompiledCosmeticStylesheet(stylesheet)) {
@@ -96,9 +119,13 @@ std::uint64_t RendererCosmeticStyleState::document_epoch() const {
   return document_epoch_exhausted_ ? 0 : document_epoch_;
 }
 
+std::uint64_t RendererCosmeticStyleState::binding_generation() const {
+  return binding_generation_exhausted_ ? 0 : binding_generation_;
+}
+
 bool RendererCosmeticStyleState::CommitMutation(
     const RendererStyleMutation& mutation) {
-  if (!document_id_.has_value() ||
+  if (!binding_active_ || !document_id_.has_value() ||
       mutation.action == RendererStyleMutationAction::kReject ||
       mutation.state_revision != state_revision_ ||
       mutation.previous_key != CurrentKey(mutation.layer)) {
