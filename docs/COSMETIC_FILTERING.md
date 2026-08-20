@@ -4,8 +4,9 @@ Fireball now carries the non-network half of its native blocker through the
 real pinned `adblock-rust` engine. The implementation is intentionally split at
 the renderer boundary: this repository proves rule evaluation, strict decoding,
 Profile policy, safe stylesheet construction and a compile-gated native Blink
-stylesheet endpoint plus its asynchronous browser transport. Controller and
-Chrome activation remain open, so no real-page hiding is claimed.
+stylesheet endpoint, asynchronous browser transport, lifecycle owner and
+acknowledgement-driven controller bridge. Chrome activation and DOM-token
+collection remain open, so no real-page hiding is claimed.
 
 ## Two-phase document plan
 
@@ -108,31 +109,50 @@ for one document-scoped Chromium `WeakDocumentPtr`. It accepts only an active
 primary-main-frame document, echoes the renderer epoch, records the bind
 generation and sends both values on every mutation. Separate browser
 generation tickets reject late async callbacks. Disconnect, invalidation,
-BFCache/inactive state and renderer rejection fail closed. It is not yet
-connected to the synchronous controller seam.
+BFCache/inactive state and renderer rejection fail closed. The production
+Chromium path uses the async bridge rather than adapting the synchronous test
+sink.
 
 A compile-gated `DocumentUserData` host now owns that transport for the exact
 Blink document. The host survives BFCache with one UUID, suspends and drops its
 remote while inactive, then performs a fresh epoch handshake on restore. The
 renderer accepts a repeated bind only for the same UUID and epoch, then rotates
 the binding generation. Disconnect cleanup removes any mutation that was
-already ordered on the older pipe; later old-generation mutations fail. A
-`WebContentsObserver` owner uses `PrimaryPageChanged` and
-`RenderFrameHostStateChanged`, and rotates the UUID after renderer crash.
+already ordered on the older pipe; later old-generation mutations fail. The
+host retains only the last acknowledged CSS for its two bounded layers and
+replays document then generic CSS before it reports READY. A
+`WebContentsObserver` owner uses `PrimaryPageChanged`,
+`RenderFrameHostStateChanged` and `RenderFrameDeleted`. Only a document in
+`kInBackForwardCache` retains its plan; normal navigation and cache eviction
+dispose it. The owner rotates the UUID after renderer crash.
 Neither the owner nor its delegate is constructed by Chrome yet.
+
+`FireballCosmeticControllerBridge` now supplies the lifecycle delegate and owns
+the observer lifetime. It requires an exclusive Profile/Tab/WebContents binding,
+revalidates that claim before every asynchronous commit, evaluates only a
+committed active HTTP(S) Chromium URL and commits plan/revision state only after
+the exact document host acknowledges a mutation. Suspend/crash invalidates late
+callbacks. Policy refresh revokes both layers, rebinds the same document and
+reevaluates the current committed URL before applying a replacement plan.
+Teardown clears active and cached desired styles before releasing the Tab claim;
+failed mutations can be synchronously reset and rebound on the same active
+document. Generic snapshots remain an explicit typed C++ input. The bridge rejects more
+than 4,096 total entries, tokens over 256 bytes, NUL bytes and snapshots over
+256 KiB before policy evaluation; the renderer-side collector that will call
+this API is not implemented yet.
 
 The production browser adapter must keep this policy as the only source of
 cosmetic decisions and satisfy all of the following:
 
 1. Build URL/hostname inputs from committed Chromium navigation state, not page
    JavaScript or an untrusted string parser.
-2. Convert Chromium's committed document token to a fresh `DocumentId`, bind
-   one policy/engine sequence to the owning Chromium Profile, and route every
-   navigation/tab/Profile teardown through `DocumentCosmeticController`.
-3. Refactor the controller/sink seam to send the initial stylesheet through the
-   lifecycle delegate and async transport, then commit controller state only
-   after its acknowledgement.
-   Never use `innerHTML`, `document.write` or script strings.
+2. Convert Chromium's committed document token to a fresh `DocumentId`, install
+   one authoritative Tab/WebContents binding inside the owning Chromium
+   Profile, bind one policy/engine sequence to it, and route every
+   navigation/tab/Profile teardown through the async bridge.
+3. Commit document, generic and revoke state only after the exact host and
+   renderer acknowledge the mutation. Never use `innerHTML`, `document.write`
+   or script strings.
 4. Collect only bounded class/ID tokens for the generic phase. Do not serialize
    text content, attributes, forms, page URLs or DOM subtrees.
 5. Give every class/ID snapshot a strictly increasing revision. Apply the
@@ -155,12 +175,17 @@ fresh-key replacement, stale commits, independent layers and navigation reset.
 `tests/browser_cosmetic_transport_state_test.cc` covers browser epoch/generation
 state, stale callbacks, invalidation and revocation.
 `tests/browser_cosmetic_document_state_test.cc` covers activation, suspension,
-restore, stale acknowledgement rejection and revocation.
+two-layer restore, stale acknowledgement rejection and revocation.
+`tests/browser_cosmetic_controller_state_test.cc` covers activation/generic/
+revoke tickets, monotonic DOM revisions and stale completion rejection.
+`tests/test_chromium_cosmetic_controller_bridge.py` locks the committed-URL,
+Profile/Tab, renderer-ack and restore-order source contracts.
 The [Chromium cosmetic adapter contract](CHROMIUM_COSMETIC_ADAPTER.md) records
 the exact upstream seam and remaining activation work.
 
 This is a production-oriented native foundation, not yet a claim that ads are
-visually hidden in a Chromium build. That claim requires the async controller
-bridge, Chrome lifecycle construction, renderer registration, a production EasyList/EasyPrivacy
-release from the existing [signed artifact pipeline](ADBLOCK_RULE_ARTIFACTS.md),
-a real-page regression corpus and Linux control-versus-overlay build evidence.
+visually hidden in a Chromium build. That claim requires Chrome construction,
+the bounded DOM collector, renderer registration, a production
+EasyList/EasyPrivacy release from the existing
+[signed artifact pipeline](ADBLOCK_RULE_ARTIFACTS.md), a real-page regression
+corpus and Linux control-versus-overlay build evidence.

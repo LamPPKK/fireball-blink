@@ -15,24 +15,29 @@
 namespace content {
 class Page;
 class WebContents;
-}  // namespace content
+} // namespace content
 
 namespace fireball::chromium {
 
 class FireballCosmeticLifecycleDelegate {
- public:
+public:
   virtual ~FireballCosmeticLifecycleDelegate() = default;
 
-  // The host reference is valid only for this callback. A future async
-  // controller bridge must retrieve it again from the current document before
-  // every operation rather than retaining a raw pointer.
-  virtual void OnCosmeticDocumentReady(const browser::DocumentId& document_id,
-                                       FireballCosmeticDocumentHost& host) = 0;
+  virtual bool
+  CanActivateCosmeticDocument(const browser::DocumentId &document_id) = 0;
+
+  // The host reference is valid only for this callback. The async controller
+  // bridge retrieves it again from the current document before every operation
+  // rather than retaining a raw pointer.
+  virtual void OnCosmeticDocumentReady(const browser::DocumentId &document_id,
+                                       FireballCosmeticDocumentHost &host) = 0;
   // These callbacks must synchronously cancel controller work for this exact
   // DocumentId and complete its callers. They may destroy the owner.
-  virtual void OnCosmeticDocumentSuspended(
-      const browser::DocumentId& document_id) = 0;
-  virtual void OnCosmeticDocumentFailed(const browser::DocumentId& document_id,
+  virtual void
+  OnCosmeticDocumentSuspended(const browser::DocumentId &document_id) = 0;
+  virtual void
+  OnCosmeticDocumentDisposed(const browser::DocumentId &document_id) = 0;
+  virtual void OnCosmeticDocumentFailed(const browser::DocumentId &document_id,
                                         std::string_view error_code) = 0;
 };
 
@@ -43,26 +48,36 @@ class FireballCosmeticLifecycleDelegate {
 // Chrome tab lifecycle is a later gate.
 class FireballCosmeticLifecycleOwner final
     : public content::WebContentsObserver {
- public:
-  FireballCosmeticLifecycleOwner(content::WebContents& web_contents,
-                                 FireballCosmeticLifecycleDelegate& delegate);
+public:
+  FireballCosmeticLifecycleOwner(content::WebContents &web_contents,
+                                 FireballCosmeticLifecycleDelegate &delegate);
   ~FireballCosmeticLifecycleOwner() override;
 
-  FireballCosmeticLifecycleOwner(const FireballCosmeticLifecycleOwner&) =
+  FireballCosmeticLifecycleOwner(const FireballCosmeticLifecycleOwner &) =
       delete;
-  FireballCosmeticLifecycleOwner& operator=(
-      const FireballCosmeticLifecycleOwner&) = delete;
+  FireballCosmeticLifecycleOwner &
+  operator=(const FireballCosmeticLifecycleOwner &) = delete;
+
+  void Start();
+  void Shutdown();
+  content::WeakDocumentPtr
+  GetActiveDocument(const browser::DocumentId &document_id) const;
+  const std::optional<browser::DocumentId> &active_document_id() const {
+    return active_document_id_;
+  }
 
   // content::WebContentsObserver:
-  void PrimaryPageChanged(content::Page& page) override;
+  void PrimaryPageChanged(content::Page &page) override;
   void RenderFrameHostStateChanged(
-      content::RenderFrameHost* render_frame_host,
+      content::RenderFrameHost *render_frame_host,
       content::RenderFrameHost::LifecycleState old_state,
       content::RenderFrameHost::LifecycleState new_state) override;
-  void PrimaryMainFrameRenderProcessGone(
-      base::TerminationStatus status) override;
+  void
+  PrimaryMainFrameRenderProcessGone(base::TerminationStatus status) override;
+  void RenderFrameDeleted(content::RenderFrameHost *render_frame_host) override;
 
- private:
+private:
+  void ActivatePrimaryDocument(content::RenderFrameHost &frame);
   std::uint64_t AdvanceLifecycleGeneration();
   void OnDocumentActivated(std::uint64_t lifecycle_generation,
                            content::WeakDocumentPtr expected_document,
@@ -76,6 +91,6 @@ class FireballCosmeticLifecycleOwner final
   base::WeakPtrFactory<FireballCosmeticLifecycleOwner> weak_factory_{this};
 };
 
-}  // namespace fireball::chromium
+} // namespace fireball::chromium
 
-#endif  // FIREBALL_CHROMIUM_FIREBALL_COSMETIC_LIFECYCLE_OWNER_H_
+#endif // FIREBALL_CHROMIUM_FIREBALL_COSMETIC_LIFECYCLE_OWNER_H_

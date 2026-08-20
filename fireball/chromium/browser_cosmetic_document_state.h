@@ -9,6 +9,7 @@ namespace fireball::chromium {
 enum class BrowserCosmeticDocumentPhase {
   kDormant,
   kBinding,
+  kRestoring,
   kReady,
   kSuspended,
   kRevoking,
@@ -19,8 +20,8 @@ enum class BrowserCosmeticDocumentPhase {
 struct BrowserCosmeticDocumentTicket {
   std::uint64_t generation = 0;
 
-  friend bool operator==(const BrowserCosmeticDocumentTicket&,
-                         const BrowserCosmeticDocumentTicket&) = default;
+  friend bool operator==(const BrowserCosmeticDocumentTicket &,
+                         const BrowserCosmeticDocumentTicket &) = default;
 };
 
 // Chromium-independent lifecycle state for one Blink document. A generation
@@ -28,23 +29,25 @@ struct BrowserCosmeticDocumentTicket {
 // suspended or failed, so an acknowledgement from an older active lifetime
 // cannot publish state after BFCache, navigation or renderer failure.
 class BrowserCosmeticDocumentState final {
- public:
+public:
   std::optional<BrowserCosmeticDocumentTicket> BeginActivation();
-  bool CompleteActivation(const BrowserCosmeticDocumentTicket& ticket,
-                          bool accepted);
+  bool CompleteBinding(const BrowserCosmeticDocumentTicket &ticket,
+                       bool accepted);
+  bool CompleteRestore(const BrowserCosmeticDocumentTicket &ticket,
+                       bool accepted);
 
   std::optional<BrowserCosmeticDocumentTicket> BeginRevocation();
-  bool CompleteRevocation(const BrowserCosmeticDocumentTicket& ticket,
+  bool CompleteRevocation(const BrowserCosmeticDocumentTicket &ticket,
                           bool accepted);
 
   void Suspend();
   void Fail();
 
-  bool IsCurrent(const BrowserCosmeticDocumentTicket& ticket) const;
+  bool IsCurrent(const BrowserCosmeticDocumentTicket &ticket) const;
   bool ready() const { return phase_ == BrowserCosmeticDocumentPhase::kReady; }
   BrowserCosmeticDocumentPhase phase() const { return phase_; }
 
- private:
+private:
   std::optional<BrowserCosmeticDocumentTicket> AdvanceGeneration();
 
   BrowserCosmeticDocumentPhase phase_ = BrowserCosmeticDocumentPhase::kDormant;
@@ -52,6 +55,6 @@ class BrowserCosmeticDocumentState final {
   bool generation_exhausted_ = false;
 };
 
-}  // namespace fireball::chromium
+} // namespace fireball::chromium
 
-#endif  // FIREBALL_CHROMIUM_BROWSER_COSMETIC_DOCUMENT_STATE_H_
+#endif // FIREBALL_CHROMIUM_BROWSER_COSMETIC_DOCUMENT_STATE_H_

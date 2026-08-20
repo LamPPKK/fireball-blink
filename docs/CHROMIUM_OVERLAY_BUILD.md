@@ -56,7 +56,10 @@ actual public headers. It also compiles the typed Mojo
 document-token APIs, plus `FireballCosmeticStyleTransport` against Chromium's
 document-scoped `WeakDocumentPtr` and associated-interface APIs. The graph also
 compiles the `DocumentUserData` host and `WebContentsObserver` lifecycle owner
-against the pinned BFCache, primary-page and renderer-crash callbacks.
+against the pinned BFCache, primary-page and renderer-crash callbacks. The same
+target compiles the acknowledgement-driven controller bridge and authoritative
+Tab/WebContents binding against committed URL, BrowserContext,
+WebContentsUserData and document-scoped weak-pointer APIs.
 
 The uploaded evidence contains:
 
@@ -69,6 +72,7 @@ The uploaded evidence contains:
 
 The gate remains **not run** until the protected self-hosted builder produces a
 green artifact. Even after it passes, B1 still needs the Profile lifecycle
-hooks, keepalive/prefetch coverage, Chrome construction of the cosmetic owner,
-the async controller bridge, renderer registration, a full overlay `chrome` build and
-startup-network capture before it can be called a Fireball browser build.
+hooks, keepalive/prefetch coverage, Chrome construction of the cosmetic bridge,
+bounded DOM-token collection, renderer registration, a full overlay `chrome`
+build and startup-network capture before it can be called a Fireball browser
+build.

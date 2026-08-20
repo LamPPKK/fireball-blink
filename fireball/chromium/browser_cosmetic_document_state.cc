@@ -7,6 +7,7 @@ namespace fireball::chromium {
 std::optional<BrowserCosmeticDocumentTicket>
 BrowserCosmeticDocumentState::BeginActivation() {
   if (phase_ == BrowserCosmeticDocumentPhase::kBinding ||
+      phase_ == BrowserCosmeticDocumentPhase::kRestoring ||
       phase_ == BrowserCosmeticDocumentPhase::kReady ||
       phase_ == BrowserCosmeticDocumentPhase::kRevoking) {
     return std::nullopt;
@@ -19,10 +20,20 @@ BrowserCosmeticDocumentState::BeginActivation() {
   return ticket;
 }
 
-bool BrowserCosmeticDocumentState::CompleteActivation(
-    const BrowserCosmeticDocumentTicket& ticket,
-    bool accepted) {
+bool BrowserCosmeticDocumentState::CompleteBinding(
+    const BrowserCosmeticDocumentTicket &ticket, bool accepted) {
   if (!IsCurrent(ticket) || phase_ != BrowserCosmeticDocumentPhase::kBinding) {
+    return false;
+  }
+  phase_ = accepted ? BrowserCosmeticDocumentPhase::kRestoring
+                    : BrowserCosmeticDocumentPhase::kFailed;
+  return true;
+}
+
+bool BrowserCosmeticDocumentState::CompleteRestore(
+    const BrowserCosmeticDocumentTicket &ticket, bool accepted) {
+  if (!IsCurrent(ticket) ||
+      phase_ != BrowserCosmeticDocumentPhase::kRestoring) {
     return false;
   }
   phase_ = accepted ? BrowserCosmeticDocumentPhase::kReady
@@ -44,8 +55,7 @@ BrowserCosmeticDocumentState::BeginRevocation() {
 }
 
 bool BrowserCosmeticDocumentState::CompleteRevocation(
-    const BrowserCosmeticDocumentTicket& ticket,
-    bool accepted) {
+    const BrowserCosmeticDocumentTicket &ticket, bool accepted) {
   if (!IsCurrent(ticket) || phase_ != BrowserCosmeticDocumentPhase::kRevoking) {
     return false;
   }
@@ -70,7 +80,7 @@ void BrowserCosmeticDocumentState::Fail() {
 }
 
 bool BrowserCosmeticDocumentState::IsCurrent(
-    const BrowserCosmeticDocumentTicket& ticket) const {
+    const BrowserCosmeticDocumentTicket &ticket) const {
   return ticket.generation != 0 && ticket.generation == generation_ &&
          !generation_exhausted_;
 }
@@ -88,4 +98,4 @@ BrowserCosmeticDocumentState::AdvanceGeneration() {
   return BrowserCosmeticDocumentTicket{generation_};
 }
 
-}  // namespace fireball::chromium
+} // namespace fireball::chromium

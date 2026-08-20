@@ -37,9 +37,13 @@ class ChromiumCosmeticLifecycleSourceTests(unittest.TestCase):
         self.assertIn("page.IsPrimary()", self.owner_source)
         self.assertIn("RenderFrameHostStateChanged", self.owner_header)
         self.assertIn("LifecycleState::kActive", self.owner_source)
+        self.assertIn("LifecycleState::kInBackForwardCache", self.owner_source)
         self.assertIn("PrimaryMainFrameRenderProcessGone", self.owner_header)
+        self.assertIn("CanActivateCosmeticDocument", self.owner_source)
+        self.assertIn("RenderFrameDeleted", self.owner_header)
         self.assertNotIn("DidFinishNavigation", self.owner_header + self.owner_source)
-        self.assertNotIn("weak_factory_.InvalidateWeakPtrs()", self.owner_source)
+        self.assertIn("weak_factory_.InvalidateWeakPtrs()", self.owner_source)
+        self.assertIn("void FireballCosmeticLifecycleOwner::Shutdown", self.owner_source)
         self.assertIn("active_document_id_", self.owner_header)
         self.assertIn("lifecycle_generation_", self.owner_header)
         self.assertIn("if (!alive", self.owner_source)
@@ -72,12 +76,33 @@ class ChromiumCosmeticLifecycleSourceTests(unittest.TestCase):
         notify = self.owner_source.index(
             "OnCosmeticDocumentSuspended(old_document_id)", change
         )
+        dispose = self.owner_source.index(
+            "OnCosmeticDocumentDisposed(old_document_id)", change
+        )
         create = self.owner_source.index("CreateForCurrentDocument", change)
         self.assertLess(suspend, notify)
         self.assertLess(notify, create)
+        self.assertLess(dispose, create)
         self.assertIn(
             "primary_document.AsRenderFrameHostIfValid()", self.owner_source
         )
+
+    def test_terminal_navigation_and_bfcache_eviction_are_disposed(self) -> None:
+        page_change = self.owner_source.index(
+            "void FireballCosmeticLifecycleOwner::ActivatePrimaryDocument"
+        )
+        state_change = self.owner_source.index(
+            "void FireballCosmeticLifecycleOwner::RenderFrameHostStateChanged"
+        )
+        page_section = self.owner_source[page_change:state_change]
+        section = self.owner_source[state_change:]
+        self.assertIn("document_still_exists", page_section)
+        self.assertNotIn("GetLifecycleState()", page_section)
+        self.assertIn("evicted_from_bfcache", section)
+        self.assertIn("resumable && !tracked", section)
+        self.assertIn("host->ResetForController()", section)
+        self.assertIn("OnCosmeticDocumentDisposed(document_id)", section)
+        self.assertIn("RenderFrameDeleted", section)
 
     def test_crash_revalidates_document_after_reentrant_suspend(self) -> None:
         crash = self.owner_source.index(

@@ -83,11 +83,14 @@ policy implementation:
   through Blink's browser-owned user-origin stylesheet API; its browser
   transport now binds an active document-scoped `WeakDocumentPtr` through an
   epoch/generation handshake. A `DocumentUserData` host and primary-page
-  lifecycle owner suspend it across BFCache/navigation and rotate identity on
-  renderer crash. Remaining wiring must route acknowledged mutations through
-  `DocumentCosmeticController` and
-  submit only bounded, monotonically revisioned class/ID snapshots for generic
-  matching.
+  lifecycle owner retains it only across BFCache, terminally disposes normal
+  navigation/eviction and rotates identity on renderer crash. A compile-gated
+  controller bridge requires an exclusive Profile/Tab/WebContents claim and commits document,
+  generic and revoke state only after renderer acknowledgement, and it uses a
+  fail-closed revoke → rebind → reevaluate sequence after a Shields policy
+  change. Remaining wiring
+  must construct that bridge from Chrome and submit only bounded,
+  monotonically revisioned class/ID snapshots for generic matching.
 
 The current repository proves the platform-neutral network/cosmetic policies
 and native FFI seams plus a compile-gated Chromium renderer endpoint and

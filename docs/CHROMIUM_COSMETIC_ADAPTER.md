@@ -1,13 +1,14 @@
 # Chromium cosmetic stylesheet adapter
 
-Status: **compile-gated renderer endpoint, browser transport and document
-lifecycle owner; not activated in Chrome**.
+Status: **compile-gated renderer endpoint, browser transport, document
+lifecycle owner and async controller bridge; not activated in Chrome**.
 
 This slice moves Fireball's cosmetic filtering boundary from a standalone sink
 contract to a target wired to compile against the exact Blink renderer API
 pinned in `pins/upstream.json`. The protected builder has not produced compile
-evidence for this revision yet. The slice deliberately stops before browser
-lifecycle wiring, so it is not evidence that a Chromium page hides an ad.
+evidence for this revision yet. The slice deliberately stops before Chrome
+constructs the bridge or collects DOM tokens, so it is not evidence that a
+Chromium page hides an ad.
 
 ## Pinned upstream seam
 
@@ -79,9 +80,10 @@ remote. `Invalidate()` cancels pending callbacks through an explicit error and
 is the hook the compile-gated lifecycle owner calls before document/Tab
 teardown.
 
-This class is not yet the lifecycle owner and does not adapt the current
-synchronous `CosmeticStyleSink`. Therefore it cannot publish
-`DocumentCosmeticController` state or claim user-visible filtering by itself.
+This transport remains a single-document primitive; the compile-gated
+`FireballCosmeticControllerBridge` owns policy commit timing above it. The
+legacy synchronous `CosmeticStyleSink` remains only for standalone component
+tests and is not the production Chromium path.
 
 ## Document and page lifecycle
 
@@ -90,7 +92,9 @@ synchronous `CosmeticStyleSink`. Therefore it cannot publish
 instead of retaining a raw `RenderFrameHost`. One CSPRNG UUID identifies the
 same Blink document while it is active or stored in BFCache. Suspension drops
 the browser remote and invalidates every pending generation; restore opens a
-new remote and repeats the epoch handshake using the same UUID.
+new remote, repeats the epoch handshake using the same UUID, then replays the
+last acknowledged document layer followed by the generic layer. The host does
+not report READY until both replays are acknowledged.
 
 The renderer accepts that rebind only when both the UUID and renderer epoch
 still match. Closing or replacing the associated receiver removes both style
@@ -104,13 +108,44 @@ every successful restore handshake.
 
 `FireballCosmeticLifecycleOwner` follows Chromium's preferred
 [`PrimaryPageChanged` and `RenderFrameHostStateChanged`](https://chromium.googlesource.com/chromium/src/+/4b1c7520055f77780fe76d89bb89b76e4d19f64c/content/public/browser/web_contents_observer.h)
-callbacks rather than resetting state in `DidFinishNavigation`. It suspends an
-active document on BFCache/navigation transitions and explicitly deletes stale
-`DocumentUserData` after a primary renderer crash, so crash reinitialization
-receives a fresh UUID. The delegate exposes no URL, selector or epoch.
+callbacks rather than resetting state in `DidFinishNavigation`. It retains a
+plan only for `kInBackForwardCache`, while normal navigation, BFCache eviction
+and `RenderFrameDeleted` terminally dispose the tracked entry. It explicitly
+deletes stale `DocumentUserData` after a primary renderer crash, so crash
+reinitialization receives a fresh UUID. The delegate exposes no URL, selector
+or epoch.
 
-The owner is compiled but no Chrome tab constructs it yet. Its delegate is the
-future seam for the asynchronous controller bridge.
+`FireballCosmeticControllerBridge` implements that delegate. Creation requires
+a matching Profile-owned `ProfilePolicyBinding`, an authoritative
+`TabWebContentsBinding`, its exclusive controller claim and BrowserModel
+Tab/Space ownership. The binding reserves one Tab ID per Profile
+`BrowserContext` and permits one bridge for that bound `WebContents`. The bridge
+revalidates the complete boundary before BFCache replay and every async commit;
+loss of that claim first rotates controller/callback generations, detaches the
+tracked map, then clears every active or cached document in the bridge. It
+obtains the URL
+and hostname only from the still-active committed
+`RenderFrameHost`, starts a generation ticket, sends the policy stylesheet and
+commits its tracked plan only after the exact `DocumentUserData` host reports a
+renderer acknowledgement. Generic snapshots use a separate monotonically
+increasing revision ticket. Revoke and policy refresh also wait for renderer
+acknowledgement; refresh clears both desired layers, rebinds, reevaluates the
+committed URL and applies the new document plan.
+
+Suspension invalidates any in-flight bridge ticket but retains the last
+acknowledged plan only for a BFCache document. Normal navigation and BFCache
+eviction remove it. Renderer crash drops that plan and
+the lifecycle owner rotates the UUID. Result callbacks expose counts and stable
+codes only; URL, hostname, CSS and DOM tokens remain inside the policy/host
+boundary. The bridge drops document CSS from its tracked plan after
+acknowledgement; the document-scoped host retains the bounded desired layers
+needed for restore. Teardown invalidates bridge callbacks, clears desired state
+and drops renderer remotes for the active and cached documents before releasing
+the Tab claim. A replacement owner adopts the already-current primary document.
+Failed apply/revoke state has an explicit reset-and-rebind path, so recovery does
+not require navigation. The bridge owns the lifecycle owner so its delegate
+always outlives the observer, but no Chrome tab installs the authoritative
+binding or constructs the bridge yet.
 
 ## Brave and Helium decisions
 
@@ -126,25 +161,21 @@ patch and leaves `patches/manifest.json` empty.
 
 ## What remains before activation
 
-The current `CosmeticStyleSink` is synchronous while the new transport and Mojo
-acknowledgements are asynchronous. The controller bridge must own pending
-operations and commit `DocumentCosmeticController` state only after the
-renderer confirms the exact document/layer mutation. Activation must also:
+The async prepare → apply → acknowledge bridge now exists and cancels stale
+operations across suspend, navigation and crash. Activation must still:
 
 1. register the renderer agent from Fireball's `ContentRendererClient` overlay;
-2. construct the lifecycle owner from the Chrome tab lifecycle and destroy it
-   before its delegate;
-3. refactor the synchronous sink/controller seam into an async prepare → apply
-   → acknowledge flow with pending-operation cancellation;
-4. install document rules before first paint, or record a measured limitation;
-5. collect only bounded class/ID tokens for the generic phase and preserve the
+2. install one authoritative `TabWebContentsBinding` and construct one
+   controller bridge from each Chrome tab lifecycle;
+3. install document rules before first paint, or record a measured limitation;
+4. collect only bounded class/ID tokens for the generic phase and preserve the
    controller's monotonic revision checks;
-6. revoke both layers for navigation, Tab close, Profile teardown and Shields
-   policy change, including renderer crash/restart; and
-7. pass a real Chromium build plus navigation, BFCache, crash, profile-isolation
+5. connect Tab close, Profile teardown and Shields changes to bridge revoke or
+   refresh entry points; and
+6. pass a real Chromium build plus navigation, BFCache, crash, profile-isolation
    and visual-regression tests on the protected Linux builder.
 
-Until all seven pass, screenshots and release notes must describe cosmetic
+Until all six pass, screenshots and release notes must describe cosmetic
 filtering as a native foundation rather than a user-visible blocker.
 
 ## Evidence in normal CI
@@ -158,15 +189,24 @@ filtering as a native foundation rather than a user-visible blocker.
   in-flight mutation, binding-generation capture, stale callback rejection,
   invalidation, revocation and renderer rejection without a Chromium checkout.
 - `browser_cosmetic_document_state_test` executes activate, suspend, stale
-  callback rejection, BFCache-style restore, revoke and failed retry.
+  callback rejection, two-step bind/desired-style restore, revoke and failed
+  retry.
+- `browser_cosmetic_controller_state_test` executes acknowledgement-gated
+  activation, monotonic generic revisions, stale callback rejection, suspend,
+  restore, failed-state reset, terminal disposal and revoke without Chromium.
 - `tests/test_chromium_cosmetic_adapter.py` locks the typed Mojo/GN wiring,
   exact Blink API use, document-token checks and absence of script injection.
 - `tests/test_chromium_cosmetic_transport.py` locks the `WeakDocumentPtr`,
   active-primary-frame, associated-remote, async generation and fail-closed
   boundaries.
 - `tests/test_chromium_cosmetic_lifecycle.py` locks `DocumentUserData`, UUID
-  rotation on crash, primary-page/lifecycle callbacks, suspend/rebind behavior
-  and the absence of a `DidFinishNavigation` reset path.
+  rotation on crash, BFCache-only retention, terminal disposal,
+  primary-page/lifecycle callbacks, suspend/rebind behavior and the absence of
+  a `DidFinishNavigation` reset path.
+- `tests/test_chromium_cosmetic_controller_bridge.py` locks committed-URL and
+  Profile/Tab/WebContents validation, exclusive claims, acknowledgement
+  ordering, cleanup/recovery, two-layer restore, policy refresh and the fact
+  that Chrome still does not construct the bridge.
 - The checksum-pinned overlay includes the `.mojom` source and the protected
   `//fireball:overlay_smoke` graph compiles the renderer target against the
   pinned Chromium checkout when that builder lane runs.
