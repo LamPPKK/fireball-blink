@@ -19,7 +19,15 @@ class FakeEvaluator final
   fireball::navigation::RequestPolicyDecision decision;
   fireball::navigation::RequestContext last_context{
       .profile_id = Parse<fireball::browser::ProfileId>(
-          "10000000-0000-4000-8000-000000000099")};
+          "10000000-0000-4000-8000-000000000099"),
+      .url = "https://initial.test/",
+      .destination_hostname = "initial.test",
+      .source_hostname = "",
+      .method = "GET",
+      .resource_type = fireball::navigation::RequestResourceType::kDocument,
+      .third_party = false,
+      .main_frame = true,
+  };
   int calls = 0;
 
   fireball::navigation::RequestPolicyDecision Evaluate(
