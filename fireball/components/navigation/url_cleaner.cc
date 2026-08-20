@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "fireball/components/adblock/profile_policy.h"
+#include "fireball/components/navigation/generated_url_cleaner_rules.h"
 
 namespace fireball::navigation {
 namespace {
@@ -241,11 +242,14 @@ std::optional<UrlCleaner> UrlCleaner::Create(
 }
 
 UrlCleaner UrlCleaner::CreateBuiltIn() {
-  auto cleaner = Create(
-      "2026.8.1",
-      {"utm_source", "utm_medium", "utm_campaign", "utm_term",
-       "utm_content", "utm_id", "gclid", "dclid", "fbclid", "msclkid",
-       "mc_cid", "mc_eid", "igshid", "vero_id", "_hsenc", "_hsmi"});
+  std::vector<std::string> parameters;
+  parameters.reserve(generated::kUrlCleanerTrackingParameters.size());
+  for (const std::string_view parameter :
+       generated::kUrlCleanerTrackingParameters) {
+    parameters.emplace_back(parameter);
+  }
+  auto cleaner = Create(std::string(generated::kUrlCleanerRulesVersion),
+                        std::move(parameters));
   return std::move(*cleaner);
 }
 

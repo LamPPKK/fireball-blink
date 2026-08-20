@@ -342,6 +342,12 @@ def main() -> int:
                 "fireball/components/privacy/network_audit.cc",
                 "tests/navigation_policy_test.cc",
             ],
+            "url_cleaner_corpus_test": [
+                "fireball/browser/domain_model.cc",
+                "fireball/components/adblock/profile_policy.cc",
+                "fireball/components/navigation/url_cleaner.cc",
+                "tests/url_cleaner_corpus_test.cc",
+            ],
             "chromium_navigation_adapter_test": [
                 "fireball/browser/domain_model.cc",
                 "fireball/chromium/navigation_adapter_contract.cc",

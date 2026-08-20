@@ -1,0 +1,206 @@
+{
+  "schema_version": 1,
+  "rules_version": "2026.8.1",
+  "cases": [
+    {
+      "name": "basic-removal",
+      "input_url": "https://publisher.example/story?utm_source=mail&story=1",
+      "hostname": "publisher.example",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "cleaned",
+      "expected_url": "https://publisher.example/story?story=1",
+      "removed_parameters": 1
+    },
+    {
+      "name": "exact-name-only",
+      "input_url": "https://publisher.example/story?notutm_source=keep&utm_source_extra=keep",
+      "hostname": "publisher.example",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "unchanged",
+      "expected_url": "https://publisher.example/story?notutm_source=keep&utm_source_extra=keep",
+      "removed_parameters": 0
+    },
+    {
+      "name": "encoded-parameter-name",
+      "input_url": "https://publisher.example/story?%75tm_source=mail&story=1",
+      "hostname": "publisher.example",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "cleaned",
+      "expected_url": "https://publisher.example/story?story=1",
+      "removed_parameters": 1
+    },
+    {
+      "name": "case-insensitive-name",
+      "input_url": "https://publisher.example/story?UTM_SOURCE=mail&Story=Keep",
+      "hostname": "publisher.example",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "cleaned",
+      "expected_url": "https://publisher.example/story?Story=Keep",
+      "removed_parameters": 1
+    },
+    {
+      "name": "duplicate-tracking-parameters",
+      "input_url": "https://publisher.example/?fbclid=one&keep=1&fbclid=two",
+      "hostname": "publisher.example",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "cleaned",
+      "expected_url": "https://publisher.example/?keep=1",
+      "removed_parameters": 2
+    },
+    {
+      "name": "fragment-preserved",
+      "input_url": "https://publisher.example/story?utm_campaign=launch#chapter-2",
+      "hostname": "publisher.example",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "cleaned",
+      "expected_url": "https://publisher.example/story#chapter-2",
+      "removed_parameters": 1
+    },
+    {
+      "name": "raw-value-preserved",
+      "input_url": "https://publisher.example/?keep=a%26b%3Dc&utm_medium=email",
+      "hostname": "publisher.example",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "cleaned",
+      "expected_url": "https://publisher.example/?keep=a%26b%3Dc",
+      "removed_parameters": 1
+    },
+    {
+      "name": "all-query-removed",
+      "input_url": "https://publisher.example/?gclid=abc",
+      "hostname": "publisher.example",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "cleaned",
+      "expected_url": "https://publisher.example/",
+      "removed_parameters": 1
+    },
+    {
+      "name": "empty-query-preserved",
+      "input_url": "https://publisher.example/story?",
+      "hostname": "publisher.example",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "unchanged",
+      "expected_url": "https://publisher.example/story?",
+      "removed_parameters": 0
+    },
+    {
+      "name": "malformed-percent-name-preserved",
+      "input_url": "https://publisher.example/?utm%ZZ_source=keep&story=1",
+      "hostname": "publisher.example",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "unchanged",
+      "expected_url": "https://publisher.example/?utm%ZZ_source=keep&story=1",
+      "removed_parameters": 0
+    },
+    {
+      "name": "plus-name-preserved",
+      "input_url": "https://publisher.example/?utm+source=keep",
+      "hostname": "publisher.example",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "unchanged",
+      "expected_url": "https://publisher.example/?utm+source=keep",
+      "removed_parameters": 0
+    },
+    {
+      "name": "flag-parameter-removal",
+      "input_url": "https://publisher.example/?utm_term&article",
+      "hostname": "publisher.example",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "cleaned",
+      "expected_url": "https://publisher.example/?article",
+      "removed_parameters": 1
+    },
+    {
+      "name": "disabled-profile",
+      "input_url": "https://publisher.example/?utm_source=mail",
+      "hostname": "publisher.example",
+      "enabled": false,
+      "site_exempt": false,
+      "expected_status": "unchanged",
+      "expected_url": "https://publisher.example/?utm_source=mail",
+      "removed_parameters": 0
+    },
+    {
+      "name": "site-exemption",
+      "input_url": "https://publisher.example/?utm_source=mail",
+      "hostname": "publisher.example",
+      "enabled": true,
+      "site_exempt": true,
+      "expected_status": "unchanged",
+      "expected_url": "https://publisher.example/?utm_source=mail",
+      "removed_parameters": 0
+    },
+    {
+      "name": "hostname-mismatch-fails-closed",
+      "input_url": "https://publisher.example/?utm_source=mail",
+      "hostname": "other.example",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "invalid",
+      "expected_url": "",
+      "removed_parameters": 0
+    },
+    {
+      "name": "ipv6-navigation",
+      "input_url": "http://[::1]:8080/?msclkid=abc&keep=1",
+      "hostname": "::1",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "cleaned",
+      "expected_url": "http://[::1]:8080/?keep=1",
+      "removed_parameters": 1
+    },
+    {
+      "name": "credentials-rejected",
+      "input_url": "https://user:secret@publisher.example/?utm_source=mail",
+      "hostname": "publisher.example",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "invalid",
+      "expected_url": "",
+      "removed_parameters": 0
+    },
+    {
+      "name": "unsupported-scheme-rejected",
+      "input_url": "data:text/plain,utm_source=mail",
+      "hostname": "publisher.example",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "invalid",
+      "expected_url": "",
+      "removed_parameters": 0
+    },
+    {
+      "name": "query-after-fragment-is-not-query",
+      "input_url": "https://publisher.example/story#anchor?utm_source=mail",
+      "hostname": "publisher.example",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "unchanged",
+      "expected_url": "https://publisher.example/story#anchor?utm_source=mail",
+      "removed_parameters": 0
+    },
+    {
+      "name": "invalid-port-rejected",
+      "input_url": "https://publisher.example:70000/?utm_source=mail",
+      "hostname": "publisher.example",
+      "enabled": true,
+      "site_exempt": false,
+      "expected_status": "invalid",
+      "expected_url": "",
+      "removed_parameters": 0
+    }
+  ]
+}

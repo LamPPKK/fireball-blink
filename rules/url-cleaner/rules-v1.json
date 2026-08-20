@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "rules_version": "2026.8.1",
+  "minimum_app_version": "0.1.0",
+  "created_at": "2026-08-21T00:00:00Z",
+  "parameters": [
+    "_hsenc",
+    "_hsmi",
+    "dclid",
+    "fbclid",
+    "gclid",
+    "igshid",
+    "mc_cid",
+    "mc_eid",
+    "msclkid",
+    "utm_campaign",
+    "utm_content",
+    "utm_id",
+    "utm_medium",
+    "utm_source",
+    "utm_term",
+    "vero_id"
+  ],
+  "provenance": {
+    "maintainer": "Fireball",
+    "automatic_import": false,
+    "upstream_imports": []
+  }
+}

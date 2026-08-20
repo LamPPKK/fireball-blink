@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fireball.example/schemas/url-cleaner-rules-v1.schema.json",
+  "title": "Fireball URL Cleaner embedded rules v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "rules_version",
+    "minimum_app_version",
+    "created_at",
+    "parameters",
+    "provenance"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "rules_version": {
+      "type": "string",
+      "pattern": "^[0-9]+(?:\\.[0-9]+)+$",
+      "maxLength": 32
+    },
+    "minimum_app_version": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])-([0-2][0-9]|3[01])T([01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z$"
+    },
+    "parameters": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9_.-]{1,64}$"
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maintainer", "automatic_import", "upstream_imports"],
+      "properties": {
+        "maintainer": { "const": "Fireball" },
+        "automatic_import": { "const": false },
+        "upstream_imports": { "type": "array", "maxItems": 0 }
+      }
+    }
+  },
+  "x-fireball-executable-invariants": [
+    "parameters are bytewise sorted"
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://fireball.example/schemas/url-cleaner-corpus-v1.schema.json",
+  "title": "Fireball URL Cleaner false-positive corpus v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "rules_version", "cases"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "rules_version": {
+      "type": "string",
+      "pattern": "^[0-9]+(?:\\.[0-9]+)+$",
+      "maxLength": 32
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "input_url",
+          "hostname",
+          "enabled",
+          "site_exempt",
+          "expected_status",
+          "expected_url",
+          "removed_parameters"
+        ],
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z0-9-]{1,64}$" },
+          "input_url": {
+            "type": "string",
+            "pattern": "^[\\u0021-\\u007e]{1,8192}$"
+          },
+          "hostname": {
+            "type": "string",
+            "pattern": "^[a-z0-9.:-]{1,253}$"
+          },
+          "enabled": { "type": "boolean" },
+          "site_exempt": { "type": "boolean" },
+          "expected_status": { "enum": ["invalid", "unchanged", "cleaned"] },
+          "expected_url": {
+            "type": "string",
+            "pattern": "^[\\u0021-\\u007e]{0,8192}$"
+          },
+          "removed_parameters": { "type": "integer", "minimum": 0, "maximum": 512 }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "expected_status": { "const": "invalid" } } },
+            "then": {
+              "properties": {
+                "expected_url": { "const": "" },
+                "removed_parameters": { "const": 0 }
+              }
+            }
+          },
+          {
+            "if": { "properties": { "expected_status": { "const": "unchanged" } } },
+            "then": { "properties": { "removed_parameters": { "const": 0 } } }
+          },
+          {
+            "if": { "properties": { "expected_status": { "const": "cleaned" } } },
+            "then": {
+              "properties": {
+                "removed_parameters": { "type": "integer", "minimum": 1 }
+              }
+            }
+          },
+          {
+            "if": { "properties": { "site_exempt": { "const": true } } },
+            "then": { "properties": { "expected_status": { "const": "unchanged" } } }
+          }
+        ]
+      }
+    }
+  },
+  "x-fireball-executable-invariants": [
+    "rules_version equals the selected rules artifact rules_version",
+    "case names are unique",
+    "hostnames are canonical DNS names or IP literals",
+    "unchanged output equals input",
+    "cleaned output differs from input"
+  ]
+}

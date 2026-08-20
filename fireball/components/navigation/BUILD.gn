@@ -4,6 +4,7 @@ source_set("navigation") {
     "document_cosmetic_controller.h",
     "document_cosmetic_policy.cc",
     "document_cosmetic_policy.h",
+    "generated_url_cleaner_rules.h",
     "request_policy.cc",
     "request_policy.h",
     "url_cleaner.cc",

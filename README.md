@@ -51,7 +51,7 @@ Brave overlay order and Helium provenance model visible in the interface.
 - Every imported patch must record its source repository/path, HTTPS license URL, exact source commit, exact verified Chromium commit, milestone range, security impact, required tests and SHA-256.
 - PartitionAlloc, Chromium's process model and sandbox remain intact.
 
-`make check` validates upstream/reference pins, the checksum-pinned overlay tree, generated network policy and the patch manifest; exercises apply, reverse, conflict, checksum and path-traversal fixtures; compiles standalone C++ policy/domain tests; and links the C++ request pipeline to the real Rust blocker ABI. `make macos-preview-media` rebuilds the AppKit preview and deterministically regenerates all five repository screenshots. Normal CI and the preview lane do not fetch Chromium. The guarded [`chromium-control` workflow](docs/CHROMIUM_CONTROL_BUILD.md) performs the exact upstream B0 checkout, generic build, sandboxed local smoke test and immutable evidence packaging only on a protected self-hosted builder, then runs the separately attested [B1 overlay component-link gate](docs/CHROMIUM_OVERLAY_BUILD.md). Neither artifact is claimed until that workflow records a green run on a host with at least 8 cores, 32 GiB RAM and 300 GiB free disk.
+`make check` validates upstream/reference pins, the checksum-pinned overlay tree, generated network and URL Cleaner policy data, and the patch manifest; exercises apply, reverse, conflict, checksum and path-traversal fixtures; compiles standalone C++ policy/domain tests; and links the C++ request pipeline to the real Rust blocker ABI. `make macos-preview-media` rebuilds the AppKit preview and deterministically regenerates all five repository screenshots. Normal CI and the preview lane do not fetch Chromium. The guarded [`chromium-control` workflow](docs/CHROMIUM_CONTROL_BUILD.md) performs the exact upstream B0 checkout, generic build, sandboxed local smoke test and immutable evidence packaging only on a protected self-hosted builder, then runs the separately attested [B1 overlay component-link gate](docs/CHROMIUM_OVERLAY_BUILD.md). Neither artifact is claimed until that workflow records a green run on a host with at least 8 cores, 32 GiB RAM and 300 GiB free disk.
 
 ## Brave and Helium reference policy
 
@@ -133,6 +133,12 @@ parameter order and fragments. Site exemptions remain inside their Profile.
 The adblock path fails closed on a missing engine, malformed result or unknown
 flags; only bounded subresource `data:` redirects and same-host, same-scheme
 rewrites are accepted.
+
+The built-in parameter table is no longer hand-maintained C++. A strict
+first-party data manifest produces a checksum-bound header, while a generated
+20-case false-positive corpus executes against the native cleaner. Automatic
+imports from Brave, Helium or arbitrary filter sources remain disabled. See the
+[URL Cleaner data contract](docs/URL_CLEANER_RULES.md).
 
 The integration gate links these C++ policies to the actual pinned Rust library
 and proves block, exception, third-party, exemption, site-specific cosmetic,
