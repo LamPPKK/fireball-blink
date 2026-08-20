@@ -47,7 +47,7 @@ Brave overlay order and Helium provenance model visible in the interface.
 - Product code starts in the `fireball/` GN overlay.
 - Chromium-relative overrides live in `chromium_src/` only when an overlay seam is insufficient.
 - Direct patches are last-resort entries in `patches/manifest.json`.
-- `overlay/manifest.json` checksum-pins the complete staged Fireball GN tree; the protected B1 [component-link gate](docs/CHROMIUM_OVERLAY_BUILD.md) refuses unmanaged overrides or stale bytes. The graph now includes a [primary-main-frame Chromium adapter](docs/CHROMIUM_NAVIGATION_ADAPTER.md) that binds policy to `BrowserContext` and compiles against real `NavigationThrottle`/`WebContents` APIs; its browser lifecycle hook is intentionally not activated yet.
+- `overlay/manifest.json` checksum-pins the complete staged Fireball GN tree; the protected B1 [component-link gate](docs/CHROMIUM_OVERLAY_BUILD.md) refuses unmanaged overrides or stale bytes. The graph now includes [Chromium request adapters](docs/CHROMIUM_NAVIGATION_ADAPTER.md): a Profile-owned policy bundle, primary-main-frame `NavigationThrottle` and sequence-safe subresource `URLLoaderThrottle`. Their Chromium lifecycle hooks are intentionally not activated until signed production rules and keepalive/prefetch coverage are ready.
 - Every imported patch must record its source repository/path, HTTPS license URL, exact source commit, exact verified Chromium commit, milestone range, security impact, required tests and SHA-256.
 - PartitionAlloc, Chromium's process model and sandbox remain intact.
 

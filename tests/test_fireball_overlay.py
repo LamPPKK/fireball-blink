@@ -51,6 +51,7 @@ class FireballOverlayTests(unittest.TestCase):
         self.assertIn('source_set("adapter_contract")', adapter)
         self.assertIn('source_set("chromium_adapter")', adapter)
         self.assertIn('"//content/public/browser"', adapter)
+        self.assertIn('"fireball_url_loader_throttle.cc"', adapter)
 
     def test_tree_hash_binds_path_size_and_content_digest(self) -> None:
         records = source_tree(ROOT, "fireball")
@@ -191,7 +192,11 @@ class FireballOverlayTests(unittest.TestCase):
                 "profile-lifecycle-hook-not-wired", evidence["limitations"]
             )
             self.assertIn(
-                "subresource-url-loader-adapter-not-wired",
+                "subresource-lifecycle-hook-not-wired",
+                evidence["limitations"],
+            )
+            self.assertIn(
+                "keepalive-and-prefetch-policy-not-wired",
                 evidence["limitations"],
             )
             self.assertEqual(len(evidence["binary"]["sha256"]), 64)

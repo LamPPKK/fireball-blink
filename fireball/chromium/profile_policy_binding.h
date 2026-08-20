@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 
+#include "base/memory/weak_ptr.h"
 #include "base/supports_user_data.h"
 #include "fireball/browser/domain_model.h"
 #include "fireball/chromium/navigation_adapter_contract.h"
@@ -40,6 +41,9 @@ class ProfilePolicyBinding final : public base::SupportsUserData::Data {
   const std::string& applied_proxy_rules() const {
     return applied_proxy_rules_;
   }
+  base::WeakPtr<ProfilePolicyBinding> GetWeakPtr() {
+    return weak_factory_.GetWeakPtr();
+  }
 
  private:
   ProfilePolicyBinding(browser::ProfileId profile_id,
@@ -49,6 +53,7 @@ class ProfilePolicyBinding final : public base::SupportsUserData::Data {
   browser::ProfileId profile_id_;
   std::unique_ptr<NavigationPolicyEvaluator> evaluator_;
   std::string applied_proxy_rules_;
+  base::WeakPtrFactory<ProfilePolicyBinding> weak_factory_{this};
 };
 
 }  // namespace fireball::chromium

@@ -40,6 +40,7 @@ class NavigationPolicyEvaluator {
   virtual ~NavigationPolicyEvaluator() = default;
   virtual navigation::RequestPolicyDecision Evaluate(
       const navigation::RequestContext& context) = 0;
+  virtual std::string ExpectedProxyRules() const = 0;
 };
 
 bool IsValidAppliedProxyRules(std::string_view value);

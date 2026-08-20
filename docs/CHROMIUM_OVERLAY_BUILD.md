@@ -50,7 +50,8 @@ GN output directory. The executable depends on the complete current
 `fireball_overlay` graph and exercises the domain, blocker policy, URL cleaner,
 egress, transfer, primary-navigation adapter contract and startup-network
 policy symbols. The graph also compiles the API-facing `ProfilePolicyBinding`
-and `FireballNavigationThrottle` against Chromium's actual public headers.
+`FireballNavigationThrottle` and `FireballURLLoaderThrottle` against Chromium's
+actual public headers.
 
 The uploaded evidence contains:
 
@@ -63,6 +64,6 @@ The uploaded evidence contains:
 
 The gate remains **not run** until the protected self-hosted builder produces a
 green artifact. Even after it passes, B1 still needs the Profile lifecycle
-hook, the subresource URLLoader and renderer cosmetic adapters, a full overlay
-`chrome` build and startup-network capture before it can be called a Fireball
-browser build.
+hooks, keepalive/prefetch coverage, the renderer cosmetic adapter, a full
+overlay `chrome` build and startup-network capture before it can be called a
+Fireball browser build.

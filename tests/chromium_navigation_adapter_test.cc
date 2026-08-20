@@ -36,6 +36,8 @@ class FakeEvaluator final
     last_context = context;
     return decision;
   }
+
+  std::string ExpectedProxyRules() const override { return "direct://"; }
 };
 
 }  // namespace

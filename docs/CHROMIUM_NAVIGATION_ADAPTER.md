@@ -1,11 +1,12 @@
-# Chromium primary-navigation adapter
+# Chromium request adapters
 
 Status: **compile-gated vertical slice, not activated in the browser**.
 
-This slice replaces the previous paper-only adapter contract with code that
+These slices replace the previous paper-only adapter contract with code that
 uses Chromium's public `BrowserContext`, `NavigationHandle`,
 `NavigationThrottleRegistry`, `NavigationThrottle`, `OpenURLParams` and
-`WebContents` APIs at the exact revision in `pins/upstream.json`.
+`WebContents` APIs, plus `ResourceRequest`, `RequestDestination` and
+`URLLoaderThrottle`, at the exact revision in `pins/upstream.json`.
 
 ## Ownership and fail-closed decisions
 
@@ -13,8 +14,18 @@ uses Chromium's public `BrowserContext`, `NavigationHandle`,
 It owns the evaluator and binds a stable Fireball `ProfileId` plus the proxy
 rules that the egress owner has confirmed as applied. Installation rejects a
 persistent/off-the-record mismatch, duplicate binding, missing evaluator and
-unbounded or control-bearing proxy rules. The binding is not removable while
-the context lives, so an active throttle cannot retain a dangling reference.
+unbounded or control-bearing proxy rules. It also requires those rules to equal
+the policy bundle's current transactional route. The binding is not removable
+while the context lives, so an active throttle cannot retain a dangling
+reference.
+
+`ProfileRequestPolicyBundle` is the concrete non-movable evaluator. It owns the
+per-Profile adblock policy, URL Cleaner, network evaluator and egress backend;
+the internal `RequestPolicy` borrows only those same-lifetime members. A
+request carrying another `ProfileId` fails closed. Direct is the initial route;
+WARP/Tor changes still use the existing prepare → verify → activate → retire
+transaction, and bundle destruction retires the active route before destroying
+the backend.
 
 `FireballNavigationThrottle` is deliberately limited to primary-main-frame
 HTTP(S) requests. It snapshots trusted `GURL` and `NavigationHandle` fields,
@@ -33,11 +44,29 @@ upstream navigation metadata instead of constructing an incomplete request.
 It uses a weak `WebContents` pointer because throttle callbacks must not
 destroy their owning contents synchronously.
 
+`FireballURLLoaderThrottle` covers non-main-frame HTTP(S) resource requests.
+The factory maps Chromium's typed request destination, canonical `GURL` and
+initiator `Origin` into the standalone policy contract. Third-party status is
+computed with Chromium's registry-controlled-domain service including private
+registries. Initial decisions are computed synchronously on the Profile owner
+sequence, allowing safe block, `data:` redirect and same-host/same-scheme
+rewrite before the callback returns.
+
+Chromium may move a URLLoader throttle to another sequence, while the pinned
+Rust engine is explicitly single-sequence. Server redirects therefore defer,
+post evaluation back to the Profile owner sequence and post only the bounded
+decision to the loader sequence. Allow resumes; block/error cancels. A redirect
+decision requiring URL mutation after the callback fails closed because
+Chromium forbids asynchronously touching `RedirectInfo`.
+
 ## Evidence
 
 Normal CI compiles and runs `chromium_navigation_adapter_test`, covering
 missing policy, route mismatch, allow, block, cleaned-URL restart, unsafe POST
-rewrite, same-document bypass and propagated policy failure.
+rewrite, same-document bypass and propagated policy failure. It also runs
+`profile_request_policy_bundle_test` and `chromium_subresource_adapter_test`
+for Profile isolation, egress lifecycle, typed resource context, block,
+redirect, rewrite and fail-closed route handling.
 
 The protected `chromium-control` workflow stages the checksum-pinned overlay.
 Because `//fireball:fireball_overlay` depends on
@@ -52,13 +81,15 @@ This commit intentionally does not patch Chromium's navigation-throttle
 registry. Activation requires all of the following in the same reviewed
 change:
 
-1. create and install the complete signed-rule `RequestPolicy` bundle during
-   Profile startup, before user navigation can begin;
+1. create the verified FFI network evaluator from the signed production rules
+   artifact and install the completed bundle during Profile startup, before
+   user navigation can begin;
 2. apply the Direct/WARP/Tor proxy configuration to that Profile's network
    context, then update the binding only after verification succeeds;
 3. register `FireballNavigationThrottle` after Chromium's metrics throttle;
-4. add a URLLoader throttle for subresources, so main-frame coverage cannot be
-   mistaken for complete adblocking;
+4. append `FireballURLLoaderThrottle` from Chromium's URLLoader factory and
+   cover the separate keepalive/prefetch paths before claiming complete
+   subresource blocking;
 5. add an isolated-world renderer stylesheet adapter for cosmetic filtering;
 6. build `chrome`, capture startup traffic and prove there is no unowned
    request or direct fallback.

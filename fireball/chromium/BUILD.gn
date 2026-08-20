@@ -2,9 +2,15 @@ source_set("adapter_contract") {
   sources = [
     "navigation_adapter_contract.cc",
     "navigation_adapter_contract.h",
+    "profile_request_policy_bundle.cc",
+    "profile_request_policy_bundle.h",
+    "subresource_adapter_contract.cc",
+    "subresource_adapter_contract.h",
   ]
 
   deps = [
+    "//fireball/components/adblock:adblock_policy",
+    "//fireball/components/egress",
     "//fireball/components/navigation",
   ]
 }
@@ -17,6 +23,8 @@ source_set("chromium_adapter") {
   sources = [
     "fireball_navigation_throttle.cc",
     "fireball_navigation_throttle.h",
+    "fireball_url_loader_throttle.cc",
+    "fireball_url_loader_throttle.h",
     "profile_policy_binding.cc",
     "profile_policy_binding.h",
   ]
@@ -27,6 +35,10 @@ source_set("chromium_adapter") {
     "//content/public/browser",
     "//fireball/browser:domain",
     "//fireball/components/navigation",
+    "//net",
+    "//services/network/public/cpp",
+    "//services/network/public/mojom",
+    "//third_party/blink/public/common",
     "//url",
   ]
 }

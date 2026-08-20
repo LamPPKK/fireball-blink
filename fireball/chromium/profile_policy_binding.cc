@@ -34,7 +34,8 @@ bool ProfilePolicyBinding::Install(
       storage_mode == browser::StorageMode::kOffTheRecord;
   if (Get(browser_context) != nullptr || evaluator == nullptr ||
       browser_context.IsOffTheRecord() != expects_off_the_record ||
-      !IsValidAppliedProxyRules(applied_proxy_rules)) {
+      !IsValidAppliedProxyRules(applied_proxy_rules) ||
+      evaluator->ExpectedProxyRules() != applied_proxy_rules) {
     return false;
   }
   browser_context.SetUserData(
@@ -60,6 +61,9 @@ const ProfilePolicyBinding* ProfilePolicyBinding::Get(
 bool ProfilePolicyBinding::UpdateAppliedProxyRules(
     std::string applied_proxy_rules) {
   if (!IsValidAppliedProxyRules(applied_proxy_rules)) {
+    return false;
+  }
+  if (evaluator_->ExpectedProxyRules() != applied_proxy_rules) {
     return false;
   }
   applied_proxy_rules_ = std::move(applied_proxy_rules);

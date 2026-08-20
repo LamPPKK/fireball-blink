@@ -1,8 +1,12 @@
 #include <iostream>
+#include <memory>
+#include <optional>
 #include <string>
 
 #include "fireball/browser/domain_model.h"
 #include "fireball/chromium/navigation_adapter_contract.h"
+#include "fireball/chromium/profile_request_policy_bundle.h"
+#include "fireball/chromium/subresource_adapter_contract.h"
 #include "fireball/components/adblock/profile_policy.h"
 #include "fireball/components/egress/egress_route.h"
 #include "fireball/components/navigation/url_cleaner.h"
@@ -11,16 +15,13 @@
 
 namespace {
 
-class OverlayPolicyEvaluator final
-    : public fireball::chromium::NavigationPolicyEvaluator {
+class OverlayNetworkEvaluator final
+    : public fireball::adblock::NetworkEvaluator {
  public:
-  fireball::navigation::RequestPolicyDecision Evaluate(
-      const fireball::navigation::RequestContext& context) override {
-    fireball::navigation::RequestPolicyDecision decision;
-    decision.action = fireball::navigation::RequestAction::kAllow;
-    decision.request_url = context.url;
-    decision.proxy_rules = "direct://";
-    return decision;
+  fireball::adblock::NetworkEvaluation Evaluate(
+      const fireball::adblock::NetworkRequest&) override {
+    return {fireball::adblock::EvaluationStatus::kOk, 0, std::nullopt,
+            std::nullopt};
   }
 };
 
@@ -40,20 +41,34 @@ int main() {
   const auto transfer = fireball::transfer::MakeUriTransferRequest(
       "https://example.com/fireball.bin",
       fireball::transfer::TransferPersistence::kEphemeral);
-  OverlayPolicyEvaluator evaluator;
+  auto policy_bundle = fireball::chromium::ProfileRequestPolicyBundle::Create(
+      *profile, std::make_unique<OverlayNetworkEvaluator>());
+  if (policy_bundle == nullptr) {
+    return 2;
+  }
   const auto navigation = fireball::chromium::EvaluatePrimaryMainFrame(
       {.profile_id = *profile,
        .url = "https://example.com/",
        .destination_hostname = "example.com",
        .source_hostname = "",
        .method = "GET"},
-      &evaluator, "direct://");
+      policy_bundle.get(), policy_bundle->ExpectedProxyRules());
+  const auto subresource = fireball::chromium::EvaluateSubresource(
+      {.profile_id = *profile,
+       .url = "https://cdn.example.com/app.js",
+       .destination_hostname = "cdn.example.com",
+       .source_hostname = "example.com",
+       .method = "GET",
+       .resource_type = fireball::navigation::RequestResourceType::kScript,
+       .third_party = false},
+      policy_bundle.get(), policy_bundle->ExpectedProxyRules());
 
   const bool linked =
       browser.AddProfile(*profile, fireball::browser::StorageMode::kPersistent) &&
       blocker.AddProfile(*profile) && cleaner.AddProfile(*profile) &&
       fireball::egress::IsValidRoute(route) && transfer.has_value() &&
       navigation.action == fireball::chromium::NavigationAction::kProceed &&
+      subresource.action == fireball::chromium::SubresourceAction::kAllow &&
       !fireball::privacy::IsStartupRequestAllowed("fireball.overlay-smoke");
   if (!linked) {
     return 2;

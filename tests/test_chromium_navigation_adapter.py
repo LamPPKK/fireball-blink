@@ -22,6 +22,7 @@ class ChromiumNavigationAdapterSourceTests(unittest.TestCase):
         self.assertIn("std::unique_ptr<NavigationPolicyEvaluator> evaluator_", header)
         self.assertIn("browser_context.SetUserData", implementation)
         self.assertIn("browser_context.IsOffTheRecord()", implementation)
+        self.assertIn("evaluator->ExpectedProxyRules()", implementation)
         self.assertNotIn("RemoveUserData", header + implementation)
 
     def test_cleaned_navigation_preserves_metadata_and_posts_asynchronously(
@@ -50,6 +51,36 @@ class ChromiumNavigationAdapterSourceTests(unittest.TestCase):
             list((ROOT / "chromium_src").glob("**/*")),
             [ROOT / "chromium_src/README.md"],
         )
+
+    def test_subresource_redirects_marshal_back_to_profile_sequence(self) -> None:
+        header = (
+            ROOT / "fireball/chromium/fireball_url_loader_throttle.h"
+        ).read_text(encoding="utf-8")
+        source = (
+            ROOT / "fireball/chromium/fireball_url_loader_throttle.cc"
+        ).read_text(encoding="utf-8")
+        self.assertIn("request.request_initiator", source)
+        self.assertIn("SameDomainOrHost", source)
+        self.assertIn("INCLUDE_PRIVATE_REGISTRIES", source)
+        self.assertIn("EvaluateSubresource", source)
+        self.assertIn("*defer = true", source)
+        self.assertIn("policy_task_runner_->PostTask", source)
+        self.assertIn("reply_task_runner->PostTask", source)
+        self.assertIn("CancelWithError", source)
+        self.assertIn("WeakPtrFactory<FireballURLLoaderThrottle>", header)
+        self.assertNotIn("std::cout", source)
+
+    def test_profile_bundle_owns_and_retires_egress_backend(self) -> None:
+        header = (
+            ROOT / "fireball/chromium/profile_request_policy_bundle.h"
+        ).read_text(encoding="utf-8")
+        source = (
+            ROOT / "fireball/chromium/profile_request_policy_bundle.cc"
+        ).read_text(encoding="utf-8")
+        self.assertIn("std::unique_ptr<egress::EgressBackend>", header)
+        self.assertIn("std::unique_ptr<adblock::NetworkEvaluator>", header)
+        self.assertIn("egress_controller_.RemoveProfile(profile_id_)", source)
+        self.assertIn("PROFILE_POLICY_BOUNDARY_MISMATCH", source)
 
 
 if __name__ == "__main__":

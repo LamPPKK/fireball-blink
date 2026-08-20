@@ -451,7 +451,8 @@ def build_link_evidence(
         "limitations": [
             "not-a-chromium-browser-target",
             "profile-lifecycle-hook-not-wired",
-            "subresource-url-loader-adapter-not-wired",
+            "subresource-lifecycle-hook-not-wired",
+            "keepalive-and-prefetch-policy-not-wired",
             "renderer-cosmetic-adapter-not-wired",
             "adblock-rust-ffi-not-linked-by-this-target",
             "not-release-or-packaging-evidence",
