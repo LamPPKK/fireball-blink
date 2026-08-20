@@ -342,8 +342,16 @@ def main() -> int:
                 "fireball/components/privacy/network_audit.cc",
                 "tests/navigation_policy_test.cc",
             ],
+            "chromium_navigation_adapter_test": [
+                "fireball/browser/domain_model.cc",
+                "fireball/chromium/navigation_adapter_contract.cc",
+                "fireball/components/adblock/profile_policy.cc",
+                "fireball/components/navigation/url_cleaner.cc",
+                "tests/chromium_navigation_adapter_test.cc",
+            ],
             "fireball_overlay_smoke": [
                 "fireball/browser/domain_model.cc",
+                "fireball/chromium/navigation_adapter_contract.cc",
                 "fireball/components/adblock/profile_policy.cc",
                 "fireball/components/egress/egress_controller.cc",
                 "fireball/components/egress/egress_route.cc",

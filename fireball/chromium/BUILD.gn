@@ -1,0 +1,32 @@
+source_set("adapter_contract") {
+  sources = [
+    "navigation_adapter_contract.cc",
+    "navigation_adapter_contract.h",
+  ]
+
+  deps = [
+    "//fireball/components/navigation",
+  ]
+}
+
+# Compiled only inside the pinned Chromium checkout. The public contract above
+# remains standalone-testable so decision semantics do not depend on a 100 GB
+# Chromium checkout, while this target proves the API-facing layer against the
+# exact upstream revision in the protected builder.
+source_set("chromium_adapter") {
+  sources = [
+    "fireball_navigation_throttle.cc",
+    "fireball_navigation_throttle.h",
+    "profile_policy_binding.cc",
+    "profile_policy_binding.h",
+  ]
+
+  deps = [
+    ":adapter_contract",
+    "//base",
+    "//content/public/browser",
+    "//fireball/browser:domain",
+    "//fireball/components/navigation",
+    "//url",
+  ]
+}

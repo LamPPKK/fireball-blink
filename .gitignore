@@ -3,5 +3,5 @@ __pycache__/
 .venv/
 out/
 target/
-chromium/
+/chromium/
 depot_tools/

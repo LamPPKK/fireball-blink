@@ -43,6 +43,14 @@ class FireballOverlayTests(unittest.TestCase):
         self.assertIn('executable("overlay_smoke")', build)
         self.assertIn('deps = [ ":fireball_overlay" ]', build)
         self.assertIn('output_name = "fireball_overlay_smoke"', build)
+        self.assertIn('"//fireball/chromium:chromium_adapter"', build)
+
+        adapter = (ROOT / "fireball/chromium/BUILD.gn").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('source_set("adapter_contract")', adapter)
+        self.assertIn('source_set("chromium_adapter")', adapter)
+        self.assertIn('"//content/public/browser"', adapter)
 
     def test_tree_hash_binds_path_size_and_content_digest(self) -> None:
         records = source_tree(ROOT, "fireball")
@@ -139,7 +147,7 @@ class FireballOverlayTests(unittest.TestCase):
         with self.assertRaisesRegex(OverlayError, "do not match"):
             validate_stage_report(report, self.manifest)
 
-    def test_link_evidence_names_its_non_browser_limitations(self) -> None:
+    def test_link_evidence_names_its_remaining_browser_limitations(self) -> None:
         records = source_tree(ROOT, "fireball")
         stage_report = {
             "schema_version": 1,
@@ -176,6 +184,16 @@ class FireballOverlayTests(unittest.TestCase):
             )
             self.assertEqual(evidence["build"]["target"], "//fireball:overlay_smoke")
             self.assertIn("not-a-chromium-browser-target", evidence["limitations"])
+            self.assertNotIn(
+                "not-a-webcontents-or-profile-adapter", evidence["limitations"]
+            )
+            self.assertIn(
+                "profile-lifecycle-hook-not-wired", evidence["limitations"]
+            )
+            self.assertIn(
+                "subresource-url-loader-adapter-not-wired",
+                evidence["limitations"],
+            )
             self.assertEqual(len(evidence["binary"]["sha256"]), 64)
 
 

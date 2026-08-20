@@ -48,7 +48,9 @@ After the upstream control `.deb` and smoke test have completed, the protected
 workflow stages the overlay and builds `//fireball:overlay_smoke` in a separate
 GN output directory. The executable depends on the complete current
 `fireball_overlay` graph and exercises the domain, blocker policy, URL cleaner,
-egress, transfer and startup-network policy symbols.
+egress, transfer, primary-navigation adapter contract and startup-network
+policy symbols. The graph also compiles the API-facing `ProfilePolicyBinding`
+and `FireballNavigationThrottle` against Chromium's actual public headers.
 
 The uploaded evidence contains:
 
@@ -57,9 +59,10 @@ The uploaded evidence contains:
 - exact Chromium and `depot_tools` checkout evidence;
 - the passing builder preflight;
 - the exact smoke JSON;
-- a manifest that repeats the explicit non-browser limitations.
+- a manifest that repeats the explicit remaining integration limitations.
 
 The gate remains **not run** until the protected self-hosted builder produces a
-green artifact. Even after it passes, B1 still needs Chromium adapters, a full
-overlay `chrome` build and startup-network capture before it can be called a
-Fireball browser build.
+green artifact. Even after it passes, B1 still needs the Profile lifecycle
+hook, the subresource URLLoader and renderer cosmetic adapters, a full overlay
+`chrome` build and startup-network capture before it can be called a Fireball
+browser build.

@@ -1,6 +1,7 @@
 group("fireball_overlay") {
   public_deps = [
     "//fireball/browser:domain",
+    "//fireball/chromium:chromium_adapter",
     "//fireball/components/adblock:adblock_policy",
     "//fireball/components/egress",
     "//fireball/components/navigation",
@@ -9,8 +10,9 @@ group("fireball_overlay") {
   ]
 }
 
-# B1 component-link gate only. This deliberately does not claim a Browser,
-# Profile, WebContents or network-stack adapter.
+# B1 component-link gate. It now compiles and links the Profile/WebContents
+# primary-main-frame adapter against Chromium public APIs, but deliberately
+# does not claim the lifecycle hook or subresource network adapter is wired.
 executable("overlay_smoke") {
   testonly = true
   output_name = "fireball_overlay_smoke"
