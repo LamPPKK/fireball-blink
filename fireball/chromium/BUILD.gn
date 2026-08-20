@@ -1,9 +1,17 @@
+import("//mojo/public/tools/bindings/mojom.gni")
+
+mojom("cosmetic_style_agent_mojom") {
+  sources = [ "cosmetic_style_agent.mojom" ]
+}
+
 source_set("adapter_contract") {
   sources = [
     "navigation_adapter_contract.cc",
     "navigation_adapter_contract.h",
     "profile_request_policy_bundle.cc",
     "profile_request_policy_bundle.h",
+    "renderer_cosmetic_style_state.cc",
+    "renderer_cosmetic_style_state.h",
     "subresource_adapter_contract.cc",
     "subresource_adapter_contract.h",
   ]
@@ -12,6 +20,25 @@ source_set("adapter_contract") {
     "//fireball/components/adblock:adblock_policy",
     "//fireball/components/egress",
     "//fireball/components/navigation",
+  ]
+}
+
+source_set("chromium_renderer_adapter") {
+  sources = [
+    "fireball_cosmetic_style_agent.cc",
+    "fireball_cosmetic_style_agent.h",
+  ]
+
+  deps = [
+    ":adapter_contract",
+    ":cosmetic_style_agent_mojom",
+    "//base",
+    "//content/public/renderer",
+    "//fireball/browser:domain",
+    "//fireball/components/navigation",
+    "//mojo/public/cpp/bindings",
+    "//third_party/blink/public:blink",
+    "//url",
   ]
 }
 

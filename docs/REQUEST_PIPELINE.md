@@ -79,13 +79,14 @@ policy implementation:
   remain idle-session transactions;
 - response observation can pass bounded media candidates to `MediaDiscovery`,
   but must not persist complete browsing URLs or re-evaluate policy elsewhere.
-- the renderer adapter must install validated cosmetic styles through a
-  browser-owned isolated-world stylesheet seam, map committed document tokens
-  to `DocumentId`, route navigation/revocation through
-  `DocumentCosmeticController`, and submit only bounded, monotonically
+- the compile-gated renderer endpoint installs revalidated cosmetic styles
+  through Blink's browser-owned user-origin stylesheet API; browser wiring must
+  map committed document tokens to `DocumentId`, route navigation/revocation
+  through `DocumentCosmeticController`, and submit only bounded, monotonically
   revisioned class/ID snapshots for generic matching.
 
 The current repository proves the platform-neutral network/cosmetic policies
-and native FFI seams. It does not claim a Chromium interceptor, user-visible
-Shields UI, cosmetic renderer injection or working browser proxy until those
-adapters pass the control and overlay builds on the Linux builder.
+and native FFI seams plus a compile-gated Chromium renderer endpoint. It does
+not claim an activated Chromium interceptor, user-visible Shields UI, working
+cosmetic filter or browser proxy until the remaining adapters pass the control
+and overlay builds on the Linux builder.

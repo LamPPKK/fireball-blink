@@ -44,14 +44,31 @@ class FireballOverlayTests(unittest.TestCase):
         self.assertIn('deps = [ ":fireball_overlay" ]', build)
         self.assertIn('output_name = "fireball_overlay_smoke"', build)
         self.assertIn('"//fireball/chromium:chromium_adapter"', build)
+        self.assertIn(
+            '"//fireball/chromium:chromium_renderer_adapter"', build
+        )
 
         adapter = (ROOT / "fireball/chromium/BUILD.gn").read_text(
             encoding="utf-8"
         )
         self.assertIn('source_set("adapter_contract")', adapter)
         self.assertIn('source_set("chromium_adapter")', adapter)
+        self.assertIn('source_set("chromium_renderer_adapter")', adapter)
+        self.assertIn('mojom("cosmetic_style_agent_mojom")', adapter)
         self.assertIn('"//content/public/browser"', adapter)
+        self.assertIn('"//content/public/renderer"', adapter)
         self.assertIn('"fireball_url_loader_throttle.cc"', adapter)
+
+    def test_mojom_is_an_allowlisted_overlay_source_type(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            repository = pathlib.Path(temporary)
+            source = repository / "fireball/interface.mojom"
+            source.parent.mkdir()
+            source.write_text("module fireball.mojom;\n", encoding="utf-8")
+            record = source_record(
+                repository, pathlib.PurePosixPath("fireball/interface.mojom")
+            )
+            self.assertEqual(record.path, "fireball/interface.mojom")
 
     def test_tree_hash_binds_path_size_and_content_digest(self) -> None:
         records = source_tree(ROOT, "fireball")
@@ -197,6 +214,18 @@ class FireballOverlayTests(unittest.TestCase):
             )
             self.assertIn(
                 "keepalive-and-prefetch-policy-not-wired",
+                evidence["limitations"],
+            )
+            self.assertIn(
+                "renderer-cosmetic-browser-transport-not-wired",
+                evidence["limitations"],
+            )
+            self.assertIn(
+                "renderer-content-client-registration-not-wired",
+                evidence["limitations"],
+            )
+            self.assertNotIn(
+                "renderer-cosmetic-adapter-not-wired",
                 evidence["limitations"],
             )
             self.assertEqual(len(evidence["binary"]["sha256"]), 64)

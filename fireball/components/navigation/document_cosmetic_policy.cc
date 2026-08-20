@@ -12,7 +12,6 @@
 namespace fireball::navigation {
 namespace {
 
-constexpr std::size_t kMaximumStylesheetBytes = 512 * 1024;
 constexpr std::size_t kMaximumSelectors = 8192;
 constexpr std::size_t kMaximumSelectorBytes = 4096;
 constexpr std::string_view kHideDeclaration = "{display:none!important;}\n";
@@ -100,9 +99,9 @@ std::optional<std::string> CompileStylesheet(
   std::string stylesheet;
   for (const std::string& selector : selectors) {
     if (!IsSafeSelector(selector) ||
-        selector.size() > kMaximumStylesheetBytes - stylesheet.size() ||
-        kHideDeclaration.size() >
-            kMaximumStylesheetBytes - stylesheet.size() - selector.size()) {
+        selector.size() > kMaximumCosmeticStylesheetBytes - stylesheet.size() ||
+        kHideDeclaration.size() > kMaximumCosmeticStylesheetBytes -
+                                      stylesheet.size() - selector.size()) {
       return std::nullopt;
     }
     stylesheet.append(selector);
@@ -113,13 +112,39 @@ std::optional<std::string> CompileStylesheet(
 
 }  // namespace
 
+bool IsValidCompiledCosmeticStylesheet(std::string_view stylesheet) {
+  if (stylesheet.size() > kMaximumCosmeticStylesheetBytes) {
+    return false;
+  }
+  std::size_t selector_count = 0;
+  while (!stylesheet.empty()) {
+    const std::size_t newline = stylesheet.find('\n');
+    if (newline == std::string_view::npos) {
+      return false;
+    }
+    const std::string_view rule = stylesheet.substr(0, newline + 1);
+    if (!rule.ends_with(kHideDeclaration) ||
+        ++selector_count > kMaximumSelectors) {
+      return false;
+    }
+    const std::string_view selector =
+        rule.substr(0, rule.size() - kHideDeclaration.size());
+    if (!IsSafeSelector(selector)) {
+      return false;
+    }
+    stylesheet.remove_prefix(rule.size());
+  }
+  return true;
+}
+
 DocumentCosmeticPolicy::DocumentCosmeticPolicy(
     const adblock::ProfilePolicy* profile_policy,
     adblock::CosmeticEvaluator* evaluator)
     : profile_policy_(profile_policy), evaluator_(evaluator) {}
 
 DocumentCosmeticPlan DocumentCosmeticPolicy::BeginDocument(
-    const browser::ProfileId& profile_id, std::string_view url,
+    const browser::ProfileId& profile_id,
+    std::string_view url,
     std::string_view hostname) const {
   if (profile_policy_ == nullptr || !profile_policy_->HasProfile(profile_id) ||
       !adblock::IsCanonicalHostname(hostname) ||
@@ -157,7 +182,8 @@ DocumentCosmeticPlan DocumentCosmeticPolicy::BeginDocument(
 }
 
 GenericCosmeticPlan DocumentCosmeticPolicy::MatchGenericSelectors(
-    const browser::ProfileId& profile_id, std::string_view hostname,
+    const browser::ProfileId& profile_id,
+    std::string_view hostname,
     const DocumentCosmeticPlan& document,
     const std::vector<std::string>& classes,
     const std::vector<std::string>& ids) const {

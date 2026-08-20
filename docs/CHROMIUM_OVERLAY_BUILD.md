@@ -4,8 +4,8 @@ This gate is the first real handoff from the standalone Fireball components to
 the pinned Chromium toolchain. It is intentionally narrower than a browser
 build: it proves that the checksum-pinned `fireball/` GN tree is staged into the
 exact Chromium checkout, compiled as one dependency graph, linked into an
-executable and run. It does not claim that Fireball is wired into Chromium
-`Browser`, `Profile`, `WebContents`, URLLoader or renderer objects.
+executable and run. It does not claim that Fireball is activated from Chromium
+`Browser`, `Profile`, `WebContents`, URLLoader or renderer lifecycle hooks.
 
 ## Overlay order and provenance
 
@@ -51,7 +51,9 @@ GN output directory. The executable depends on the complete current
 egress, transfer, primary-navigation adapter contract and startup-network
 policy symbols. The graph also compiles the API-facing `ProfilePolicyBinding`
 `FireballNavigationThrottle` and `FireballURLLoaderThrottle` against Chromium's
-actual public headers.
+actual public headers. It also compiles the typed Mojo
+`FireballCosmeticStyleAgent` against Blink's real `WebDocument` stylesheet and
+document-token APIs.
 
 The uploaded evidence contains:
 
@@ -64,6 +66,6 @@ The uploaded evidence contains:
 
 The gate remains **not run** until the protected self-hosted builder produces a
 green artifact. Even after it passes, B1 still needs the Profile lifecycle
-hooks, keepalive/prefetch coverage, the renderer cosmetic adapter, a full
-overlay `chrome` build and startup-network capture before it can be called a
-Fireball browser build.
+hooks, keepalive/prefetch coverage, browser-to-renderer cosmetic transport,
+renderer registration, a full overlay `chrome` build and startup-network
+capture before it can be called a Fireball browser build.

@@ -3,8 +3,9 @@
 Fireball now carries the non-network half of its native blocker through the
 real pinned `adblock-rust` engine. The implementation is intentionally split at
 the renderer boundary: this repository proves rule evaluation, strict decoding,
-Profile policy and safe stylesheet construction; the B0 Chromium checkout must
-still inject those styles into real documents.
+Profile policy, safe stylesheet construction and a compile-gated native Blink
+stylesheet endpoint. Browser-side transport and lifecycle activation remain
+open, so no real-page hiding is claimed.
 
 ## Two-phase document plan
 
@@ -32,8 +33,8 @@ rechecks the current Profile policy and the Profile/hostname binding.
 
 ## Document lifecycle controller
 
-`DocumentCosmeticController` owns the state between that policy and a future
-Chromium style sink. Every committed main-frame document receives a non-zero,
+`DocumentCosmeticController` owns the state between that policy and the
+browser-side style sink. Every committed main-frame document receives a non-zero,
 UUID-backed `DocumentId`. The controller verifies that its Tab still belongs to
 the supplied Profile, permits only one live document per Tab and keeps at most
 1,024 active or pending-cleanup document states.
@@ -84,19 +85,29 @@ Procedural actions and the engine's injected script are deliberately not
 returned for execution; enabling either needs a separate renderer threat model,
 an allowlisted instruction format and dedicated security tests.
 
-## Chromium renderer contract after B0
+## Chromium renderer endpoint
 
-The production adapter must keep this policy as the only source of cosmetic
-decisions and satisfy all of the following:
+`FireballCosmeticStyleAgent` now supplies a typed frame-associated Mojo endpoint
+inside the renderer. It binds a `DocumentId` to the active main-frame Blink
+`DocumentToken` and a renderer-owned document epoch, revalidates the exact
+compiled CSS format and installs two independent user-origin layers through
+`WebDocument::InsertStyleSheet`. Every replacement gets a fresh key; a new
+document advances the epoch and clears binding and layer state, so stale IPC
+cannot rebind an old `DocumentId` to the new page. It rejects non-HTTP(S),
+inactive and non-HTML/XHTML documents and contains no JavaScript or page-markup
+injection path.
+
+The production browser adapter must keep this policy as the only source of
+cosmetic decisions and satisfy all of the following:
 
 1. Build URL/hostname inputs from committed Chromium navigation state, not page
    JavaScript or an untrusted string parser.
 2. Convert Chromium's committed document token to a fresh `DocumentId`, bind
    one policy/engine sequence to the owning Chromium Profile, and route every
    navigation/tab/Profile teardown through `DocumentCosmeticController`.
-3. Install the initial stylesheet before first paint through a browser-owned
-   stylesheet API in an isolated world. Never use `innerHTML`, `document.write`
-   or a page-world script string.
+3. Send the initial stylesheet before first paint through the typed renderer
+   endpoint, then commit controller state only after the asynchronous
+   acknowledgement. Never use `innerHTML`, `document.write` or script strings.
 4. Collect only bounded class/ID tokens for the generic phase. Do not serialize
    text content, attributes, forms, page URLs or DOM subtrees.
 5. Give every class/ID snapshot a strictly increasing revision. Apply the
@@ -114,9 +125,13 @@ output, unsafe CSS, cross-Profile plan reuse, disabled generic matching and
 missing-engine failure. `tests/cosmetic_controller_test.cc` covers navigation
 replacement, stale revisions, cross-Profile Tab misuse, policy revocation,
 generic suppression, sink failure, Tab deletion and Profile teardown.
+`tests/renderer_cosmetic_style_state_test.cc` covers renderer revalidation,
+fresh-key replacement, stale commits, independent layers and navigation reset.
+The [Chromium cosmetic adapter contract](CHROMIUM_COSMETIC_ADAPTER.md) records
+the exact upstream seam and remaining activation work.
 
 This is a production-oriented native foundation, not yet a claim that ads are
-visually hidden in a Chromium build. That claim requires the renderer adapter,
-a production EasyList/EasyPrivacy release from the existing [signed artifact
-pipeline](ADBLOCK_RULE_ARTIFACTS.md), real-page regression corpus and Linux
-control-versus-overlay build evidence.
+visually hidden in a Chromium build. That claim requires browser-side transport
+and renderer registration, a production EasyList/EasyPrivacy release from the
+existing [signed artifact pipeline](ADBLOCK_RULE_ARTIFACTS.md), a real-page
+regression corpus and Linux control-versus-overlay build evidence.

@@ -13,18 +13,17 @@ namespace fireball::chromium {
 class ProfilePolicyBinding;
 
 // First Chromium-facing vertical slice: primary-main-frame HTTP(S)
-// navigations. Subresource URLLoader throttles, renderer cosmetic injection and
-// lifecycle installation are separate gates and are not implied by this type.
+// navigations. Subresource URLLoader throttles, browser-to-renderer cosmetic
+// transport and lifecycle installation are separate gates and are not implied
+// by this type.
 class FireballNavigationThrottle final : public content::NavigationThrottle {
  public:
   // Returns false when the BrowserContext has no explicit Fireball binding or
   // the request is outside this adapter's primary-main-frame HTTP(S) scope.
-  static bool MaybeCreateAndAdd(
-      content::NavigationThrottleRegistry& registry);
+  static bool MaybeCreateAndAdd(content::NavigationThrottleRegistry& registry);
 
-  FireballNavigationThrottle(
-      content::NavigationThrottleRegistry& registry,
-      const ProfilePolicyBinding& binding);
+  FireballNavigationThrottle(content::NavigationThrottleRegistry& registry,
+                             const ProfilePolicyBinding& binding);
   FireballNavigationThrottle(const FireballNavigationThrottle&) = delete;
   FireballNavigationThrottle& operator=(const FireballNavigationThrottle&) =
       delete;

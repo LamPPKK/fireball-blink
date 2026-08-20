@@ -69,11 +69,13 @@ for Profile isolation, egress lifecycle, typed resource context, block,
 redirect, rewrite and fail-closed route handling.
 
 The protected `chromium-control` workflow stages the checksum-pinned overlay.
-Because `//fireball:fireball_overlay` depends on
-`//fireball/chromium:chromium_adapter`, `gn gen --check` and the
-`//fireball:overlay_smoke` build compile and link the API-facing implementation
-against the exact Chromium checkout. No successful full-builder run is claimed
-until GitHub records that workflow on the protected self-hosted runner.
+Because `//fireball:fireball_overlay` depends on both
+`//fireball/chromium:chromium_adapter` and
+`//fireball/chromium:chromium_renderer_adapter`, `gn gen --check` and the
+`//fireball:overlay_smoke` build compile and link the browser request adapters
+and renderer stylesheet endpoint against the exact Chromium checkout. No
+successful full-builder run is claimed until GitHub records that workflow on
+the protected self-hosted runner.
 
 ## Promotion work still required
 
@@ -90,7 +92,8 @@ change:
 4. append `FireballURLLoaderThrottle` from Chromium's URLLoader factory and
    cover the separate keepalive/prefetch paths before claiming complete
    subresource blocking;
-5. add an isolated-world renderer stylesheet adapter for cosmetic filtering;
+5. register the existing renderer stylesheet agent, add the asynchronous
+   browser-side controller transport and cover document/BFCache/crash lifecycle;
 6. build `chrome`, capture startup traffic and prove there is no unowned
    request or direct fallback.
 

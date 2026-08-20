@@ -33,7 +33,17 @@ SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 MAX_SOURCE_FILE_BYTES = 2 * 1024 * 1024
 MAX_SOURCE_TREE_BYTES = 32 * 1024 * 1024
-ALLOWED_SUFFIXES = {".cc", ".gn", ".h", ".inc", ".lock", ".md", ".rs", ".toml"}
+ALLOWED_SUFFIXES = {
+    ".cc",
+    ".gn",
+    ".h",
+    ".inc",
+    ".lock",
+    ".md",
+    ".mojom",
+    ".rs",
+    ".toml",
+}
 EXPECTED_ARCHITECTURE_ORDER = ["overlay", "chromium_src", "direct_patch"]
 EXPECTED_REFERENCE_POLICY = {
     "brave": "overlay-before-override-before-direct-patch",
@@ -453,7 +463,8 @@ def build_link_evidence(
             "profile-lifecycle-hook-not-wired",
             "subresource-lifecycle-hook-not-wired",
             "keepalive-and-prefetch-policy-not-wired",
-            "renderer-cosmetic-adapter-not-wired",
+            "renderer-cosmetic-browser-transport-not-wired",
+            "renderer-content-client-registration-not-wired",
             "adblock-rust-ffi-not-linked-by-this-target",
             "not-release-or-packaging-evidence",
         ],

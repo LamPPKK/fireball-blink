@@ -18,6 +18,12 @@ enum class DocumentCosmeticStatus {
   kError,
 };
 
+inline constexpr std::size_t kMaximumCosmeticStylesheetBytes = 512 * 1024;
+
+// Revalidates the exact selector-only format at the renderer boundary. Empty
+// is the explicit layer-removal value. No page markup or script is accepted.
+bool IsValidCompiledCosmeticStylesheet(std::string_view stylesheet);
+
 // Consumed directly by the Chromium renderer adapter. It is not a logging or
 // metrics DTO and intentionally retains no page URL.
 struct DocumentCosmeticPlan {
@@ -52,7 +58,8 @@ class DocumentCosmeticPolicy final {
                                      std::string_view hostname) const;
 
   GenericCosmeticPlan MatchGenericSelectors(
-      const browser::ProfileId& profile_id, std::string_view hostname,
+      const browser::ProfileId& profile_id,
+      std::string_view hostname,
       const DocumentCosmeticPlan& document,
       const std::vector<std::string>& classes,
       const std::vector<std::string>& ids) const;

@@ -47,7 +47,7 @@ Brave overlay order and Helium provenance model visible in the interface.
 - Product code starts in the `fireball/` GN overlay.
 - Chromium-relative overrides live in `chromium_src/` only when an overlay seam is insufficient.
 - Direct patches are last-resort entries in `patches/manifest.json`.
-- `overlay/manifest.json` checksum-pins the complete staged Fireball GN tree; the protected B1 [component-link gate](docs/CHROMIUM_OVERLAY_BUILD.md) refuses unmanaged overrides or stale bytes. The graph now includes [Chromium request adapters](docs/CHROMIUM_NAVIGATION_ADAPTER.md): a Profile-owned policy bundle, primary-main-frame `NavigationThrottle` and sequence-safe subresource `URLLoaderThrottle`. Their Chromium lifecycle hooks are intentionally not activated until signed production rules and keepalive/prefetch coverage are ready.
+- `overlay/manifest.json` checksum-pins the complete staged Fireball GN tree; the protected B1 [component-link gate](docs/CHROMIUM_OVERLAY_BUILD.md) refuses unmanaged overrides or stale bytes. The graph now includes [Chromium request adapters](docs/CHROMIUM_NAVIGATION_ADAPTER.md): a Profile-owned policy bundle, primary-main-frame `NavigationThrottle`, sequence-safe subresource `URLLoaderThrottle` and a typed [renderer stylesheet endpoint](docs/CHROMIUM_COSMETIC_ADAPTER.md). Their browser lifecycle hooks and cosmetic transport are intentionally not activated until signed production rules and keepalive/prefetch coverage are ready.
 - Every imported patch must record its source repository/path, HTTPS license URL, exact source commit, exact verified Chromium commit, milestone range, security impact, required tests and SHA-256.
 - PartitionAlloc, Chromium's process model and sandbox remain intact.
 
@@ -100,9 +100,11 @@ The cosmetic path now crosses the native boundary as well: strict C++ decoding
 consumes bounded Rust JSON, a Profile-scoped document policy compiles validated
 hide selectors into CSS, and a second bounded class/ID phase honors
 `$generichide`. Site exemptions disable both phases. Procedural actions and
-engine scriptlets are reported as skipped and never executed. The future
-Chromium renderer adapter must use an isolated-world stylesheet API and may not
-inject HTML or page-world script. See the [cosmetic filtering contract](docs/COSMETIC_FILTERING.md).
+engine scriptlets are reported as skipped and never executed. A compile-gated
+Chromium renderer agent now revalidates the generated CSS and uses Blink's
+native user-origin stylesheet API; it contains no HTML or script injection.
+Browser-side transport and registration remain open. See the [cosmetic
+filtering contract](docs/COSMETIC_FILTERING.md).
 
 A document lifecycle controller now binds those style plans to UUID-backed
 `DocumentId` and the owning Tab/Profile. It replaces the previous document on
@@ -145,13 +147,13 @@ and proves block, exception, third-party, exemption, site-specific cosmetic,
 generic selector and `$generichide` behavior. See the [request pipeline and
 Chromium adapter contract](docs/REQUEST_PIPELINE.md).
 
-This is not yet full Brave Shields or a Chromium network/renderer interceptor.
-The B0 Chromium checkout still needs to supply trusted `GURL` fields, wire the
-Rust target into GN, apply decisions in navigation/URL-loader throttles, inject
-the validated cosmetic styles through an isolated world, and publish production
-EasyList/EasyPrivacy commits with an embedded production key. Until those steps
-land, the feature is a tested native foundation rather than a user-visible
-blocker.
+This is not yet full Brave Shields or an activated Chromium network/renderer
+interceptor. The B0 Chromium integration still needs to wire the Rust target,
+register the request throttles and renderer agent, bridge the asynchronous
+cosmetic controller transport, cover generic DOM collection, and publish
+production EasyList/EasyPrivacy commits with an embedded production key. Until
+those steps land, the feature is a tested native foundation rather than a
+user-visible blocker.
 
 ## Download and torrent foundation
 
