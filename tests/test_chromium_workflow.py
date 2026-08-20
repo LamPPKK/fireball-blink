@@ -49,9 +49,27 @@ class ChromiumWorkflowTests(unittest.TestCase):
         )
         self.assertIn("retention-days: 14", self.workflow)
 
+    def test_control_artifact_is_completed_before_overlay_staging(self) -> None:
+        control_upload = self.workflow.index("Upload exact control package and checksum")
+        overlay_stage = self.workflow.index("Stage checksum-pinned Fireball overlay")
+        self.assertLess(control_upload, overlay_stage)
+        self.assertIn('fireball_overlay.py"', self.workflow)
+        self.assertIn('--repository-root "$FIREBALL_ROOT"', self.workflow)
+        self.assertIn("\n            stage", self.workflow)
+        self.assertIn('fireball_patches.py" apply', self.workflow)
+
+    def test_overlay_lane_builds_only_the_honestly_named_link_gate(self) -> None:
+        self.assertIn(
+            "autoninja -C out/FireballOverlay fireball:overlay_smoke", self.workflow
+        )
+        self.assertIn("\n            evidence", self.workflow)
+        self.assertIn("Upload component-link evidence", self.workflow)
+        self.assertNotIn("fireball:browser", self.workflow)
+
     def test_cleanup_is_scoped_to_runner_temp(self) -> None:
         self.assertIn('"$RUNNER_TEMP"/fireball-chromium-control-*', self.workflow)
         self.assertIn("refusing unsafe cleanup path", self.workflow)
+        self.assertIn('"$RUNNER_TEMP"/fireball-overlay-link-*.tar', self.workflow)
 
 
 if __name__ == "__main__":

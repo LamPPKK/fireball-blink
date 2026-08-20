@@ -8,3 +8,13 @@ group("fireball_overlay") {
     "//fireball/components/transfer",
   ]
 }
+
+# B1 component-link gate only. This deliberately does not claim a Browser,
+# Profile, WebContents or network-stack adapter.
+executable("overlay_smoke") {
+  testonly = true
+  output_name = "fireball_overlay_smoke"
+
+  sources = [ "overlay_smoke.cc" ]
+  deps = [ ":fireball_overlay" ]
+}

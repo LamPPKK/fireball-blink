@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "automatic_import": false,
+  "source_repository": "https://github.com/LamPPKK/fireball-blink.git",
+  "root": "fireball",
+  "destination": "fireball",
+  "chromium_revision": "4b1c7520055f77780fe76d89bb89b76e4d19f64c",
+  "architecture_order": [
+    "overlay",
+    "chromium_src",
+    "direct_patch"
+  ],
+  "reference_policy": {
+    "brave": "overlay-before-override-before-direct-patch",
+    "helium": "pinned-tree-checksum-and-ordered-series"
+  },
+  "tree": {
+    "file_count": 72,
+    "bytes": 440400,
+    "sha256": "8ec9034eaa2bb8f77824ba7e21c5282fcecb3e54ea9d1a01a77ce6781696a5d6"
+  }
+}

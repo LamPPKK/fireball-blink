@@ -342,6 +342,36 @@ def main() -> int:
                 "fireball/components/privacy/network_audit.cc",
                 "tests/navigation_policy_test.cc",
             ],
+            "fireball_overlay_smoke": [
+                "fireball/browser/domain_model.cc",
+                "fireball/components/adblock/profile_policy.cc",
+                "fireball/components/egress/egress_controller.cc",
+                "fireball/components/egress/egress_route.cc",
+                "fireball/components/egress/egress_verification.cc",
+                "fireball/components/egress/runtime_backend.cc",
+                "fireball/components/egress/socks5_probe.cc",
+                "fireball/components/egress/tor_config.cc",
+                "fireball/components/egress/tor_sidecar.cc",
+                "fireball/components/egress/warp_local_proxy.cc",
+                "fireball/components/navigation/document_cosmetic_controller.cc",
+                "fireball/components/navigation/document_cosmetic_policy.cc",
+                "fireball/components/navigation/request_policy.cc",
+                "fireball/components/navigation/url_cleaner.cc",
+                "fireball/components/privacy/network_audit.cc",
+                "fireball/components/transfer/aria2_rpc_client.cc",
+                "fireball/components/transfer/aria2_sidecar.cc",
+                "fireball/components/transfer/dash_download.cc",
+                "fireball/components/transfer/dash_vod.cc",
+                "fireball/components/transfer/egress_transfer_policy.cc",
+                "fireball/components/transfer/ffmpeg_muxer.cc",
+                "fireball/components/transfer/hls_download.cc",
+                "fireball/components/transfer/hls_vod.cc",
+                "fireball/components/transfer/media_discovery.cc",
+                "fireball/components/transfer/media_header_grant.cc",
+                "fireball/components/transfer/transfer_queue.cc",
+                "fireball/components/transfer/transfer_types.cc",
+                "fireball/overlay_smoke.cc",
+            ],
         }
         for name, sources in cases.items():
             binary = pathlib.Path(temporary) / name
@@ -360,7 +390,23 @@ def main() -> int:
                 ],
                 check=True,
             )
-            subprocess.run([str(binary)], check=True)
+            result = subprocess.run(
+                [str(binary)],
+                check=True,
+                capture_output=name == "fireball_overlay_smoke",
+                text=name == "fireball_overlay_smoke",
+            )
+            if name == "fireball_overlay_smoke":
+                expected = (
+                    '{"schema_version":1,"kind":"fireball-overlay-component-link",'
+                    '"status":"ok"}\n'
+                )
+                if result.stdout != expected or result.stderr:
+                    print(
+                        "fireball-cpp-tests: overlay smoke output contract failed",
+                        file=sys.stderr,
+                    )
+                    return 1
 
         ffmpeg = os.environ.get("FFMPEG") or shutil.which("ffmpeg")
         ffprobe = os.environ.get("FFPROBE") or shutil.which("ffprobe")

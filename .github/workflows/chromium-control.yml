@@ -172,10 +172,79 @@ jobs:
           compression-level: 0
           retention-days: 14
 
+      - name: Stage checksum-pinned Fireball overlay
+        run: |
+          set -euo pipefail
+          python3 "$FIREBALL_ROOT/tools/fireball_overlay.py" \
+            --repository-root "$FIREBALL_ROOT" \
+            stage \
+            --chromium-checkout "$CONTROL_ROOT/chromium/src" \
+            --output "$CONTROL_ROOT/overlay-stage.json"
+          python3 "$FIREBALL_ROOT/tools/fireball_patches.py" apply \
+            --repo-root "$FIREBALL_ROOT" \
+            --checkout "$CONTROL_ROOT/chromium/src"
+
+      - name: Build and run Fireball component-link gate
+        working-directory: ${{ runner.temp }}/fireball-chromium-control-${{ github.run_id }}-${{ github.run_attempt }}/chromium/src
+        run: |
+          set -euo pipefail
+          mkdir -p out/FireballOverlay
+          cp "$FIREBALL_ROOT/build-config/chromium-control.gn" out/FireballOverlay/args.gn
+          gn gen out/FireballOverlay --check
+          autoninja -C out/FireballOverlay fireball:overlay_smoke
+          test -x out/FireballOverlay/fireball_overlay_smoke
+          out/FireballOverlay/fireball_overlay_smoke \
+            > "$CONTROL_ROOT/overlay-smoke.json"
+
+      - name: Create bounded overlay link evidence
+        working-directory: ${{ runner.temp }}/fireball-chromium-control-${{ github.run_id }}-${{ github.run_attempt }}/chromium/src
+        run: |
+          set -euo pipefail
+          stage="$CONTROL_ROOT/overlay-artifact"
+          mkdir -p "$stage"
+          cp out/FireballOverlay/fireball_overlay_smoke "$stage/"
+          cp "$CONTROL_ROOT/overlay-stage.json" "$stage/"
+          cp "$CONTROL_ROOT/overlay-smoke.json" "$stage/"
+          cp "$CONTROL_ROOT/source-checkouts.json" "$stage/"
+          cp "$CONTROL_ROOT/builder-preflight.json" "$stage/"
+          python3 "$FIREBALL_ROOT/tools/fireball_overlay.py" \
+            --repository-root "$FIREBALL_ROOT" \
+            evidence \
+            --stage-report "$CONTROL_ROOT/overlay-stage.json" \
+            --gn-args "$FIREBALL_ROOT/build-config/chromium-control.gn" \
+            --binary "$stage/fireball_overlay_smoke" \
+            --smoke "$CONTROL_ROOT/overlay-smoke.json" \
+            --preflight "$CONTROL_ROOT/builder-preflight.json" \
+            --output "$stage/manifest.json"
+          source_date_epoch="$(git -C "$FIREBALL_ROOT" show -s --format=%ct HEAD)"
+          bundle="$RUNNER_TEMP/fireball-overlay-link-${GITHUB_SHA}.tar"
+          tar \
+            --sort=name \
+            --mtime="@$source_date_epoch" \
+            --owner=0 \
+            --group=0 \
+            --numeric-owner \
+            -C "$stage" \
+            -cf "$bundle" .
+          sha256sum "$bundle" > "$bundle.sha256"
+          printf 'OVERLAY_BUNDLE=%s\n' "$bundle" >> "$GITHUB_ENV"
+          printf 'OVERLAY_BUNDLE_SHA256=%s\n' "$bundle.sha256" >> "$GITHUB_ENV"
+
+      - name: Upload component-link evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: fireball-overlay-link-${{ github.sha }}
+          path: |
+            ${{ env.OVERLAY_BUNDLE }}
+            ${{ env.OVERLAY_BUNDLE_SHA256 }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
       - name: Clean protected runner workspace
         if: always()
         run: |
-          set -u
+          set -euo pipefail
           if [[ -n "${CONTROL_ROOT:-}" ]]; then
             case "$CONTROL_ROOT" in
               "$RUNNER_TEMP"/fireball-chromium-control-*) rm -rf -- "$CONTROL_ROOT" ;;
@@ -192,5 +261,17 @@ jobs:
             case "$CONTROL_BUNDLE_SHA256" in
               "$RUNNER_TEMP"/fireball-chromium-control-*.tar.sha256) rm -f -- "$CONTROL_BUNDLE_SHA256" ;;
               *) echo "refusing unsafe checksum cleanup path" >&2; exit 1 ;;
+            esac
+          fi
+          if [[ -n "${OVERLAY_BUNDLE:-}" ]]; then
+            case "$OVERLAY_BUNDLE" in
+              "$RUNNER_TEMP"/fireball-overlay-link-*.tar) rm -f -- "$OVERLAY_BUNDLE" ;;
+              *) echo "refusing unsafe overlay cleanup path" >&2; exit 1 ;;
+            esac
+          fi
+          if [[ -n "${OVERLAY_BUNDLE_SHA256:-}" ]]; then
+            case "$OVERLAY_BUNDLE_SHA256" in
+              "$RUNNER_TEMP"/fireball-overlay-link-*.tar.sha256) rm -f -- "$OVERLAY_BUNDLE_SHA256" ;;
+              *) echo "refusing unsafe overlay checksum cleanup path" >&2; exit 1 ;;
             esac
           fi
