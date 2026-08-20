@@ -53,7 +53,8 @@ policy symbols. The graph also compiles the API-facing `ProfilePolicyBinding`
 `FireballNavigationThrottle` and `FireballURLLoaderThrottle` against Chromium's
 actual public headers. It also compiles the typed Mojo
 `FireballCosmeticStyleAgent` against Blink's real `WebDocument` stylesheet and
-document-token APIs.
+document-token APIs, plus `FireballCosmeticStyleTransport` against Chromium's
+document-scoped `WeakDocumentPtr` and associated-interface APIs.
 
 The uploaded evidence contains:
 
@@ -66,6 +67,6 @@ The uploaded evidence contains:
 
 The gate remains **not run** until the protected self-hosted builder produces a
 green artifact. Even after it passes, B1 still needs the Profile lifecycle
-hooks, keepalive/prefetch coverage, browser-to-renderer cosmetic transport,
-renderer registration, a full overlay `chrome` build and startup-network
-capture before it can be called a Fireball browser build.
+hooks, keepalive/prefetch coverage, the async cosmetic controller/lifecycle
+bridge, renderer registration, a full overlay `chrome` build and
+startup-network capture before it can be called a Fireball browser build.

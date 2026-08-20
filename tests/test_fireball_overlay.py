@@ -217,7 +217,11 @@ class FireballOverlayTests(unittest.TestCase):
                 evidence["limitations"],
             )
             self.assertIn(
-                "renderer-cosmetic-browser-transport-not-wired",
+                "renderer-cosmetic-controller-bridge-not-wired",
+                evidence["limitations"],
+            )
+            self.assertIn(
+                "renderer-cosmetic-lifecycle-owner-not-wired",
                 evidence["limitations"],
             )
             self.assertIn(

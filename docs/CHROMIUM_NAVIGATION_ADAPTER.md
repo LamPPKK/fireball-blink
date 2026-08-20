@@ -73,7 +73,8 @@ Because `//fireball:fireball_overlay` depends on both
 `//fireball/chromium:chromium_adapter` and
 `//fireball/chromium:chromium_renderer_adapter`, `gn gen --check` and the
 `//fireball:overlay_smoke` build compile and link the browser request adapters
-and renderer stylesheet endpoint against the exact Chromium checkout. No
+plus both sides of the cosmetic Mojo transport against the exact Chromium
+checkout. No
 successful full-builder run is claimed until GitHub records that workflow on
 the protected self-hosted runner.
 
@@ -92,8 +93,9 @@ change:
 4. append `FireballURLLoaderThrottle` from Chromium's URLLoader factory and
    cover the separate keepalive/prefetch paths before claiming complete
    subresource blocking;
-5. register the existing renderer stylesheet agent, add the asynchronous
-   browser-side controller transport and cover document/BFCache/crash lifecycle;
+5. register the existing renderer stylesheet agent, bridge the asynchronous
+   browser transport into the controller and cover document/BFCache/crash
+   lifecycle;
 6. build `chrome`, capture startup traffic and prove there is no unowned
    request or direct fallback.
 

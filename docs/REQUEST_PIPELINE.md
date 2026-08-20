@@ -80,13 +80,15 @@ policy implementation:
 - response observation can pass bounded media candidates to `MediaDiscovery`,
   but must not persist complete browsing URLs or re-evaluate policy elsewhere.
 - the compile-gated renderer endpoint installs revalidated cosmetic styles
-  through Blink's browser-owned user-origin stylesheet API; browser wiring must
-  map committed document tokens to `DocumentId`, route navigation/revocation
-  through `DocumentCosmeticController`, and submit only bounded, monotonically
-  revisioned class/ID snapshots for generic matching.
+  through Blink's browser-owned user-origin stylesheet API; its browser
+  transport now binds an active document-scoped `WeakDocumentPtr` through an
+  epoch/generation handshake. Remaining wiring must route acknowledged
+  navigation/revocation mutations through `DocumentCosmeticController` and
+  submit only bounded, monotonically revisioned class/ID snapshots for generic
+  matching.
 
 The current repository proves the platform-neutral network/cosmetic policies
-and native FFI seams plus a compile-gated Chromium renderer endpoint. It does
-not claim an activated Chromium interceptor, user-visible Shields UI, working
-cosmetic filter or browser proxy until the remaining adapters pass the control
-and overlay builds on the Linux builder.
+and native FFI seams plus a compile-gated Chromium renderer endpoint and
+browser transport. It does not claim an activated Chromium interceptor,
+user-visible Shields UI, working cosmetic filter or browser proxy until the
+remaining adapters pass the control and overlay builds on the Linux builder.

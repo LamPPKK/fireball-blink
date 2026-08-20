@@ -4,8 +4,8 @@ Fireball now carries the non-network half of its native blocker through the
 real pinned `adblock-rust` engine. The implementation is intentionally split at
 the renderer boundary: this repository proves rule evaluation, strict decoding,
 Profile policy, safe stylesheet construction and a compile-gated native Blink
-stylesheet endpoint. Browser-side transport and lifecycle activation remain
-open, so no real-page hiding is claimed.
+stylesheet endpoint plus its asynchronous browser transport. Controller and
+lifecycle activation remain open, so no real-page hiding is claimed.
 
 ## Two-phase document plan
 
@@ -97,6 +97,13 @@ cannot rebind an old `DocumentId` to the new page. It rejects non-HTTP(S),
 inactive and non-HTML/XHTML documents and contains no JavaScript or page-markup
 injection path.
 
+`FireballCosmeticStyleTransport` now owns the other side of that Mojo channel
+for one document-scoped Chromium `WeakDocumentPtr`. It accepts only an active
+primary-main-frame document, echoes the renderer epoch on every operation and
+uses generation tickets to reject late async callbacks. Disconnect,
+invalidation, BFCache/inactive state and renderer rejection fail closed. It is
+not yet connected to the synchronous controller seam.
+
 The production browser adapter must keep this policy as the only source of
 cosmetic decisions and satisfy all of the following:
 
@@ -105,9 +112,9 @@ cosmetic decisions and satisfy all of the following:
 2. Convert Chromium's committed document token to a fresh `DocumentId`, bind
    one policy/engine sequence to the owning Chromium Profile, and route every
    navigation/tab/Profile teardown through `DocumentCosmeticController`.
-3. Send the initial stylesheet before first paint through the typed renderer
-   endpoint, then commit controller state only after the asynchronous
-   acknowledgement. Never use `innerHTML`, `document.write` or script strings.
+3. Refactor the controller/sink seam to send the initial stylesheet through the
+   async transport, then commit controller state only after its acknowledgement.
+   Never use `innerHTML`, `document.write` or script strings.
 4. Collect only bounded class/ID tokens for the generic phase. Do not serialize
    text content, attributes, forms, page URLs or DOM subtrees.
 5. Give every class/ID snapshot a strictly increasing revision. Apply the
@@ -127,11 +134,13 @@ replacement, stale revisions, cross-Profile Tab misuse, policy revocation,
 generic suppression, sink failure, Tab deletion and Profile teardown.
 `tests/renderer_cosmetic_style_state_test.cc` covers renderer revalidation,
 fresh-key replacement, stale commits, independent layers and navigation reset.
+`tests/browser_cosmetic_transport_state_test.cc` covers browser epoch/generation
+state, stale callbacks, invalidation and revocation.
 The [Chromium cosmetic adapter contract](CHROMIUM_COSMETIC_ADAPTER.md) records
 the exact upstream seam and remaining activation work.
 
 This is a production-oriented native foundation, not yet a claim that ads are
-visually hidden in a Chromium build. That claim requires browser-side transport
-and renderer registration, a production EasyList/EasyPrivacy release from the
-existing [signed artifact pipeline](ADBLOCK_RULE_ARTIFACTS.md), a real-page
-regression corpus and Linux control-versus-overlay build evidence.
+visually hidden in a Chromium build. That claim requires async controller and
+lifecycle integration, renderer registration, a production EasyList/EasyPrivacy
+release from the existing [signed artifact pipeline](ADBLOCK_RULE_ARTIFACTS.md),
+a real-page regression corpus and Linux control-versus-overlay build evidence.

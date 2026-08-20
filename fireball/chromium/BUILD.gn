@@ -6,6 +6,8 @@ mojom("cosmetic_style_agent_mojom") {
 
 source_set("adapter_contract") {
   sources = [
+    "browser_cosmetic_transport_state.cc",
+    "browser_cosmetic_transport_state.h",
     "navigation_adapter_contract.cc",
     "navigation_adapter_contract.h",
     "profile_request_policy_bundle.cc",
@@ -48,6 +50,8 @@ source_set("chromium_renderer_adapter") {
 # exact upstream revision in the protected builder.
 source_set("chromium_adapter") {
   sources = [
+    "fireball_cosmetic_style_transport.cc",
+    "fireball_cosmetic_style_transport.h",
     "fireball_navigation_throttle.cc",
     "fireball_navigation_throttle.h",
     "fireball_url_loader_throttle.cc",
@@ -58,10 +62,12 @@ source_set("chromium_adapter") {
 
   deps = [
     ":adapter_contract",
+    ":cosmetic_style_agent_mojom",
     "//base",
     "//content/public/browser",
     "//fireball/browser:domain",
     "//fireball/components/navigation",
+    "//mojo/public/cpp/bindings",
     "//net",
     "//services/network/public/cpp",
     "//services/network/public/mojom",
