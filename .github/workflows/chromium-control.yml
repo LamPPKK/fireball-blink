@@ -1,0 +1,196 @@
+name: chromium-control
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 2 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chromium-control-main
+  cancel-in-progress: false
+
+jobs:
+  upstream-control:
+    if: >-
+      github.repository == 'LamPPKK/fireball-blink' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'workflow_dispatch' ||
+      vars.FIREBALL_CHROMIUM_NIGHTLY_ENABLED == 'true')
+    environment: chromium-builder
+    runs-on: [self-hosted, linux, x64, fireball-chromium]
+    timeout-minutes: 720
+    env:
+      DEPOT_TOOLS_UPDATE: "0"
+      FIREBALL_ROOT: ${{ github.workspace }}/fireball
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Reject untrusted invocation
+        env:
+          EXPECTED_REPOSITORY: LamPPKK/fireball-blink
+          EXPECTED_REF: refs/heads/main
+        run: |
+          set -euo pipefail
+          control_root="$RUNNER_TEMP/fireball-chromium-control-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          test "$GITHUB_REPOSITORY" = "$EXPECTED_REPOSITORY"
+          test "$GITHUB_REF" = "$EXPECTED_REF"
+          case "$GITHUB_EVENT_NAME" in
+            workflow_dispatch|schedule) ;;
+            *) exit 64 ;;
+          esac
+          test "$(id -u)" -ne 0
+          case "$control_root" in
+            "$RUNNER_TEMP"/fireball-chromium-control-*) ;;
+            *) exit 64 ;;
+          esac
+          test ! -e "$control_root"
+          mkdir -p "$control_root"
+          printf 'CONTROL_ROOT=%s\n' "$control_root" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: fireball
+          clean: true
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Enforce builder capacity
+        run: |
+          set -euo pipefail
+          python3 "$FIREBALL_ROOT/tools/chromium_builder.py" preflight \
+            --workspace "$RUNNER_TEMP" \
+            --output "$CONTROL_ROOT/builder-preflight.json"
+
+      - name: Export exact upstream pins
+        run: |
+          set -euo pipefail
+          python3 "$FIREBALL_ROOT/tools/chromium_builder.py" export-pins \
+            --repository-root "$FIREBALL_ROOT" \
+            --github-env "$GITHUB_ENV"
+
+      - name: Fetch exact Chromium control source
+        run: |
+          set -euo pipefail
+          depot_tools="$CONTROL_ROOT/depot_tools"
+          chromium_root="$CONTROL_ROOT/chromium"
+          git clone --filter=blob:none "$DEPOT_TOOLS_URL" "$depot_tools"
+          git -C "$depot_tools" checkout --detach "$DEPOT_TOOLS_REVISION"
+          export PATH="$depot_tools:$PATH"
+          printf '%s\n' "$depot_tools" >> "$GITHUB_PATH"
+          mkdir -p "$chromium_root"
+          cd "$chromium_root"
+          fetch --nohooks --no-history chromium
+          git -C src fetch --depth=1 origin "$CHROMIUM_REF"
+          git -C src checkout --detach "$CHROMIUM_REVISION"
+          gclient sync \
+            --revision "src@$CHROMIUM_REVISION" \
+            --nohooks \
+            --delete_unversioned_trees \
+            --jobs 8
+          gclient runhooks
+          python3 "$FIREBALL_ROOT/tools/chromium_builder.py" verify-checkouts \
+            --repository-root "$FIREBALL_ROOT" \
+            --chromium-source "$chromium_root/src" \
+            --depot-tools "$depot_tools" \
+            --output "$CONTROL_ROOT/source-checkouts.json"
+
+      - name: Build unmodified generic Chromium package
+        working-directory: ${{ runner.temp }}/fireball-chromium-control-${{ github.run_id }}-${{ github.run_attempt }}/chromium/src
+        run: |
+          set -euo pipefail
+          mkdir -p out/FireballControl
+          cp "$FIREBALL_ROOT/build-config/chromium-control.gn" out/FireballControl/args.gn
+          gn gen out/FireballControl --check
+          autoninja -C out/FireballControl chrome/installer/linux:stable_deb
+
+      - name: Smoke-test with Chromium sandbox enabled
+        working-directory: ${{ runner.temp }}/fireball-chromium-control-${{ github.run_id }}-${{ github.run_attempt }}/chromium/src
+        run: |
+          set -euo pipefail
+          test -x out/FireballControl/chrome
+          out/FireballControl/chrome --version | tee "$CONTROL_ROOT/chromium-version.txt"
+          timeout 45s out/FireballControl/chrome \
+            --headless=new \
+            --disable-gpu \
+            --no-first-run \
+            --no-default-browser-check \
+            --user-data-dir="$CONTROL_ROOT/smoke-profile" \
+            --dump-dom \
+            'data:text/html,<title>FireballControl</title><p id="control">ok</p>' \
+            > "$CONTROL_ROOT/smoke.html"
+          grep -F '<p id="control">ok</p>' "$CONTROL_ROOT/smoke.html"
+
+      - name: Create immutable control artifact evidence
+        working-directory: ${{ runner.temp }}/fireball-chromium-control-${{ github.run_id }}-${{ github.run_attempt }}/chromium/src
+        run: |
+          set -euo pipefail
+          mapfile -t packages < <(find out/FireballControl -maxdepth 1 -type f \
+            -name 'chromium-browser-stable_*.deb' -print)
+          test "${#packages[@]}" -eq 1
+          stage="$CONTROL_ROOT/artifact"
+          mkdir -p "$stage"
+          cp "${packages[0]}" "$stage/"
+          package="$stage/$(basename "${packages[0]}")"
+          cp "$CONTROL_ROOT/builder-preflight.json" "$stage/"
+          cp "$CONTROL_ROOT/source-checkouts.json" "$stage/"
+          cp "$CONTROL_ROOT/smoke.html" "$stage/"
+          python3 "$FIREBALL_ROOT/tools/chromium_builder.py" manifest \
+            --repository-root "$FIREBALL_ROOT" \
+            --chromium-source "$CONTROL_ROOT/chromium/src" \
+            --depot-tools "$CONTROL_ROOT/depot_tools" \
+            --gn-args "$FIREBALL_ROOT/build-config/chromium-control.gn" \
+            --artifact "$package" \
+            --preflight "$CONTROL_ROOT/builder-preflight.json" \
+            --version "$CONTROL_ROOT/chromium-version.txt" \
+            --output "$stage/manifest.json"
+          source_date_epoch="$(git -C "$CONTROL_ROOT/chromium/src" show -s --format=%ct HEAD)"
+          bundle="$RUNNER_TEMP/fireball-chromium-control-${CHROMIUM_VERSION}-${CHROMIUM_REVISION}.tar"
+          tar \
+            --sort=name \
+            --mtime="@$source_date_epoch" \
+            --owner=0 \
+            --group=0 \
+            --numeric-owner \
+            -C "$stage" \
+            -cf "$bundle" .
+          sha256sum "$bundle" > "$bundle.sha256"
+          printf 'CONTROL_BUNDLE=%s\n' "$bundle" >> "$GITHUB_ENV"
+          printf 'CONTROL_BUNDLE_SHA256=%s\n' "$bundle.sha256" >> "$GITHUB_ENV"
+
+      - name: Upload exact control package and checksum
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: chromium-control-${{ env.CHROMIUM_VERSION }}-${{ env.CHROMIUM_REVISION }}
+          path: |
+            ${{ env.CONTROL_BUNDLE }}
+            ${{ env.CONTROL_BUNDLE_SHA256 }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+      - name: Clean protected runner workspace
+        if: always()
+        run: |
+          set -u
+          if [[ -n "${CONTROL_ROOT:-}" ]]; then
+            case "$CONTROL_ROOT" in
+              "$RUNNER_TEMP"/fireball-chromium-control-*) rm -rf -- "$CONTROL_ROOT" ;;
+              *) echo "refusing unsafe cleanup path" >&2; exit 1 ;;
+            esac
+          fi
+          if [[ -n "${CONTROL_BUNDLE:-}" ]]; then
+            case "$CONTROL_BUNDLE" in
+              "$RUNNER_TEMP"/fireball-chromium-control-*.tar) rm -f -- "$CONTROL_BUNDLE" ;;
+              *) echo "refusing unsafe bundle cleanup path" >&2; exit 1 ;;
+            esac
+          fi
+          if [[ -n "${CONTROL_BUNDLE_SHA256:-}" ]]; then
+            case "$CONTROL_BUNDLE_SHA256" in
+              "$RUNNER_TEMP"/fireball-chromium-control-*.tar.sha256) rm -f -- "$CONTROL_BUNDLE_SHA256" ;;
+              *) echo "refusing unsafe checksum cleanup path" >&2; exit 1 ;;
+            esac
+          fi

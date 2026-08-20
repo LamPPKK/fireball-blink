@@ -1,4 +1,4 @@
-.PHONY: check test macos-preview macos-preview-media
+.PHONY: check test chromium-builder-preflight macos-preview macos-preview-media
 
 check:
 	python3 tools/check_pins.py
@@ -10,6 +10,11 @@ check:
 	python3 tools/run_adblock_tests.py
 
 test: check
+
+chromium-builder-preflight:
+	python3 tools/chromium_builder.py preflight \
+		--workspace "$${RUNNER_TEMP:-/tmp}" \
+		--output "$${RUNNER_TEMP:-/tmp}/fireball-builder-preflight.json"
 
 macos-preview:
 	./tools/build_macos_preview.sh
