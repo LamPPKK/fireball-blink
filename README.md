@@ -9,9 +9,13 @@ ember-orange flight surfaces and one electric-lime trail. Blink applies it to
 an **orbital command deck**—dense desktop chrome, explicit Profile/Space
 boundaries and visible provenance—without pretending this preview is a browser.
 
-![Fireball Blink macOS tab-grid model preview](docs/assets/fireball-blink-macos-grid.png)
+<a href="docs/assets/fireball-blink-layout-showcase.png">
+  <img src="docs/assets/fireball-blink-layout-showcase.png" width="100%" alt="Fireball Blink Classic and Tab Grid macOS model previews">
+</a>
 
 ![Fireball Blink transfer queue model preview](docs/assets/fireball-blink-macos-transfers.png)
+
+<sub>Classic and Grid presentations share one domain model; Transfer Deck is a separate model preview. These images do not claim a Chromium browser build.</sub>
 
 ## macOS model preview
 
