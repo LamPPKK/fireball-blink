@@ -59,10 +59,7 @@ public:
   operator=(const FireballCosmeticControllerBridge &) = delete;
   ~FireballCosmeticControllerBridge() override;
 
-  bool ApplyDomSnapshot(const browser::DocumentId &document_id,
-                        std::uint64_t revision,
-                        std::vector<std::string> classes,
-                        std::vector<std::string> ids);
+  bool RefreshDomSnapshot();
   bool RevokeActiveDocument();
   bool RefreshActiveDocument();
 
@@ -100,6 +97,27 @@ private:
   bool Initialize(content::WebContents &web_contents);
   bool ProfileOwnsTab() const;
   bool ContextValid() const;
+  void ScheduleDomCollection(const browser::DocumentId &document_id);
+  bool StartDomCollection(const browser::DocumentId &document_id);
+  bool CancelDomCollection(const browser::DocumentId &document_id,
+                           FireballCosmeticDocumentHost &host,
+                           const content::WeakDocumentPtr &document);
+  void OnDomSnapshotCollected(BrowserCosmeticControllerTicket ticket,
+                              content::WeakDocumentPtr document,
+                              CosmeticTransportResult transport_result,
+                              CosmeticDomSnapshot snapshot);
+  void ClearGenericStylesheetAfterLimit(
+      const browser::DocumentId &document_id,
+      const content::WeakDocumentPtr &document,
+      std::uint64_t revision,
+      std::string error_code);
+  void OnGenericStylesheetClearedAfterLimit(
+      BrowserCosmeticControllerTicket ticket,
+      content::WeakDocumentPtr document,
+      std::string error_code,
+      CosmeticTransportResult transport_result);
+  bool ApplyDomSnapshot(const browser::DocumentId &document_id,
+                        CosmeticDomSnapshot snapshot);
   void ResetDocument(const browser::DocumentId &document_id,
                      const content::WeakDocumentPtr &document);
   void ResetAllDocuments();

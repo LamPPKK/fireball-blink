@@ -26,6 +26,22 @@ int main() {
   assert(state.ready());
   assert(state.binding_generation() == 7);
 
+  auto collection_ticket = state.BeginDomCollection();
+  assert(collection_ticket.has_value());
+  assert(state.phase() == BrowserCosmeticTransportPhase::kCollectingDom);
+  assert(!state.BeginMutation(/*revoke_document=*/false).has_value());
+  assert(state.CompleteDomCollection(*collection_ticket,
+                                     /*transport_valid=*/true));
+  assert(state.ready());
+
+  auto cancelled_collection = state.BeginDomCollection();
+  assert(cancelled_collection.has_value());
+  assert(state.CancelDomCollection());
+  assert(state.ready());
+  assert(!state.IsCurrent(*cancelled_collection));
+  assert(!state.CompleteDomCollection(*cancelled_collection,
+                                      /*transport_valid=*/true));
+
   auto apply_ticket = state.BeginMutation(/*revoke_document=*/false);
   assert(apply_ticket.has_value());
   assert(state.phase() == BrowserCosmeticTransportPhase::kApplyingStylesheet);
@@ -80,5 +96,19 @@ int main() {
   assert(rejected_binding.phase() == BrowserCosmeticTransportPhase::kFailed);
   assert(rejected_binding.document_epoch() == 0);
   assert(rejected_binding.binding_generation() == 0);
+
+  BrowserCosmeticTransportState rejected_collection;
+  auto fifth_bind = rejected_collection.BeginBinding();
+  assert(fifth_bind.has_value());
+  assert(rejected_collection.AcceptDocumentEpoch(*fifth_bind, 12));
+  assert(rejected_collection.CompleteBinding(*fifth_bind, true, 4));
+  auto failed_collection = rejected_collection.BeginDomCollection();
+  assert(failed_collection.has_value());
+  assert(rejected_collection.CompleteDomCollection(
+      *failed_collection, /*transport_valid=*/false));
+  assert(rejected_collection.phase() ==
+         BrowserCosmeticTransportPhase::kFailed);
+  assert(rejected_collection.document_epoch() == 0);
+  assert(rejected_collection.binding_generation() == 0);
   return 0;
 }

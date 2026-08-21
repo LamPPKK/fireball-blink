@@ -12,6 +12,8 @@ source_set("adapter_contract") {
     "browser_cosmetic_document_state.h",
     "browser_cosmetic_transport_state.cc",
     "browser_cosmetic_transport_state.h",
+    "cosmetic_dom_snapshot.cc",
+    "cosmetic_dom_snapshot.h",
     "navigation_adapter_contract.cc",
     "navigation_adapter_contract.h",
     "profile_request_policy_bundle.cc",

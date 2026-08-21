@@ -90,8 +90,13 @@ class ChromiumCosmeticControllerBridgeSourceTests(unittest.TestCase):
         )
 
     def test_generic_revision_and_revocation_are_acknowledged(self) -> None:
-        self.assertIn("BeginGenericMutation(document_id, revision)", self.source)
-        self.assertIn("IsBoundedCosmeticDomSnapshot(classes, ids)", self.source)
+        self.assertIn(
+            "BeginGenericMutation(document_id, snapshot.revision)", self.source
+        )
+        self.assertIn(
+            "IsBoundedCosmeticDomSnapshot(snapshot.classes, snapshot.ids)",
+            self.source,
+        )
         self.assertIn("COSMETIC_SNAPSHOT_INVALID", self.source)
         self.assertIn("COSMETIC_SNAPSHOT_STALE", self.source)
         self.assertIn("OnGenericStylesheetApplied", self.source)
@@ -106,13 +111,124 @@ class ChromiumCosmeticControllerBridgeSourceTests(unittest.TestCase):
         self.assertIn("PrepareReadyDocument(ticket, *host)", self.source)
         self.assertGreaterEqual(self.source.count("if (!ContextValid())"), 7)
 
+    def test_renderer_snapshot_is_collected_automatically_and_not_public_input(self) -> None:
+        public = self.header.index("public:")
+        private = self.header.index("private:", public)
+        public_section = self.header[public:private]
+        self.assertIn("bool RefreshDomSnapshot();", public_section)
+        self.assertNotIn("std::vector<std::string> classes", public_section)
+        self.assertNotIn("ApplyDomSnapshot", public_section)
+        self.assertIn("host->CollectDomSnapshot", self.source)
+        self.assertIn("CosmeticTransportStatus::kCollected", self.source)
+        self.assertIn("ScheduleDomCollection(tracked->first)", self.source)
+        self.assertIn("ScheduleDomCollection(document_id)", self.source)
+        schedule = self.source.index("ScheduleDomCollection(tracked->first)")
+        publish = self.source.index(
+            "Publish(tracked->first, tracked->second.last_result)", schedule
+        )
+        self.assertLess(schedule, publish)
+
+    def test_dom_collection_fails_closed_when_context_or_transport_is_lost(self) -> None:
+        start = self.source.index(
+            "bool FireballCosmeticControllerBridge::StartDomCollection"
+        )
+        callback = self.source.index(
+            "void FireballCosmeticControllerBridge::OnDomSnapshotCollected",
+            start,
+        )
+        reset_document = self.source.index(
+            "void FireballCosmeticControllerBridge::ResetDocument", callback
+        )
+        start_section = self.source[start:callback]
+        callback_section = self.source[callback:reset_document]
+
+        start_context = start_section.index("if (!ContextValid())")
+        start_reset = start_section.index("ResetAllDocuments();", start_context)
+        start_state = start_section.index("if (!state_.ready()", start_reset)
+        self.assertLess(start_context, start_reset)
+        self.assertLess(start_reset, start_state)
+
+        callback_context = callback_section.index("if (!ContextValid())")
+        callback_reset = callback_section.index(
+            "ResetAllDocuments();", callback_context
+        )
+        callback_identity = callback_section.index(
+            "if (!state_.IsCurrent(ticket))", callback_reset
+        )
+        inactive_host = callback_section.index(
+            "if (ResolveHost(document_id, document) == nullptr)",
+            callback_identity,
+        )
+        reset_inactive_document = callback_section.index(
+            "ResetDocument(document_id, document);", inactive_host
+        )
+        self.assertLess(callback_context, callback_reset)
+        self.assertLess(callback_reset, callback_identity)
+        self.assertLess(callback_identity, inactive_host)
+        self.assertLess(inactive_host, reset_inactive_document)
+
+        limit = callback_section.index(
+            "CosmeticTransportStatus::kLimited", reset_inactive_document
+        )
+        error = callback_section.index(
+            "transport_result.status != CosmeticTransportStatus::kCollected",
+            limit,
+        )
+        reset_failed_document = callback_section.index(
+            "ResetDocument(document_id, document);", error
+        )
+        self.assertLess(limit, error)
+        self.assertLess(error, reset_failed_document)
+        self.assertIn("state_.BeginDomCollection(document_id)", start_section)
+        self.assertIn("ClearGenericStylesheetAfterLimit", callback_section)
+        self.assertIn("OnGenericStylesheetClearedAfterLimit", callback_section)
+        self.assertIn("CancelDomCollection(document_id", self.source)
+        self.assertIn("host.CancelDomSnapshot()", self.source)
+
+    def test_revoke_and_refresh_cancel_dom_collection_before_mutation(self) -> None:
+        revoke = self.source.index(
+            "bool FireballCosmeticControllerBridge::RevokeActiveDocument"
+        )
+        refresh = self.source.index(
+            "bool FireballCosmeticControllerBridge::RefreshActiveDocument",
+            revoke,
+        )
+        activation = self.source.index(
+            "bool FireballCosmeticControllerBridge::CanActivateCosmeticDocument",
+            refresh,
+        )
+        revoke_section = self.source[revoke:refresh]
+        refresh_section = self.source[refresh:activation]
+        for section in (revoke_section, refresh_section):
+            cancel = section.index("CancelDomCollection(document_id")
+            ready = section.index("if (!state_.ready()", cancel)
+            begin = section.index("state_.BeginRevocation(document_id)", ready)
+            self.assertLess(cancel, ready)
+            self.assertLess(ready, begin)
+
+        cancel_helper = self.source.index(
+            "bool FireballCosmeticControllerBridge::CancelDomCollection"
+        )
+        callback = self.source.index(
+            "void FireballCosmeticControllerBridge::OnDomSnapshotCollected",
+            cancel_helper,
+        )
+        cancel_section = self.source[cancel_helper:callback]
+        host_cancel = cancel_section.index("host.CancelDomSnapshot()")
+        state_cancel = cancel_section.index("state_.CancelDomCollection", host_cancel)
+        cleanup = cancel_section.index("ResetDocument(document_id, document)")
+        self.assertLess(host_cancel, state_cancel)
+        self.assertLess(state_cancel, cleanup)
+
     def test_suspended_document_snapshot_cannot_revoke_active_document(self) -> None:
         begin = self.source.index("bool FireballCosmeticControllerBridge::ApplyDomSnapshot")
         end = self.source.index("bool FireballCosmeticControllerBridge::RevokeActiveDocument", begin)
         section = self.source[begin:end]
         active_identity = section.index("*state_.active_document_id() != document_id")
         active_host = section.index("ResolveHost(document_id, tracked->second.document)")
-        disabled_early_return = section.index("!tracked->second.plan.generic_scan_allowed")
+        disabled_early_return = section.index(
+            "!tracked->second.plan.generic_scan_allowed"
+        )
         policy = section.index("policy_->MatchGenericSelectors")
         self.assertLess(active_identity, active_host)
         self.assertLess(active_host, disabled_early_return)
@@ -173,25 +289,37 @@ class ChromiumCosmeticControllerBridgeSourceTests(unittest.TestCase):
         self.assertIn("state_.Dispose(document_id)", section)
         self.assertIn("documents_.erase(document_id)", section)
 
-    def test_bfcache_restore_replays_both_layers_before_ready(self) -> None:
+    def test_bfcache_restore_replays_document_then_rescans_generic(self) -> None:
         binding = self.host_source.index("state_.CompleteBinding")
         restore = self.host_source.index("RestoreDesiredStyles", binding)
         document = self.host_source.index(
             "CosmeticStyleLayer::kDocument", restore
         )
-        generic = self.host_source.index(
-            "RestoreDesiredGenericStyle", document
-        )
-        complete = self.host_source.index("state_.CompleteRestore", generic)
+        complete = self.host_source.index("state_.CompleteRestore", document)
         self.assertLess(binding, restore)
         self.assertLess(restore, document)
-        self.assertLess(document, generic)
-        self.assertLess(generic, complete)
+        self.assertLess(document, complete)
+        self.assertNotIn("RestoreDesiredGenericStyle", self.host_source)
         self.assertIn("desired_document_stylesheet_", self.host_header)
         self.assertIn("desired_generic_stylesheet_", self.host_header)
         self.assertIn("result.status == CosmeticTransportStatus::kApplied", self.host_source)
         self.assertIn("desired_document_stylesheet_.clear()", self.host_source)
         self.assertIn("desired_generic_stylesheet_.clear()", self.host_source)
+
+        prepare = self.source.index(
+            "void FireballCosmeticControllerBridge::PrepareReadyDocument"
+        )
+        schedule = self.source.index("ScheduleDomCollection(document_id)", prepare)
+        reset_result = self.source.index(
+            "tracked->second.last_result =", prepare, schedule
+        )
+        document_only_count = self.source.index(
+            "tracked->second.plan.hidden_selector_count", reset_result, schedule
+        )
+        publish = self.source.index("Publish(document_id, tracked->second.last_result)", schedule)
+        self.assertLess(reset_result, document_only_count)
+        self.assertLess(document_only_count, schedule)
+        self.assertLess(schedule, publish)
 
     def test_bridge_is_compile_gated_but_not_constructed_by_chrome(self) -> None:
         build = (ROOT / "fireball/chromium/BUILD.gn").read_text(encoding="utf-8")

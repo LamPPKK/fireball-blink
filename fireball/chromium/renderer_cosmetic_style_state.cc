@@ -27,7 +27,9 @@ bool RendererCosmeticStyleState::BeginDocument() {
   document_key_.clear();
   generic_key_.clear();
   binding_generation_ = 0;
+  dom_snapshot_revision_ = 0;
   binding_generation_exhausted_ = false;
+  dom_snapshot_revision_exhausted_ = false;
   binding_active_ = false;
   ++state_revision_;
   if (document_epoch_exhausted_ ||
@@ -71,6 +73,28 @@ bool RendererCosmeticStyleState::BindDocument(
   ++state_revision_;
   ++binding_generation_;
   return true;
+}
+
+std::optional<std::uint64_t>
+RendererCosmeticStyleState::NextDomSnapshotRevision(
+    const browser::DocumentId& document_id,
+    std::uint64_t expected_document_epoch,
+    std::uint64_t expected_binding_generation) {
+  if (expected_document_epoch == 0 ||
+      expected_document_epoch != document_epoch() ||
+      expected_binding_generation == 0 ||
+      expected_binding_generation != binding_generation() ||
+      !binding_active_ || !document_id_.has_value() ||
+      *document_id_ != document_id || dom_snapshot_revision_exhausted_ ||
+      dom_snapshot_revision_ == std::numeric_limits<std::uint64_t>::max()) {
+    if (dom_snapshot_revision_ == std::numeric_limits<std::uint64_t>::max()) {
+      dom_snapshot_revision_ = 0;
+      dom_snapshot_revision_exhausted_ = true;
+    }
+    return std::nullopt;
+  }
+  ++dom_snapshot_revision_;
+  return dom_snapshot_revision_;
 }
 
 RendererStyleMutation RendererCosmeticStyleState::PrepareMutation(

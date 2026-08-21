@@ -5,6 +5,8 @@
 #include <utility>
 
 #include "base/functional/bind.h"
+#include "base/location.h"
+#include "base/task/sequenced_task_runner.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "fireball/chromium/profile_policy_binding.h"
@@ -115,16 +117,20 @@ bool FireballCosmeticControllerBridge::Initialize(
   return true;
 }
 
+bool FireballCosmeticControllerBridge::RefreshDomSnapshot() {
+  return state_.active_document_id().has_value() &&
+         StartDomCollection(*state_.active_document_id());
+}
+
 bool FireballCosmeticControllerBridge::ApplyDomSnapshot(
-    const browser::DocumentId &document_id, std::uint64_t revision,
-    std::vector<std::string> classes, std::vector<std::string> ids) {
+    const browser::DocumentId &document_id, CosmeticDomSnapshot snapshot) {
   auto tracked = documents_.find(document_id);
   if (!ContextValid()) {
     ResetAllDocuments();
     Publish(document_id, Error("COSMETIC_SNAPSHOT_CONTEXT_INVALID"));
     return false;
   }
-  if (tracked == documents_.end() || revision == 0) {
+  if (tracked == documents_.end() || snapshot.revision == 0) {
     Publish(document_id, Error("COSMETIC_SNAPSHOT_CONTEXT_INVALID"));
     return false;
   }
@@ -144,11 +150,11 @@ bool FireballCosmeticControllerBridge::ApplyDomSnapshot(
     Publish(document_id, Error("COSMETIC_DOCUMENT_INACTIVE"));
     return false;
   }
-  if (!IsBoundedCosmeticDomSnapshot(classes, ids)) {
+  if (!IsBoundedCosmeticDomSnapshot(snapshot.classes, snapshot.ids)) {
     Publish(document_id, Error("COSMETIC_SNAPSHOT_INVALID"));
     return false;
   }
-  if (revision <= tracked->second.last_dom_revision) {
+  if (snapshot.revision <= tracked->second.last_dom_revision) {
     Publish(document_id, Error("COSMETIC_SNAPSHOT_STALE"));
     return false;
   }
@@ -158,7 +164,8 @@ bool FireballCosmeticControllerBridge::ApplyDomSnapshot(
   }
   navigation::GenericCosmeticPlan generic =
       policy_->MatchGenericSelectors(profile_id_, tracked->second.plan.hostname,
-                                     tracked->second.plan, classes, ids);
+                                     tracked->second.plan, snapshot.classes,
+                                     snapshot.ids);
   if (generic.status == navigation::DocumentCosmeticStatus::kDisabled) {
     return RevokeActiveDocument();
   }
@@ -168,7 +175,7 @@ bool FireballCosmeticControllerBridge::ApplyDomSnapshot(
                                              : generic.error_code));
     return false;
   }
-  auto ticket = state_.BeginGenericMutation(document_id, revision);
+  auto ticket = state_.BeginGenericMutation(document_id, snapshot.revision);
   if (!ticket.has_value()) {
     Publish(document_id, Error("COSMETIC_CONTROLLER_BUSY"));
     return false;
@@ -204,11 +211,7 @@ bool FireballCosmeticControllerBridge::RevokeActiveDocument() {
     Publish(document_id, Disabled());
     return true;
   }
-  if (!state_.ready() || tracked == documents_.end()) {
-    return false;
-  }
-  auto ticket = state_.BeginRevocation(document_id);
-  if (!ticket.has_value()) {
+  if (tracked == documents_.end()) {
     return false;
   }
   FireballCosmeticDocumentHost *host =
@@ -216,6 +219,17 @@ bool FireballCosmeticControllerBridge::RevokeActiveDocument() {
   if (host == nullptr) {
     state_.Fail(document_id);
     Publish(document_id, Error("COSMETIC_DOCUMENT_INACTIVE"));
+    return false;
+  }
+  if (!CancelDomCollection(document_id, *host, tracked->second.document)) {
+    Publish(document_id, Error("COSMETIC_DOM_CANCELLATION_FAILED"));
+    return false;
+  }
+  if (!state_.ready()) {
+    return false;
+  }
+  auto ticket = state_.BeginRevocation(document_id);
+  if (!ticket.has_value()) {
     return false;
   }
   host->Revoke(base::BindOnce(
@@ -261,6 +275,10 @@ bool FireballCosmeticControllerBridge::RefreshActiveDocument() {
         &FireballCosmeticControllerBridge::OnHostReactivatedForRefresh,
         weak_factory_.GetWeakPtr(), *activation, document));
     return true;
+  }
+  if (!CancelDomCollection(document_id, *host, document)) {
+    Publish(document_id, Error("COSMETIC_DOM_CANCELLATION_FAILED"));
+    return false;
   }
   if (!state_.ready() || tracked == documents_.end()) {
     return false;
@@ -318,6 +336,12 @@ void FireballCosmeticControllerBridge::PrepareReadyDocument(
     tracked->second.document = document;
     if (!state_.CompleteActivation(ticket, true)) {
       return;
+    }
+    if (tracked->second.plan.generic_scan_allowed) {
+      tracked->second.last_result =
+          Applied(tracked->second.plan,
+                  tracked->second.plan.hidden_selector_count);
+      ScheduleDomCollection(document_id);
     }
     Publish(document_id, tracked->second.last_result);
     return;
@@ -415,6 +439,167 @@ bool FireballCosmeticControllerBridge::ProfileOwnsTab() const {
 bool FireballCosmeticControllerBridge::ContextValid() const {
   return tab_binding_ && tab_binding_->Matches(profile_id_, tab_id_) &&
          tab_binding_->OwnsCosmeticController(tab_claim_) && ProfileOwnsTab();
+}
+
+void FireballCosmeticControllerBridge::ScheduleDomCollection(
+    const browser::DocumentId &document_id) {
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&FireballCosmeticControllerBridge::StartDomCollection,
+                     weak_factory_.GetWeakPtr(), document_id));
+}
+
+bool FireballCosmeticControllerBridge::StartDomCollection(
+    const browser::DocumentId &document_id) {
+  if (!ContextValid()) {
+    ResetAllDocuments();
+    return false;
+  }
+  if (!state_.ready() || !state_.active_document_id().has_value() ||
+      *state_.active_document_id() != document_id) {
+    return false;
+  }
+  auto tracked = documents_.find(document_id);
+  if (tracked == documents_.end() ||
+      !tracked->second.plan.generic_scan_allowed) {
+    return false;
+  }
+  FireballCosmeticDocumentHost *host =
+      ResolveHost(document_id, tracked->second.document);
+  if (host == nullptr || !host->ready()) {
+    return false;
+  }
+  auto ticket = state_.BeginDomCollection(document_id);
+  if (!ticket.has_value()) {
+    return false;
+  }
+  host->CollectDomSnapshot(base::BindOnce(
+      &FireballCosmeticControllerBridge::OnDomSnapshotCollected,
+      weak_factory_.GetWeakPtr(), *ticket, tracked->second.document));
+  return true;
+}
+
+bool FireballCosmeticControllerBridge::CancelDomCollection(
+    const browser::DocumentId &document_id,
+    FireballCosmeticDocumentHost &host,
+    const content::WeakDocumentPtr &document) {
+  if (!state_.collecting_dom()) {
+    return true;
+  }
+  if (!host.CancelDomSnapshot() ||
+      !state_.CancelDomCollection(document_id)) {
+    ResetDocument(document_id, document);
+    return false;
+  }
+  return true;
+}
+
+void FireballCosmeticControllerBridge::OnDomSnapshotCollected(
+    BrowserCosmeticControllerTicket ticket,
+    content::WeakDocumentPtr document,
+    CosmeticTransportResult transport_result,
+    CosmeticDomSnapshot snapshot) {
+  if (!ContextValid()) {
+    ResetAllDocuments();
+    return;
+  }
+  if (!state_.IsCurrent(ticket)) {
+    return;
+  }
+  const browser::DocumentId &document_id = ticket.document_id;
+  content::RenderFrameHost *frame = document.AsRenderFrameHostIfValid();
+  if (frame == nullptr || !frame->IsActive()) {
+    // The lifecycle owner invalidates the transport before it publishes the
+    // matching suspend/dispose transition. That transition owns controller
+    // cleanup and BFCache retention for this synchronous callback path.
+    return;
+  }
+  if (ResolveHost(document_id, document) == nullptr) {
+    ResetDocument(document_id, document);
+    Publish(document_id, Error("COSMETIC_DOCUMENT_INACTIVE"));
+    return;
+  }
+  if (transport_result.status == CosmeticTransportStatus::kLimited) {
+    if (!state_.CompleteDomCollection(ticket)) {
+      return;
+    }
+    ClearGenericStylesheetAfterLimit(
+        document_id, document, snapshot.revision,
+        transport_result.error_code.empty()
+            ? "COSMETIC_DOM_LIMIT_EXCEEDED"
+            : std::move(transport_result.error_code));
+    return;
+  }
+  if (transport_result.status != CosmeticTransportStatus::kCollected) {
+    std::string error_code =
+        transport_result.error_code.empty()
+            ? "COSMETIC_DOM_COLLECTION_FAILED"
+            : std::move(transport_result.error_code);
+    ResetDocument(document_id, document);
+    Publish(document_id, Error(error_code));
+    return;
+  }
+  if (!state_.CompleteDomCollection(ticket)) {
+    return;
+  }
+  ApplyDomSnapshot(document_id, std::move(snapshot));
+}
+
+void FireballCosmeticControllerBridge::ClearGenericStylesheetAfterLimit(
+    const browser::DocumentId &document_id,
+    const content::WeakDocumentPtr &document,
+    std::uint64_t revision,
+    std::string error_code) {
+  auto tracked = documents_.find(document_id);
+  FireballCosmeticDocumentHost *host = ResolveHost(document_id, document);
+  auto ticket = state_.BeginGenericMutation(document_id, revision);
+  if (tracked == documents_.end() || host == nullptr ||
+      !ticket.has_value()) {
+    ResetDocument(document_id, document);
+    Publish(document_id, Error("COSMETIC_DOM_LIMIT_CLEANUP_FAILED"));
+    return;
+  }
+  host->SetStylesheet(
+      navigation::CosmeticStyleLayer::kGeneric, {},
+      base::BindOnce(
+          &FireballCosmeticControllerBridge::
+              OnGenericStylesheetClearedAfterLimit,
+          weak_factory_.GetWeakPtr(), *ticket, document,
+          std::move(error_code)));
+}
+
+void FireballCosmeticControllerBridge::OnGenericStylesheetClearedAfterLimit(
+    BrowserCosmeticControllerTicket ticket,
+    content::WeakDocumentPtr document,
+    std::string error_code,
+    CosmeticTransportResult transport_result) {
+  if (!state_.IsCurrent(ticket)) {
+    return;
+  }
+  if (!ContextValid()) {
+    ResetAllDocuments();
+    return;
+  }
+  const bool accepted =
+      transport_result.status == CosmeticTransportStatus::kApplied &&
+      ResolveHost(ticket.document_id, document) != nullptr;
+  if (!state_.CompleteGenericMutation(ticket, accepted)) {
+    return;
+  }
+  auto tracked = documents_.find(ticket.document_id);
+  if (!accepted || tracked == documents_.end()) {
+    ResetDocument(ticket.document_id, document);
+    Publish(ticket.document_id,
+            Error(transport_result.error_code.empty()
+                      ? "COSMETIC_DOM_LIMIT_CLEANUP_FAILED"
+                      : transport_result.error_code));
+    return;
+  }
+  tracked->second.last_dom_revision = ticket.dom_revision;
+  tracked->second.last_result =
+      Applied(tracked->second.plan,
+              tracked->second.plan.hidden_selector_count);
+  Publish(ticket.document_id, Error(error_code));
 }
 
 void FireballCosmeticControllerBridge::ResetDocument(
@@ -521,6 +706,9 @@ void FireballCosmeticControllerBridge::OnDocumentStylesheetApplied(
     state_.Fail(ticket.document_id);
     Publish(ticket.document_id, Error("COSMETIC_DOCUMENT_CONTEXT_INVALID"));
     return;
+  }
+  if (tracked->second.plan.generic_scan_allowed) {
+    ScheduleDomCollection(tracked->first);
   }
   Publish(tracked->first, tracked->second.last_result);
 }

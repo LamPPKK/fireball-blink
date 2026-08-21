@@ -41,6 +41,11 @@ class RendererCosmeticStyleState final {
   bool BindDocument(browser::DocumentId document_id,
                     std::uint64_t expected_document_epoch);
 
+  std::optional<std::uint64_t> NextDomSnapshotRevision(
+      const browser::DocumentId& document_id,
+      std::uint64_t expected_document_epoch,
+      std::uint64_t expected_binding_generation);
+
   RendererStyleMutation PrepareMutation(
       const browser::DocumentId& document_id,
       std::uint64_t expected_document_epoch,
@@ -66,8 +71,10 @@ class RendererCosmeticStyleState final {
   std::uint64_t key_sequence_ = 0;
   std::uint64_t document_epoch_ = 0;
   std::uint64_t binding_generation_ = 0;
+  std::uint64_t dom_snapshot_revision_ = 0;
   bool document_epoch_exhausted_ = false;
   bool binding_generation_exhausted_ = false;
+  bool dom_snapshot_revision_exhausted_ = false;
   bool binding_active_ = false;
 };
 

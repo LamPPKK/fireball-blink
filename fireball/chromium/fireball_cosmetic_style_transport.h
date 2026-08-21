@@ -2,12 +2,14 @@
 #define FIREBALL_CHROMIUM_FIREBALL_COSMETIC_STYLE_TRANSPORT_H_
 
 #include <string>
+#include <vector>
 
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "content/public/browser/weak_document_ptr.h"
 #include "fireball/browser/domain_model.h"
 #include "fireball/chromium/browser_cosmetic_transport_state.h"
+#include "fireball/chromium/cosmetic_dom_snapshot.h"
 #include "fireball/chromium/cosmetic_style_agent.mojom.h"
 #include "fireball/components/navigation/document_cosmetic_controller.h"
 #include "mojo/public/cpp/bindings/associated_remote.h"
@@ -20,6 +22,8 @@ namespace fireball::chromium {
 
 enum class CosmeticTransportStatus {
   kBound,
+  kCollected,
+  kLimited,
   kApplied,
   kRevoked,
   kError,
@@ -40,6 +44,8 @@ struct CosmeticTransportResult {
 class FireballCosmeticStyleTransport final {
  public:
   using CompletionCallback = base::OnceCallback<void(CosmeticTransportResult)>;
+  using DomSnapshotCallback =
+      base::OnceCallback<void(CosmeticTransportResult, CosmeticDomSnapshot)>;
 
   FireballCosmeticStyleTransport(content::RenderFrameHost& render_frame_host,
                                  browser::DocumentId document_id);
@@ -51,6 +57,8 @@ class FireballCosmeticStyleTransport final {
       const FireballCosmeticStyleTransport&) = delete;
 
   void BindDocument(CompletionCallback callback);
+  void CollectDomSnapshot(DomSnapshotCallback callback);
+  bool CancelDomSnapshot();
   void SetStylesheet(navigation::CosmeticStyleLayer layer,
                      std::string stylesheet,
                      CompletionCallback callback);
@@ -70,12 +78,23 @@ class FireballCosmeticStyleTransport final {
   void OnDocumentBound(BrowserCosmeticTransportTicket ticket,
                        bool bound,
                        std::uint64_t binding_generation);
+  void OnDomSnapshotCollected(BrowserCosmeticTransportTicket ticket,
+                              bool collected,
+                              bool limit_exceeded,
+                              std::uint64_t revision,
+                              std::uint32_t payload_size,
+                              std::uint32_t class_count,
+                              std::uint32_t id_count,
+                              std::vector<std::uint8_t> payload);
   void OnMutationCompleted(BrowserCosmeticTransportTicket ticket,
                            bool accepted);
   void OnDisconnected();
   void FailCurrent(const BrowserCosmeticTransportTicket& ticket,
                    std::string error_code);
   void Finish(CosmeticTransportStatus status, std::string error_code = {});
+  void FinishDomSnapshot(CosmeticTransportStatus status,
+                         std::string error_code = {},
+                         CosmeticDomSnapshot snapshot = {});
   static fireball::mojom::CosmeticStyleLayer ConvertLayer(
       navigation::CosmeticStyleLayer layer);
 
@@ -84,6 +103,7 @@ class FireballCosmeticStyleTransport final {
   BrowserCosmeticTransportState state_;
   mojo::AssociatedRemote<fireball::mojom::CosmeticStyleAgent> remote_;
   CompletionCallback pending_callback_;
+  DomSnapshotCallback pending_dom_snapshot_callback_;
   base::WeakPtrFactory<FireballCosmeticStyleTransport> weak_factory_{this};
 };
 

@@ -74,6 +74,19 @@ void FireballCosmeticDocumentHost::ResetForController() {
   desired_generic_stylesheet_.clear();
 }
 
+void FireballCosmeticDocumentHost::CollectDomSnapshot(
+    DomSnapshotCallback callback) {
+  if (!ready() || !IsActivePrimaryDocument()) {
+    std::move(callback).Run(Error("COSMETIC_DOCUMENT_NOT_READY"), {});
+    return;
+  }
+  transport_->CollectDomSnapshot(std::move(callback));
+}
+
+bool FireballCosmeticDocumentHost::CancelDomSnapshot() {
+  return ready() || (transport_ && transport_->CancelDomSnapshot());
+}
+
 void FireballCosmeticDocumentHost::SetStylesheet(
     navigation::CosmeticStyleLayer layer, std::string stylesheet,
     CompletionCallback callback) {
@@ -143,35 +156,13 @@ void FireballCosmeticDocumentHost::RestoreDesiredStyles(
     return;
   }
   if (desired_document_stylesheet_.empty()) {
-    RestoreDesiredGenericStyle(ticket, std::move(callback));
+    FinishRestore(ticket, std::move(callback), true);
     return;
   }
   transport_->SetStylesheet(
       navigation::CosmeticStyleLayer::kDocument, desired_document_stylesheet_,
       base::BindOnce(
           &FireballCosmeticDocumentHost::OnDesiredDocumentStyleRestored,
-          weak_factory_.GetWeakPtr(), ticket, std::move(callback)));
-}
-
-void FireballCosmeticDocumentHost::RestoreDesiredGenericStyle(
-    BrowserCosmeticDocumentTicket ticket, CompletionCallback callback) {
-  if (!state_.IsCurrent(ticket) || transport_ == nullptr) {
-    if (state_.IsCurrent(ticket)) {
-      FinishRestore(ticket, std::move(callback), false,
-                    "COSMETIC_DOCUMENT_RESTORE_FAILED");
-    } else {
-      std::move(callback).Run(Error("COSMETIC_DOCUMENT_RESTORE_STALE"));
-    }
-    return;
-  }
-  if (desired_generic_stylesheet_.empty()) {
-    FinishRestore(ticket, std::move(callback), true);
-    return;
-  }
-  transport_->SetStylesheet(
-      navigation::CosmeticStyleLayer::kGeneric, desired_generic_stylesheet_,
-      base::BindOnce(
-          &FireballCosmeticDocumentHost::OnDesiredGenericStyleRestored,
           weak_factory_.GetWeakPtr(), ticket, std::move(callback)));
 }
 
@@ -185,19 +176,7 @@ void FireballCosmeticDocumentHost::OnDesiredDocumentStyleRestored(
                       : std::string_view(result.error_code));
     return;
   }
-  RestoreDesiredGenericStyle(ticket, std::move(callback));
-}
-
-void FireballCosmeticDocumentHost::OnDesiredGenericStyleRestored(
-    BrowserCosmeticDocumentTicket ticket, CompletionCallback callback,
-    CosmeticTransportResult result) {
-  const bool accepted = result.status == CosmeticTransportStatus::kApplied;
-  FinishRestore(
-      ticket, std::move(callback), accepted,
-      accepted ? std::string_view()
-               : (result.error_code.empty()
-                      ? std::string_view("COSMETIC_DOCUMENT_RESTORE_FAILED")
-                      : std::string_view(result.error_code)));
+  FinishRestore(ticket, std::move(callback), true);
 }
 
 void FireballCosmeticDocumentHost::FinishRestore(

@@ -88,9 +88,11 @@ policy implementation:
   controller bridge requires an exclusive Profile/Tab/WebContents claim and commits document,
   generic and revoke state only after renderer acknowledgement, and it uses a
   fail-closed revoke → rebind → reevaluate sequence after a Shields policy
-  change. Remaining wiring
-  must construct that bridge from Chrome and submit only bounded,
-  monotonically revisioned class/ID snapshots for generic matching.
+  change. The renderer now scans only bounded light-DOM class/ID values through
+  native Blink APIs, assigns a renderer-owned monotonic revision and feeds the
+  bridge through typed Mojo after the document layer is acknowledged. Remaining
+  wiring must construct that bridge from Chrome and add trusted DOM-mutation
+  refresh triggers.
 
 The current repository proves the platform-neutral network/cosmetic policies
 and native FFI seams plus a compile-gated Chromium renderer endpoint and

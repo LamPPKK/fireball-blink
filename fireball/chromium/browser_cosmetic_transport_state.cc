@@ -56,6 +56,44 @@ bool BrowserCosmeticTransportState::CompleteBinding(
 }
 
 std::optional<BrowserCosmeticTransportTicket>
+BrowserCosmeticTransportState::BeginDomCollection() {
+  if (!ready()) {
+    return std::nullopt;
+  }
+  auto ticket = AdvanceGeneration();
+  if (!ticket.has_value()) {
+    return std::nullopt;
+  }
+  phase_ = BrowserCosmeticTransportPhase::kCollectingDom;
+  return ticket;
+}
+
+bool BrowserCosmeticTransportState::CompleteDomCollection(
+    const BrowserCosmeticTransportTicket& ticket,
+    bool transport_valid) {
+  if (!IsCurrent(ticket) ||
+      phase_ != BrowserCosmeticTransportPhase::kCollectingDom) {
+    return false;
+  }
+  phase_ = transport_valid ? BrowserCosmeticTransportPhase::kReady
+                           : BrowserCosmeticTransportPhase::kFailed;
+  if (!transport_valid) {
+    document_epoch_ = 0;
+    binding_generation_ = 0;
+  }
+  return true;
+}
+
+bool BrowserCosmeticTransportState::CancelDomCollection() {
+  if (phase_ != BrowserCosmeticTransportPhase::kCollectingDom ||
+      !AdvanceGeneration().has_value()) {
+    return false;
+  }
+  phase_ = BrowserCosmeticTransportPhase::kReady;
+  return true;
+}
+
+std::optional<BrowserCosmeticTransportTicket>
 BrowserCosmeticTransportState::BeginMutation(bool revoke_document) {
   if (!ready()) {
     return std::nullopt;

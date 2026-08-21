@@ -1,27 +1,19 @@
 #ifndef FIREBALL_CHROMIUM_BROWSER_COSMETIC_CONTROLLER_STATE_H_
 #define FIREBALL_CHROMIUM_BROWSER_COSMETIC_CONTROLLER_STATE_H_
 
-#include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <string>
-#include <vector>
 
 #include "fireball/browser/domain_model.h"
+#include "fireball/chromium/cosmetic_dom_snapshot.h"
 
 namespace fireball::chromium {
-
-inline constexpr std::size_t kMaximumCosmeticDomEntries = 4096;
-inline constexpr std::size_t kMaximumCosmeticDomTokenBytes = 256;
-inline constexpr std::size_t kMaximumCosmeticDomSnapshotBytes = 256 * 1024;
-
-bool IsBoundedCosmeticDomSnapshot(const std::vector<std::string> &classes,
-                                  const std::vector<std::string> &ids);
 
 enum class BrowserCosmeticControllerPhase {
   kIdle,
   kActivating,
   kReady,
+  kCollectingDom,
   kApplyingGeneric,
   kRevoking,
   kSuspended,
@@ -46,6 +38,11 @@ public:
                           bool accepted);
 
   std::optional<BrowserCosmeticControllerTicket>
+  BeginDomCollection(const browser::DocumentId &document_id);
+  bool CompleteDomCollection(const BrowserCosmeticControllerTicket &ticket);
+  bool CancelDomCollection(const browser::DocumentId &document_id);
+
+  std::optional<BrowserCosmeticControllerTicket>
   BeginGenericMutation(const browser::DocumentId &document_id,
                        std::uint64_t dom_revision);
   bool CompleteGenericMutation(const BrowserCosmeticControllerTicket &ticket,
@@ -65,6 +62,9 @@ public:
   bool IsCurrent(const BrowserCosmeticControllerTicket &ticket) const;
   bool ready() const {
     return phase_ == BrowserCosmeticControllerPhase::kReady;
+  }
+  bool collecting_dom() const {
+    return phase_ == BrowserCosmeticControllerPhase::kCollectingDom;
   }
   BrowserCosmeticControllerPhase phase() const { return phase_; }
   const std::optional<browser::DocumentId> &active_document_id() const {

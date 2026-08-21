@@ -27,6 +27,8 @@ class FireballCosmeticDocumentHost final
     : public content::DocumentUserData<FireballCosmeticDocumentHost> {
 public:
   using CompletionCallback = FireballCosmeticStyleTransport::CompletionCallback;
+  using DomSnapshotCallback =
+      FireballCosmeticStyleTransport::DomSnapshotCallback;
 
   FireballCosmeticDocumentHost(const FireballCosmeticDocumentHost &) = delete;
   FireballCosmeticDocumentHost &
@@ -36,6 +38,8 @@ public:
   void Activate(CompletionCallback callback);
   void Suspend();
   void ResetForController();
+  void CollectDomSnapshot(DomSnapshotCallback callback);
+  bool CancelDomSnapshot();
   void SetStylesheet(navigation::CosmeticStyleLayer layer,
                      std::string stylesheet, CompletionCallback callback);
   void Revoke(CompletionCallback callback);
@@ -55,14 +59,9 @@ private:
                    CompletionCallback callback, CosmeticTransportResult result);
   void RestoreDesiredStyles(BrowserCosmeticDocumentTicket ticket,
                             CompletionCallback callback);
-  void RestoreDesiredGenericStyle(BrowserCosmeticDocumentTicket ticket,
-                                  CompletionCallback callback);
   void OnDesiredDocumentStyleRestored(BrowserCosmeticDocumentTicket ticket,
                                       CompletionCallback callback,
                                       CosmeticTransportResult result);
-  void OnDesiredGenericStyleRestored(BrowserCosmeticDocumentTicket ticket,
-                                     CompletionCallback callback,
-                                     CosmeticTransportResult result);
   void FinishRestore(BrowserCosmeticDocumentTicket ticket,
                      CompletionCallback callback, bool accepted,
                      std::string_view error_code = {});

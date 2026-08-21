@@ -4,9 +4,9 @@ Fireball now carries the non-network half of its native blocker through the
 real pinned `adblock-rust` engine. The implementation is intentionally split at
 the renderer boundary: this repository proves rule evaluation, strict decoding,
 Profile policy, safe stylesheet construction and a compile-gated native Blink
-stylesheet endpoint, asynchronous browser transport, lifecycle owner and
-acknowledgement-driven controller bridge. Chrome activation and DOM-token
-collection remain open, so no real-page hiding is claimed.
+stylesheet endpoint, asynchronous browser transport, lifecycle owner,
+acknowledgement-driven controller bridge and a bounded native light-DOM
+collector. Chrome activation remains open, so no real-page hiding is claimed.
 
 ## Two-phase document plan
 
@@ -69,6 +69,10 @@ Both Rust and C++ enforce limits independently. The current contract is:
 | Selector | 4,096 bytes |
 | Procedural action | 8,192 bytes |
 | Exception or DOM class/ID token | 256 bytes |
+| Unique DOM class + ID tokens | 4,096 total |
+| DOM snapshot token bytes | 256 KiB total |
+| Light-DOM elements scanned | 50,000 |
+| Class attribute parsed | 4,096 bytes |
 | Engine-provided injected script | 256 KiB |
 | Each class/ID/exception JSON request | 256 KiB |
 | Compiled stylesheet | 512 KiB |
@@ -120,7 +124,9 @@ renderer accepts a repeated bind only for the same UUID and epoch, then rotates
 the binding generation. Disconnect cleanup removes any mutation that was
 already ordered on the older pipe; later old-generation mutations fail. The
 host retains only the last acknowledged CSS for its two bounded layers and
-replays document then generic CSS before it reports READY. A
+replays only the document-specific CSS before it reports READY. The controller
+then requests a fresh bounded DOM snapshot before generic CSS can be applied;
+it does not replay cached generic matches across BFCache suspension. A
 `WebContentsObserver` owner uses `PrimaryPageChanged`,
 `RenderFrameHostStateChanged` and `RenderFrameDeleted`. Only a document in
 `kInBackForwardCache` retains its plan; normal navigation and cache eviction
@@ -136,10 +142,31 @@ callbacks. Policy refresh revokes both layers, rebinds the same document and
 reevaluates the current committed URL before applying a replacement plan.
 Teardown clears active and cached desired styles before releasing the Tab claim;
 failed mutations can be synchronously reset and rebound on the same active
-document. Generic snapshots remain an explicit typed C++ input. The bridge rejects more
-than 4,096 total entries, tokens over 256 bytes, NUL bytes and snapshots over
-256 KiB before policy evaluation; the renderer-side collector that will call
-this API is not implemented yet.
+document. Generic snapshots are now renderer-owned rather than a public bridge
+input. `FireballCosmeticStyleAgent` walks the active main document through
+Blink's native `WebDocument::All()`/`WebElement` APIs, reads only `id` and
+`class`, splits class values on HTML ASCII whitespace and produces sorted,
+deduplicated tokens. It never serializes page text, arbitrary attributes,
+forms, URLs, markup or shadow subtrees. Individual invalid or oversized tokens
+are skipped; exceeding the element, entry or aggregate-byte quota rejects the
+generic snapshot with `COSMETIC_DOM_LIMIT_EXCEEDED`, removes any prior generic
+layer with renderer acknowledgement and retains only the document-specific
+layer. BFCache restore likewise replays only the document layer until a fresh
+snapshot succeeds.
+
+The typed Mojo request echoes the document epoch and binding generation before
+the scan. Its response is a fixed 270,336-byte byte array: at most 256 KiB of
+token data plus a two-byte length per token. The renderer owns a strictly
+increasing snapshot revision, and the browser decodes only canonical sorted
+tokens, independently revalidates all wire and token quotas, and reports
+malformed response tuples as bad Mojo messages before policy evaluation. The
+bridge schedules an initial collection only after the document stylesheet is
+acknowledged. A WebDocument that already reports loaded is scanned immediately;
+otherwise the renderer waits for `DidFinishLoad()` but caps that wait at five
+seconds. Revoke and policy refresh cancel that collection before starting their
+own acknowledged mutation, while BFCache restore schedules a fresh scan.
+`RefreshDomSnapshot()` is the narrow hook for a future trusted post-load or
+mutation trigger; no page script can submit tokens directly.
 
 The production browser adapter must keep this policy as the only source of
 cosmetic decisions and satisfy all of the following:
@@ -153,8 +180,9 @@ cosmetic decisions and satisfy all of the following:
 3. Commit document, generic and revoke state only after the exact host and
    renderer acknowledge the mutation. Never use `innerHTML`, `document.write`
    or script strings.
-4. Collect only bounded class/ID tokens for the generic phase. Do not serialize
-   text content, attributes, forms, page URLs or DOM subtrees.
+4. Trigger `RefreshDomSnapshot()` after bounded DOM-mutation events
+   without exposing token input to Chrome or page JavaScript. The collector
+   itself must remain limited to native light-DOM class/ID values.
 5. Give every class/ID snapshot a strictly increasing revision. Apply the
    generic stylesheet only if its `DocumentId`, Tab, Profile key, hostname and
    current site policy still match.
@@ -171,7 +199,10 @@ missing-engine failure. `tests/cosmetic_controller_test.cc` covers navigation
 replacement, stale revisions, cross-Profile Tab misuse, policy revocation,
 generic suppression, sink failure, Tab deletion and Profile teardown.
 `tests/renderer_cosmetic_style_state_test.cc` covers renderer revalidation,
-fresh-key replacement, stale commits, independent layers and navigation reset.
+fresh-key replacement, snapshot revision/identity checks, stale commits,
+independent layers and navigation reset.
+`tests/cosmetic_dom_snapshot_test.cc` covers deterministic token splitting,
+deduplication, invalid-token skipping and global element/entry limits.
 `tests/browser_cosmetic_transport_state_test.cc` covers browser epoch/generation
 state, stale callbacks, invalidation and revocation.
 `tests/browser_cosmetic_document_state_test.cc` covers activation, suspension,
@@ -185,7 +216,7 @@ the exact upstream seam and remaining activation work.
 
 This is a production-oriented native foundation, not yet a claim that ads are
 visually hidden in a Chromium build. That claim requires Chrome construction,
-the bounded DOM collector, renderer registration, a production
+trusted post-load/mutation snapshot triggers, renderer registration, a production
 EasyList/EasyPrivacy release from the existing
 [signed artifact pipeline](ADBLOCK_RULE_ARTIFACTS.md), a real-page regression
 corpus and Linux control-versus-overlay build evidence.

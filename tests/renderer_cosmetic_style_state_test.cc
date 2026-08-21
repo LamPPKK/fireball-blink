@@ -64,6 +64,13 @@ int main() {
   const std::uint64_t restored_binding = state.binding_generation();
   assert(restored_binding == first_binding + 1);
   assert(!state.BindDocument(second, first_epoch));
+  auto first_snapshot =
+      state.NextDomSnapshotRevision(first, first_epoch, restored_binding);
+  assert(first_snapshot.has_value() && *first_snapshot == 1);
+  assert(!state.NextDomSnapshotRevision(first, first_epoch, first_binding)
+              .has_value());
+  assert(!state.NextDomSnapshotRevision(second, first_epoch, restored_binding)
+              .has_value());
   mutation = state.PrepareMutation(first, first_epoch, restored_binding,
                                    CosmeticStyleLayer::kDocument,
                                    "body{color:red;}\n");
@@ -123,12 +130,17 @@ int main() {
   assert(!state.CurrentKey(CosmeticStyleLayer::kDocument).empty());
   state.SuspendBinding();
   assert(!state.HasBoundDocument());
+  assert(!state.NextDomSnapshotRevision(first, first_epoch, restored_binding)
+              .has_value());
   assert(state.CurrentKey(CosmeticStyleLayer::kDocument).empty());
   assert(state.CurrentKey(CosmeticStyleLayer::kGeneric).empty());
   assert(!state.BindDocument(second, first_epoch));
   assert(state.BindDocument(first, first_epoch));
   const std::uint64_t rebound_generation = state.binding_generation();
   assert(rebound_generation == restored_binding + 1);
+  auto restored_snapshot =
+      state.NextDomSnapshotRevision(first, first_epoch, rebound_generation);
+  assert(restored_snapshot.has_value() && *restored_snapshot == 2);
   mutation = state.PrepareMutation(
       first, first_epoch, restored_binding, CosmeticStyleLayer::kDocument,
       ".stale-after-rebind{display:none!important;}\n");
@@ -149,6 +161,9 @@ int main() {
   assert(state.BindDocument(second, second_epoch));
   const std::uint64_t second_binding = state.binding_generation();
   assert(second_binding == 1);
+  auto second_snapshot =
+      state.NextDomSnapshotRevision(second, second_epoch, second_binding);
+  assert(second_snapshot.has_value() && *second_snapshot == 1);
   mutation = state.PrepareMutation(
       first, second_epoch, second_binding, CosmeticStyleLayer::kGeneric,
       ".cross-document{display:none!important;}\n");

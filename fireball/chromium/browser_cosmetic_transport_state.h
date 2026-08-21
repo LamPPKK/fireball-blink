@@ -11,6 +11,7 @@ enum class BrowserCosmeticTransportPhase {
   kReadingDocumentEpoch,
   kBindingDocument,
   kReady,
+  kCollectingDom,
   kApplyingStylesheet,
   kRevokingDocument,
   kRevoked,
@@ -35,6 +36,11 @@ class BrowserCosmeticTransportState final {
   bool CompleteBinding(const BrowserCosmeticTransportTicket& ticket,
                        bool accepted,
                        std::uint64_t binding_generation);
+
+  std::optional<BrowserCosmeticTransportTicket> BeginDomCollection();
+  bool CompleteDomCollection(const BrowserCosmeticTransportTicket& ticket,
+                             bool transport_valid);
+  bool CancelDomCollection();
 
   std::optional<BrowserCosmeticTransportTicket> BeginMutation(
       bool revoke_document);

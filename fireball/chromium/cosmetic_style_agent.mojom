@@ -1,5 +1,8 @@
 module fireball.mojom;
 
+// 256 KiB of validated token bytes plus one uint16 length per token.
+const uint32 kCosmeticDomSnapshotWireBytes = 270336;
+
 // A frame-associated, typed renderer interface. It carries only validated CSS
 // and an opaque Fireball DocumentId; it never accepts JavaScript or page HTML.
 enum CosmeticStyleLayer {
@@ -23,6 +26,19 @@ interface CosmeticStyleAgent {
                 uint64 expected_binding_generation,
                 CosmeticStyleLayer layer,
                 string stylesheet) => (bool applied);
+  // Returns a bounded, deduplicated light-DOM snapshot. A limit result is
+  // distinct from an identity failure so the browser can retain the already
+  // acknowledged document-specific stylesheet while skipping generic rules.
+  CollectDomSnapshot(string document_id,
+                     uint64 expected_document_epoch,
+                     uint64 expected_binding_generation) =>
+      (bool collected,
+       bool limit_exceeded,
+       uint64 revision,
+       uint32 payload_size,
+       uint32 class_count,
+       uint32 id_count,
+       array<uint8, kCosmeticDomSnapshotWireBytes> payload);
   RemoveDocumentStyles(string document_id,
                        uint64 expected_document_epoch,
                        uint64 expected_binding_generation) => (bool removed);

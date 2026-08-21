@@ -73,6 +73,6 @@ The uploaded evidence contains:
 The gate remains **not run** until the protected self-hosted builder produces a
 green artifact. Even after it passes, B1 still needs the Profile lifecycle
 hooks, keepalive/prefetch coverage, Chrome construction of the cosmetic bridge,
-bounded DOM-token collection, renderer registration, a full overlay `chrome`
-build and startup-network capture before it can be called a Fireball browser
-build.
+trusted DOM-mutation snapshot triggers, renderer registration, a full
+overlay `chrome` build and startup-network capture before it can be called a
+Fireball browser build.

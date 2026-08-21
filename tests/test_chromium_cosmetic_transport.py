@@ -59,6 +59,34 @@ class ChromiumCosmeticTransportSourceTests(unittest.TestCase):
         ):
             self.assertNotIn(forbidden, self.header + self.source)
 
+    def test_dom_snapshot_uses_typed_bounded_transport_phase(self) -> None:
+        self.assertIn("CollectDomSnapshot(DomSnapshotCallback callback)", self.header)
+        self.assertIn("CancelDomSnapshot()", self.header)
+        self.assertIn("state_.BeginDomCollection()", self.source)
+        self.assertIn("state_.CompleteDomCollection", self.source)
+        self.assertIn("DecodeCosmeticDomSnapshot", self.source)
+        self.assertIn("IsZeroedCosmeticDomWirePayload", self.source)
+        self.assertIn("mojo::ReportBadMessage", self.source)
+        self.assertIn("COSMETIC_DOM_LIMIT_EXCEEDED", self.source)
+        self.assertIn("CosmeticTransportStatus::kLimited", self.source)
+        self.assertIn("COSMETIC_DOM_SNAPSHOT_REJECTED", self.source)
+        self.assertIn("pending_dom_snapshot_callback_", self.header)
+        self.assertIn("kCollectingDom", self.state)
+        callback = self.source.index(
+            "void FireballCosmeticStyleTransport::OnDomSnapshotCollected"
+        )
+        mutation = self.source.index(
+            "void FireballCosmeticStyleTransport::OnMutationCompleted", callback
+        )
+        section = self.source[callback:mutation]
+        decode = section.index("DecodeCosmeticDomSnapshot")
+        bad_message = section.index("mojo::ReportBadMessage", decode)
+        stale_return = section.index(
+            "if (!state_.IsCurrent(ticket))", bad_message
+        )
+        self.assertLess(decode, bad_message)
+        self.assertLess(bad_message, stale_return)
+
     def test_gn_compiles_transport_against_browser_and_mojo_apis(self) -> None:
         build = (ROOT / "fireball/chromium/BUILD.gn").read_text(encoding="utf-8")
         self.assertIn('"browser_cosmetic_transport_state.cc"', build)

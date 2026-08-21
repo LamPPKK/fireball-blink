@@ -94,8 +94,8 @@ change:
    cover the separate keepalive/prefetch paths before claiming complete
    subresource blocking;
 5. register the existing renderer stylesheet agent, construct the async
-   cosmetic bridge from Chrome, connect a bounded DOM-token collector and run
-   document/BFCache/crash integration tests;
+   cosmetic bridge from Chrome, connect trusted DOM-mutation events to
+   the bounded collector and run document/BFCache/crash integration tests;
 6. build `chrome`, capture startup traffic and prove there is no unowned
    request or direct fallback.
 

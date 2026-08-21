@@ -42,6 +42,19 @@ int main() {
   assert(state.CompleteActivation(*activation, true));
   assert(state.ready());
 
+  auto collection = state.BeginDomCollection(first);
+  assert(collection.has_value());
+  assert(state.collecting_dom());
+  assert(!state.BeginRevocation(first).has_value());
+  assert(state.CancelDomCollection(first));
+  assert(state.ready());
+  assert(!state.CompleteDomCollection(*collection));
+
+  auto completed_collection = state.BeginDomCollection(first);
+  assert(completed_collection.has_value());
+  assert(state.CompleteDomCollection(*completed_collection));
+  assert(state.ready());
+
   auto generic = state.BeginGenericMutation(first, 1);
   assert(generic.has_value());
   assert(!state.BeginGenericMutation(first, 2).has_value());

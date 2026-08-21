@@ -269,6 +269,10 @@ def main() -> int:
                 "fireball/components/navigation/document_cosmetic_policy.cc",
                 "tests/renderer_cosmetic_style_state_test.cc",
             ],
+            "cosmetic_dom_snapshot_test": [
+                "fireball/chromium/cosmetic_dom_snapshot.cc",
+                "tests/cosmetic_dom_snapshot_test.cc",
+            ],
             "browser_cosmetic_transport_state_test": [
                 "fireball/chromium/browser_cosmetic_transport_state.cc",
                 "tests/browser_cosmetic_transport_state_test.cc",
@@ -279,6 +283,7 @@ def main() -> int:
             ],
             "browser_cosmetic_controller_state_test": [
                 "fireball/browser/domain_model.cc",
+                "fireball/chromium/cosmetic_dom_snapshot.cc",
                 "fireball/chromium/browser_cosmetic_controller_state.cc",
                 "tests/browser_cosmetic_controller_state_test.cc",
             ],

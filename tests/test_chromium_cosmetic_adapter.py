@@ -20,6 +20,12 @@ class ChromiumCosmeticAdapterSourceTests(unittest.TestCase):
         self.assertIn("uint64 expected_binding_generation", mojom)
         self.assertIn("BindDocument(string document_id,", mojom)
         self.assertIn("SetStylesheet(string document_id", mojom)
+        self.assertIn("CollectDomSnapshot(string document_id", mojom)
+        self.assertIn("kCosmeticDomSnapshotWireBytes = 270336", mojom)
+        self.assertIn(
+            "array<uint8, kCosmeticDomSnapshotWireBytes> payload", mojom
+        )
+        self.assertNotIn("array<string>", mojom)
         self.assertIn("RemoveDocumentStyles(string document_id,", mojom)
         for forbidden in ("javascript", "html", "url", "selector", "profile"):
             self.assertNotIn(f"string {forbidden}", mojom.lower())
@@ -66,6 +72,52 @@ class ChromiumCosmeticAdapterSourceTests(unittest.TestCase):
         self.assertIn("BackForwardCacheAware::kPossiblyDisallow", source)
         self.assertIn("InsertStyleSheet", source)
         self.assertIn("RemoveInsertedStyleSheet", source)
+        self.assertIn("document.All()", source)
+        self.assertNotIn("elements.length()", source)
+        self.assertIn("elements.FirstItem()", source)
+        self.assertIn("elements.NextItem()", source)
+        collection = source.index("blink::WebElementCollection elements = document.All()")
+        loop = source.index("for (blink::WebElement element", collection)
+        collection_setup = source[collection:loop]
+        self.assertIn("if (!elements)", collection_setup)
+        self.assertIn("ReplyDomSnapshotRejected", collection_setup)
+        quota = source.index(
+            "scanned_element_count == kMaximumCosmeticDomElements", loop
+        )
+        read_id = source.index("element.GetIdAttribute()", quota)
+        self.assertLess(quota, read_id)
+        builder_limit = source.index("if (!builder.AddElement", loop)
+        builder_limit_result = source.index(
+            "ReplyDomSnapshotLimited(*revision", builder_limit
+        )
+        self.assertLess(builder_limit, builder_limit_result)
+        self.assertIn("CosmeticDomSnapshotBuilder", source)
+        snapshot_header = (
+            ROOT / "fireball/chromium/cosmetic_dom_snapshot.h"
+        ).read_text(encoding="utf-8")
+        self.assertIn("kMaximumCosmeticDomElements", snapshot_header)
+        self.assertIn("kMaximumCosmeticDomAttributeCodeUnits", source)
+        self.assertIn("Utf8ConversionMode::kStrict", source)
+        self.assertIn("state_.NextDomSnapshotRevision", source)
+        self.assertIn("void DidFinishLoad() override", header)
+        self.assertIn("document.IsLoaded()", source)
+        self.assertIn("kMaximumDomLoadWait", source)
+        self.assertIn("base::Seconds(5)", source)
+        self.assertIn("CompletePendingDomSnapshot", source)
+        self.assertIn("CancelPendingDomSnapshot", source)
+        self.assertIn("EncodeCosmeticDomSnapshot", source)
+        remove = source.index(
+            "void FireballCosmeticStyleAgent::RemoveDocumentStyles"
+        )
+        bind_receiver = source.index(
+            "void FireballCosmeticStyleAgent::BindReceiver", remove
+        )
+        remove_section = source[remove:bind_receiver]
+        validate = remove_section.index("state_.PrepareMutation")
+        rejected = remove_section.index("if (IsRejected(probe))", validate)
+        cancel = remove_section.index("CancelPendingDomSnapshot();", rejected)
+        self.assertLess(validate, rejected)
+        self.assertLess(rejected, cancel)
         self.assertIn("IsValidCompiledCosmeticStylesheet", (
             ROOT / "fireball/chromium/renderer_cosmetic_style_state.cc"
         ).read_text(encoding="utf-8"))
@@ -95,6 +147,7 @@ class ChromiumCosmeticAdapterSourceTests(unittest.TestCase):
         root_build = (ROOT / "fireball/BUILD.gn").read_text(encoding="utf-8")
         self.assertIn('mojom("cosmetic_style_agent_mojom")', chromium_build)
         self.assertIn('source_set("chromium_renderer_adapter")', chromium_build)
+        self.assertIn('"cosmetic_dom_snapshot.cc"', chromium_build)
         self.assertIn('"//content/public/renderer"', chromium_build)
         self.assertIn('"//third_party/blink/public:blink"', chromium_build)
         self.assertIn(

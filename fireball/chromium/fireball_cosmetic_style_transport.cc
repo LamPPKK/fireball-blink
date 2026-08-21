@@ -8,6 +8,7 @@
 #include "base/functional/bind.h"
 #include "content/public/browser/render_frame_host.h"
 #include "fireball/components/navigation/document_cosmetic_policy.h"
+#include "mojo/public/cpp/bindings/message.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
 
 namespace fireball::chromium {
@@ -61,6 +62,44 @@ void FireballCosmeticStyleTransport::BindDocument(CompletionCallback callback) {
                      weak_factory_.GetWeakPtr(), *ticket));
 }
 
+void FireballCosmeticStyleTransport::CollectDomSnapshot(
+    DomSnapshotCallback callback) {
+  if (pending_callback_ || pending_dom_snapshot_callback_) {
+    std::move(callback).Run(Error("COSMETIC_TRANSPORT_NOT_READY"), {});
+    return;
+  }
+  auto ticket = state_.BeginDomCollection();
+  if (!ticket.has_value()) {
+    std::move(callback).Run(Error("COSMETIC_TRANSPORT_NOT_READY"), {});
+    return;
+  }
+  if (ActivePrimaryDocument() == nullptr || !remote_.is_bound() ||
+      !remote_.is_connected()) {
+    state_.Invalidate();
+    remote_.reset();
+    std::move(callback).Run(
+        Error("COSMETIC_TRANSPORT_DOCUMENT_INACTIVE"), {});
+    return;
+  }
+
+  pending_dom_snapshot_callback_ = std::move(callback);
+  remote_->CollectDomSnapshot(
+      document_id_.value(), state_.document_epoch(),
+      state_.binding_generation(),
+      base::BindOnce(
+          &FireballCosmeticStyleTransport::OnDomSnapshotCollected,
+          weak_factory_.GetWeakPtr(), *ticket));
+}
+
+bool FireballCosmeticStyleTransport::CancelDomSnapshot() {
+  if (!pending_dom_snapshot_callback_) {
+    return false;
+  }
+  const bool cancelled = state_.CancelDomCollection();
+  pending_dom_snapshot_callback_.Reset();
+  return cancelled;
+}
+
 void FireballCosmeticStyleTransport::SetStylesheet(
     navigation::CosmeticStyleLayer layer,
     std::string stylesheet,
@@ -69,7 +108,7 @@ void FireballCosmeticStyleTransport::SetStylesheet(
     std::move(callback).Run(Error("COSMETIC_TRANSPORT_STYLESHEET_INVALID"));
     return;
   }
-  if (pending_callback_) {
+  if (pending_callback_ || pending_dom_snapshot_callback_) {
     std::move(callback).Run(Error("COSMETIC_TRANSPORT_NOT_READY"));
     return;
   }
@@ -96,7 +135,7 @@ void FireballCosmeticStyleTransport::SetStylesheet(
 
 void FireballCosmeticStyleTransport::RemoveDocumentStyles(
     CompletionCallback callback) {
-  if (pending_callback_) {
+  if (pending_callback_ || pending_dom_snapshot_callback_) {
     std::move(callback).Run(Error("COSMETIC_TRANSPORT_NOT_READY"));
     return;
   }
@@ -127,6 +166,9 @@ void FireballCosmeticStyleTransport::Invalidate() {
   state_.Invalidate();
   if (pending_callback_) {
     Finish(CosmeticTransportStatus::kError, "COSMETIC_TRANSPORT_INVALIDATED");
+  } else if (pending_dom_snapshot_callback_) {
+    FinishDomSnapshot(CosmeticTransportStatus::kError,
+                      "COSMETIC_TRANSPORT_INVALIDATED");
   }
 }
 
@@ -177,6 +219,61 @@ void FireballCosmeticStyleTransport::OnDocumentBound(
   Finish(CosmeticTransportStatus::kBound);
 }
 
+void FireballCosmeticStyleTransport::OnDomSnapshotCollected(
+    BrowserCosmeticTransportTicket ticket,
+    bool collected,
+    bool limit_exceeded,
+    std::uint64_t revision,
+    std::uint32_t payload_size,
+    std::uint32_t class_count,
+    std::uint32_t id_count,
+    std::vector<std::uint8_t> payload) {
+  const bool empty_payload = payload_size == 0 && class_count == 0 &&
+                             id_count == 0 &&
+                             IsZeroedCosmeticDomWirePayload(payload);
+  const bool rejected = !collected && !limit_exceeded && revision == 0 &&
+                        empty_payload;
+  const bool limited = !collected && limit_exceeded && revision != 0 &&
+                       empty_payload;
+  std::optional<CosmeticDomSnapshot> snapshot;
+  if (collected && !limit_exceeded) {
+    snapshot = DecodeCosmeticDomSnapshot(revision, payload_size, class_count,
+                                         id_count, payload);
+  }
+  if (!rejected && !limited && !snapshot.has_value()) {
+    mojo::ReportBadMessage("Malformed Fireball cosmetic DOM snapshot");
+    if (state_.IsCurrent(ticket)) {
+      FailCurrent(ticket, "COSMETIC_DOM_SNAPSHOT_REJECTED");
+    }
+    return;
+  }
+  if (!state_.IsCurrent(ticket)) {
+    return;
+  }
+  if (ActivePrimaryDocument() == nullptr) {
+    FailCurrent(ticket, "COSMETIC_TRANSPORT_DOCUMENT_INACTIVE");
+    return;
+  }
+  if (rejected) {
+    FailCurrent(ticket, "COSMETIC_DOM_SNAPSHOT_REJECTED");
+    return;
+  }
+  if (limited) {
+    if (!state_.CompleteDomCollection(ticket, /*transport_valid=*/true)) {
+      return;
+    }
+    FinishDomSnapshot(CosmeticTransportStatus::kLimited,
+                      "COSMETIC_DOM_LIMIT_EXCEEDED",
+                      CosmeticDomSnapshot{revision, {}, {}});
+    return;
+  }
+  if (!state_.CompleteDomCollection(ticket, /*transport_valid=*/true)) {
+    return;
+  }
+  FinishDomSnapshot(CosmeticTransportStatus::kCollected, {},
+                    std::move(*snapshot));
+}
+
 void FireballCosmeticStyleTransport::OnMutationCompleted(
     BrowserCosmeticTransportTicket ticket,
     bool accepted) {
@@ -206,6 +303,9 @@ void FireballCosmeticStyleTransport::OnDisconnected() {
   state_.Invalidate();
   if (pending_callback_) {
     Finish(CosmeticTransportStatus::kError, "COSMETIC_TRANSPORT_DISCONNECTED");
+  } else if (pending_dom_snapshot_callback_) {
+    FinishDomSnapshot(CosmeticTransportStatus::kError,
+                      "COSMETIC_TRANSPORT_DISCONNECTED");
   }
 }
 
@@ -217,7 +317,12 @@ void FireballCosmeticStyleTransport::FailCurrent(
   }
   state_.Invalidate();
   remote_.reset();
-  Finish(CosmeticTransportStatus::kError, std::move(error_code));
+  if (pending_dom_snapshot_callback_) {
+    FinishDomSnapshot(CosmeticTransportStatus::kError,
+                      std::move(error_code));
+  } else {
+    Finish(CosmeticTransportStatus::kError, std::move(error_code));
+  }
 }
 
 void FireballCosmeticStyleTransport::Finish(CosmeticTransportStatus status,
@@ -225,6 +330,17 @@ void FireballCosmeticStyleTransport::Finish(CosmeticTransportStatus status,
   CompletionCallback callback = std::move(pending_callback_);
   if (callback) {
     std::move(callback).Run({status, std::move(error_code)});
+  }
+}
+
+void FireballCosmeticStyleTransport::FinishDomSnapshot(
+    CosmeticTransportStatus status,
+    std::string error_code,
+    CosmeticDomSnapshot snapshot) {
+  DomSnapshotCallback callback = std::move(pending_dom_snapshot_callback_);
+  if (callback) {
+    std::move(callback).Run({status, std::move(error_code)},
+                            std::move(snapshot));
   }
 }
 

@@ -108,14 +108,21 @@ renderer epoch, renderer binding-generation and callback-generation checks. A
 `DocumentUserData` host keeps the same Fireball document identity through
 BFCache, drops the remote while inactive, rebinds idempotently on restore and
 rotates identity after a renderer crash. Renderer disconnect/rebind clears both
-style layers; the host then replays the last acknowledged document and generic
-layers before reporting READY. A compile-gated async controller bridge now
+style layers; the host replays only the last acknowledged document layer and
+requires a fresh bounded scan before restoring generic rules. A compile-gated
+async controller bridge now
 requires an exclusive Profile/Tab/WebContents binding, uses committed Chromium
 URLs, rejects stale DOM revisions, retains plans only for BFCache documents and
 advances policy state only after renderer acknowledgement. Teardown clears
-active/cached styles and failed mutations can reset and rebind.
-Chrome binding/construction, DOM-token collection and renderer registration
-remain open. See the
+active/cached styles and failed mutations can reset and rebind. The renderer
+now performs an initial bounded light-DOM scan through `WebDocument::All()`,
+encodes deduplicated class/ID tokens into a fixed-capacity typed-Mojo payload
+and automatically applies the acknowledged generic layer immediately when the
+WebDocument reports loaded, otherwise after `DidFinishLoad()` or a five-second
+bounded fallback. Revoke and policy refresh cancel an in-flight
+scan before mutating styles; malformed renderer payloads fail closed.
+Chrome binding/construction, trusted post-load/mutation refresh triggers and
+renderer registration remain open. See the
 [cosmetic filtering contract](docs/COSMETIC_FILTERING.md).
 
 A document lifecycle controller now binds those style plans to UUID-backed
@@ -162,10 +169,10 @@ Chromium adapter contract](docs/REQUEST_PIPELINE.md).
 This is not yet full Brave Shields or an activated Chromium network/renderer
 interceptor. The B0 Chromium integration still needs to wire the Rust target,
 register the request throttles and renderer agent, construct the async cosmetic
-bridge from the Chrome tab lifecycle, cover generic DOM collection, and publish
-production EasyList/EasyPrivacy commits with an embedded production key. Until
-those steps land, the feature is a tested native foundation rather than a
-user-visible blocker.
+bridge from the Chrome tab lifecycle, add trusted post-load/mutation triggers
+for fresh DOM snapshots, and publish production EasyList/EasyPrivacy commits
+with an embedded production key. Until those steps land, the feature is a
+tested native foundation rather than a user-visible blocker.
 
 ## Download and torrent foundation
 

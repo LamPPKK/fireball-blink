@@ -1,14 +1,15 @@
 # Chromium cosmetic stylesheet adapter
 
 Status: **compile-gated renderer endpoint, browser transport, document
-lifecycle owner and async controller bridge; not activated in Chrome**.
+lifecycle owner, async controller bridge and bounded native light-DOM
+collector; not activated in Chrome**.
 
 This slice moves Fireball's cosmetic filtering boundary from a standalone sink
 contract to a target wired to compile against the exact Blink renderer API
 pinned in `pins/upstream.json`. The protected builder has not produced compile
 evidence for this revision yet. The slice deliberately stops before Chrome
-constructs the bridge or collects DOM tokens, so it is not evidence that a
-Chromium page hides an ad.
+constructs the bridge or registers trusted post-load/mutation refresh triggers,
+so it is not evidence that a Chromium page hides an ad.
 
 ## Pinned upstream seam
 
@@ -93,8 +94,11 @@ instead of retaining a raw `RenderFrameHost`. One CSPRNG UUID identifies the
 same Blink document while it is active or stored in BFCache. Suspension drops
 the browser remote and invalidates every pending generation; restore opens a
 new remote, repeats the epoch handshake using the same UUID, then replays the
-last acknowledged document layer followed by the generic layer. The host does
-not report READY until both replays are acknowledged.
+last acknowledged document layer. The controller schedules a fresh bounded DOM
+scan before it reapplies the generic layer, so a cached generic match set is not
+trusted across BFCache suspension. The host reports READY after the document
+layer replay; generic readiness is committed only after the new scan and
+renderer acknowledgement.
 
 The renderer accepts that rebind only when both the UUID and renderer epoch
 still match. Closing or replacing the associated receiver removes both style
@@ -103,8 +107,8 @@ that Blink document. Only that UUID can rebind, and a successful rebind rotates
 its binding generation. A mutation queued before disconnect may run first
 because of associated-pipe ordering, but the later disconnect cleanup removes
 its result. A mutation delivered after rebind carries an old generation and is
-rejected. The lifecycle delegate must resend the desired two-layer plan after
-every successful restore handshake.
+rejected. The lifecycle delegate must resend the document layer and derive a
+fresh generic layer after every successful restore handshake.
 
 `FireballCosmeticLifecycleOwner` follows Chromium's preferred
 [`PrimaryPageChanged` and `RenderFrameHostStateChanged`](https://chromium.googlesource.com/chromium/src/+/4b1c7520055f77780fe76d89bb89b76e4d19f64c/content/public/browser/web_contents_observer.h)
@@ -128,13 +132,35 @@ and hostname only from the still-active committed
 `RenderFrameHost`, starts a generation ticket, sends the policy stylesheet and
 commits its tracked plan only after the exact `DocumentUserData` host reports a
 renderer acknowledgement. Generic snapshots use a separate monotonically
-increasing revision ticket. Revoke and policy refresh also wait for renderer
+increasing revision ticket. The typed `CollectDomSnapshot` call echoes the
+document epoch and binding generation, walks at most 50,000 light-DOM elements
+through `WebDocument::All()`, and returns only sorted unique `class`/`id`
+tokens. The wire representation is a fixed 270,336-byte Mojo array containing
+at most 256 KiB of token data plus a two-byte length per token, so a compromised
+renderer cannot force an unbounded response allocation. The browser decodes a
+canonical sorted payload, revalidates the 4,096-entry and 256-byte-per-token
+limits, and reports malformed tuples as bad Mojo messages. Individual invalid
+values are skipped; a global limit failure removes any acknowledged generic
+layer before retaining the document-specific layer. Revoke and policy refresh
+cancel an in-flight collection before mutating styles and also wait for renderer
 acknowledgement; refresh clears both desired layers, rebinds, reevaluates the
-committed URL and applies the new document plan.
+committed URL and applies the new document plan plus a fresh initial snapshot.
+
+The bridge never accepts caller-supplied token vectors publicly. It posts the
+initial collection after the document mutation callback has committed, avoiding
+reentrant result ordering. A WebDocument that already reports loaded takes the
+fast path; otherwise the renderer waits for `DidFinishLoad()` and uses a
+five-second one-shot fallback that caps the normal document-load wait. BFCache
+restore requests a fresh snapshot. A future trusted lifecycle
+adapter may call `RefreshDomSnapshot()` for bounded DOM-mutation events. The
+current collector does not traverse shadow roots or child frames and does not
+claim continuously updated SPA coverage.
 
 Suspension invalidates any in-flight bridge ticket but retains the last
 acknowledged plan only for a BFCache document. Normal navigation and BFCache
-eviction remove it. Renderer crash drops that plan and
+eviction remove it. BFCache restore replays only the document-specific layer;
+generic CSS requires a newly acknowledged snapshot, so stale generic matches
+are never restored while the scan waits. Renderer crash drops that plan and
 the lifecycle owner rotates the UUID. Result callbacks expose counts and stable
 codes only; URL, hostname, CSS and DOM tokens remain inside the policy/host
 boundary. The bridge drops document CSS from its tracked plan after
@@ -168,8 +194,8 @@ operations across suspend, navigation and crash. Activation must still:
 2. install one authoritative `TabWebContentsBinding` and construct one
    controller bridge from each Chrome tab lifecycle;
 3. install document rules before first paint, or record a measured limitation;
-4. collect only bounded class/ID tokens for the generic phase and preserve the
-   controller's monotonic revision checks;
+4. connect bounded DOM-mutation events to `RefreshDomSnapshot()` without
+   exposing page-controlled token vectors to the browser API;
 5. connect Tab close, Profile teardown and Shields changes to bridge revoke or
    refresh entry points; and
 6. pass a real Chromium build plus navigation, BFCache, crash, profile-isolation
@@ -183,8 +209,11 @@ filtering as a native foundation rather than a user-visible blocker.
 - `renderer_cosmetic_style_state_test` executes document binding, strict
   stylesheet validation, fresh-key replacement, old-epoch bind/mutation
   rejection, disconnect cleanup after a queued mutation, stale
-  binding-generation rejection, independent layers, removal and navigation
-  reset.
+  binding-generation rejection, monotonic snapshot revisions, independent
+  layers, removal and navigation reset.
+- `cosmetic_dom_snapshot_test` executes ASCII-whitespace class splitting,
+  deterministic deduplication, invalid-token skipping, element/entry limits and
+  zero-revision rejection.
 - `browser_cosmetic_transport_state_test` executes epoch handshake, single
   in-flight mutation, binding-generation capture, stale callback rejection,
   invalidation, revocation and renderer rejection without a Chromium checkout.
@@ -195,7 +224,8 @@ filtering as a native foundation rather than a user-visible blocker.
   activation, monotonic generic revisions, stale callback rejection, suspend,
   restore, failed-state reset, terminal disposal and revoke without Chromium.
 - `tests/test_chromium_cosmetic_adapter.py` locks the typed Mojo/GN wiring,
-  exact Blink API use, document-token checks and absence of script injection.
+  exact `WebDocument::All()`/`WebElement` API use, document-token checks and
+  absence of script injection.
 - `tests/test_chromium_cosmetic_transport.py` locks the `WeakDocumentPtr`,
   active-primary-frame, associated-remote, async generation and fail-closed
   boundaries.

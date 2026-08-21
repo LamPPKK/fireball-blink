@@ -1,45 +1,15 @@
 #include "fireball/chromium/browser_cosmetic_controller_state.h"
 
 #include <limits>
-#include <string>
 #include <utility>
-#include <vector>
 
 namespace fireball::chromium {
-namespace {
-
-bool AddBoundedTokens(const std::vector<std::string> &values,
-                      std::size_t *entry_count, std::size_t *byte_count) {
-  if (entry_count == nullptr || byte_count == nullptr ||
-      values.size() > kMaximumCosmeticDomEntries - *entry_count) {
-    return false;
-  }
-  *entry_count += values.size();
-  for (const std::string &value : values) {
-    if (value.empty() || value.size() > kMaximumCosmeticDomTokenBytes ||
-        value.find('\0') != std::string::npos ||
-        value.size() > kMaximumCosmeticDomSnapshotBytes - *byte_count) {
-      return false;
-    }
-    *byte_count += value.size();
-  }
-  return true;
-}
-
-} // namespace
-
-bool IsBoundedCosmeticDomSnapshot(const std::vector<std::string> &classes,
-                                  const std::vector<std::string> &ids) {
-  std::size_t entry_count = 0;
-  std::size_t byte_count = 0;
-  return AddBoundedTokens(classes, &entry_count, &byte_count) &&
-         AddBoundedTokens(ids, &entry_count, &byte_count);
-}
 
 std::optional<BrowserCosmeticControllerTicket>
 BrowserCosmeticControllerState::BeginActivation(
     browser::DocumentId document_id, std::uint64_t restored_dom_revision) {
   if (phase_ == BrowserCosmeticControllerPhase::kActivating ||
+      phase_ == BrowserCosmeticControllerPhase::kCollectingDom ||
       phase_ == BrowserCosmeticControllerPhase::kApplyingGeneric ||
       phase_ == BrowserCosmeticControllerPhase::kRevoking || ready()) {
     return std::nullopt;
@@ -63,6 +33,43 @@ bool BrowserCosmeticControllerState::CompleteActivation(
   }
   phase_ = accepted ? BrowserCosmeticControllerPhase::kReady
                     : BrowserCosmeticControllerPhase::kFailed;
+  return true;
+}
+
+std::optional<BrowserCosmeticControllerTicket>
+BrowserCosmeticControllerState::BeginDomCollection(
+    const browser::DocumentId &document_id) {
+  if (!ready() || !active_document_id_.has_value() ||
+      *active_document_id_ != document_id) {
+    return std::nullopt;
+  }
+  auto generation = AdvanceGeneration();
+  if (!generation.has_value()) {
+    return std::nullopt;
+  }
+  phase_ = BrowserCosmeticControllerPhase::kCollectingDom;
+  return BrowserCosmeticControllerTicket{*generation, document_id,
+                                         last_dom_revision_};
+}
+
+bool BrowserCosmeticControllerState::CompleteDomCollection(
+    const BrowserCosmeticControllerTicket &ticket) {
+  if (!IsCurrent(ticket) ||
+      phase_ != BrowserCosmeticControllerPhase::kCollectingDom) {
+    return false;
+  }
+  phase_ = BrowserCosmeticControllerPhase::kReady;
+  return true;
+}
+
+bool BrowserCosmeticControllerState::CancelDomCollection(
+    const browser::DocumentId &document_id) {
+  if (!collecting_dom() || !active_document_id_.has_value() ||
+      *active_document_id_ != document_id ||
+      !AdvanceGeneration().has_value()) {
+    return false;
+  }
+  phase_ = BrowserCosmeticControllerPhase::kReady;
   return true;
 }
 
