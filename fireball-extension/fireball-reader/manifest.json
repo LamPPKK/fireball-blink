@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "Fireball Reader",
+  "version": "1.0.0",
+  "description": "Distraction-free AI reader view and Text-To-Speech audio player.",
+  "permissions": [
+    "activeTab",
+    "tts"
+  ],
+  "action": {
+    "default_title": "Open Reader View"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["reader.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

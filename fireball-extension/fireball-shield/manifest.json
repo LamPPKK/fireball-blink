@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Fireball Shield",
+  "version": "1.0.0",
+  "description": "Zero-latency URL tracking cleaner, WebRTC leak shield & ad blocking protection.",
+  "permissions": [
+    "declarativeNetRequest",
+    "privacy",
+    "webNavigation",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "action": {
+    "default_title": "Fireball Shield Active"
+  }
+}

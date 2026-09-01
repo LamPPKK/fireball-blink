@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Fireball Remote Browser",
+  "version": "1.0.0",
+  "description": "Stream and interact with remote headless Fireball Server sessions directly in your browser.",
+  "permissions": [
+    "storage"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Fireball Remote Browser"
+  }
+}

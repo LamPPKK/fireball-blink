@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Fireball Remote Browser</title>
+  <style>
+    body { width: 340px; height: 420px; font-family: sans-serif; background: #0D0E12; color: #F0F2F5; margin: 0; padding: 12px; box-sizing: border-box; display: flex; flex-direction: column; }
+    h3 { margin-top: 0; font-size: 14px; color: #FF5500; display: flex; justify-content: space-between; }
+    .stage { flex: 1; background: #000; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    canvas { width: 100%; height: 100%; object-fit: contain; }
+    .footer { margin-top: 8px; display: flex; gap: 8px; }
+    input { flex: 1; background: #1A1D26; border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 6px; border-radius: 4px; font-size: 12px; }
+    button { background: #FF5500; color: #fff; font-weight: bold; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h3>🔥 Beam Remote Stream <span>30 FPS</span></h3>
+  <div class="stage">
+    <canvas id="stage-canvas"></canvas>
+  </div>
+  <div class="footer">
+    <input type="text" id="url-box" placeholder="http://..." value="https://google.com" />
+    <button id="btn-stream">GO</button>
+  </div>
+</body>
+</html>

@@ -1,38 +1,47 @@
-# 🔥 Fireball WebExtension Suite & Auxiliary Extensions
+# 🔥 Fireball WebExtension Suite & Standalone Extensions
 
-**Fireball WebExtension Suite** is a modular collection of companion extensions (**Manifest V3**) that bridge desktop browsers (**Google Chrome, Brave, Microsoft Edge, Mozilla Firefox, Opera, Vivaldi**) with the **Fireball Ecosystem** (Fireball Server, Fireball Mini, and Fireball Browser).
+**Fireball Extension** cung cấp đầy đủ cả **7 tiện ích mở rộng độc lập** (Standalone Extensions) và **Gói tổng hợp 7-trong-1** (Master Suite) chuẩn **Manifest V3** dành cho mọi trình duyệt (**Chrome, Brave, Edge, Firefox, Opera, Vivaldi**):
 
 ---
 
-## 🧩 Danh Mục Các Tiện Ích & Module Phụ Trợ (Auxiliary Modules)
+## 📂 Danh Mục 7 Tiện Ích Độc Lập (Standalone Extensions)
 
-| Tiện ích / Module Phụ Trợ | Mã nguồn / Thành phần | Chức năng chính |
+```
+fireball-extension/
+├── 1️⃣ fireball-sync/               # 1. Fireball Sync (Đồng bộ BIP-39 & Dịch chuyển Tab)
+├── 2️⃣ fireball-shield/             # 2. Fireball Shield (Chống rò WebRTC & Cắt URL Tracking)
+├── 3️⃣ fireball-media-downloader/   # 3. Fireball Media Downloader (Bắt link HLS/DASH/MP4)
+├── 4️⃣ fireball-authenticator/      # 4. Fireball Authenticator (Ví mật khẩu AES & 2FA TOTP)
+├── 5️⃣ fireball-reader/             # 5. Fireball Reader (Đọc báo sạch AI & Đọc to TTS)
+├── 6️⃣ fireball-remote-browser/     # 6. Fireball Remote Browser (Stream FBEAM từ xa)
+├── 7️⃣ fireball-retro-player/       # 7. Fireball Retro Player (Giả lập Ruffle Flash Game)
+└── 📦 suite/                       # Gói tổng hợp 7-trong-1 All-in-One Suite
+```
+
+---
+
+## 🧩 Chi Tiết & Chức Năng Từng Tiện Ích
+
+| Tiện ích | Thư mục | Chức năng chính |
 |---|---|---|
-| **1. Fireball Sync** | `background/`, `popup/` | Đồng bộ hóa chuỗi 24 từ BIP-39 (Brave Sync v2), dịch chuyển tab tức thì sang điện thoại Android/iOS qua phím tắt `Ctrl+Shift+Y`, tạo mã QR chia sẻ tab. |
-| **2. Fireball Shield** | `background/shields.js` | Tự động cắt tỉa tham số theo dõi URL (`utm_*`, `fbclid`, `gclid`), chặn quảng cáo, bảo vệ chống WebRTC IP leak và fingerprinting. |
-| **3. Fireball Media Downloader** | `content_scripts/media_detector.js` | Tự động phát hiện và bắt link video trực tuyến **HLS (`.m3u8`)**, **DASH (`.mpd`)**, **MP4/WebM**, gửi sang Fireball Server / aria2 RPC để tải đa luồng tốc độ cao. |
-| **4. Fireball Authenticator** | `lib/crypto.js` | Tự động điền tài khoản/mật khẩu mã hóa AES-256-GCM, bộ tạo mã xác thực 2 bước (TOTP Authenticator) mã hóa cục bộ an toàn. |
-| **5. Fireball Reader** | `content_scripts/reader.js` | Trích xuất nội dung bài viết sạch không quảng cáo (Readability), tóm tắt ý chính bài viết, hỗ trợ đọc văn bản thành giọng nói (TTS) và dịch thuật. |
-| **6. Fireball Remote Browser** | `lib/beam_ws.js` | Kết nối điều khiển và xem luồng duyệt web từ xa chạy trên Fireball Server thông qua giao thức nhị phân `FBEAM`. |
-| **7. Fireball Retro Player** | `content_scripts/ruffle_interceptor.js` | Tự động phát hiện và kích hoạt giả lập Adobe Flash bằng WebAssembly (Rust/Ruffle) để chơi trực tiếp các tựa game Flash cổ điển (`.swf`). |
-
-
+| **1. Fireball Sync** | `fireball-sync/` | Đồng bộ 24 từ BIP-39, phím tắt `Ctrl+Shift+Y` đẩy tab sang điện thoại tức thì. |
+| **2. Fireball Shield** | `fireball-shield/` | Tự động cắt tỉa tham số theo dõi URL (`utm_*`, `fbclid`), chống WebRTC leak. |
+| **3. Fireball Media Downloader** | `fireball-media-downloader/` | Bắt luồng video trực tuyến HLS (`.m3u8`), DASH (`.mpd`), MP4 gửi tải đa luồng. |
+| **4. Fireball Authenticator** | `fireball-authenticator/` | Lưu mật khẩu mã hóa AES-256 và sinh mã xác thực 2 bước 2FA (RFC-6238 TOTP). |
+| **5. Fireball Reader** | `fireball-reader/` | Trích xuất văn bản sạch không quảng cáo và đọc to thành tiếng (TTS). |
+| **6. Fireball Remote Browser** | `fireball-remote-browser/` | Kết nối và điều khiển luồng duyệt web từ xa chạy trên Fireball Server (`FBEAM`). |
+| **7. Fireball Retro Player** | `fireball-retro-player/` | Giả lập WebAssembly Ruffle để chơi game Flash cổ (`.swf`) trực tiếp trên web. |
 
 ---
 
 ## 🚀 Hướng Dẫn Cài Đặt (Load Unpacked)
 
-### Trên Google Chrome / Brave / Microsoft Edge / Opera:
+### Cài đặt từng tiện ích riêng lẻ hoặc Gói tổng hợp:
 1. Mở trình duyệt và truy cập `chrome://extensions` (hoặc `edge://extensions`, `brave://extensions`).
 2. Bật công tắc **Developer mode** (Chế độ dành cho nhà phát triển).
 3. Bấm nút **Load unpacked** (Tải tiện ích đã giải nén).
-4. Chọn thư mục: `fireball-blink/fireball-extension`.
-5. Biểu tượng **Fireball Companion** sẽ xuất hiện trên thanh công cụ!
-
-### Trên Mozilla Firefox:
-1. Mở Firefox và truy cập `about:debugging#/runtime/this-firefox`.
-2. Bấm **Load Temporary Add-on...**
-3. Chọn file `manifest.json` trong thư mục `fireball-extension/`.
+4. Chọn thư mục tiện ích bạn muốn cài (Ví dụ: `fireball-extension/fireball-sync` hoặc `fireball-extension/suite`).
+5. Tiện ích sẽ ngay lập tức xuất hiện trên thanh công cụ của trình duyệt!
 
 ---
 
@@ -40,3 +49,4 @@
 ```bash
 node fireball-extension/test/extension_test.js
 ```
+

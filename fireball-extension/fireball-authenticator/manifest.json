@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Fireball Authenticator",
+  "version": "1.0.0",
+  "description": "Zero-knowledge local password vault and RFC-6238 TOTP 2FA code generator.",
+  "permissions": [
+    "storage"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Fireball Authenticator"
+  }
+}

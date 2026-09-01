@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Fireball Sync",
+  "version": "1.0.0",
+  "description": "Zero-knowledge 24-word BIP-39 sync & instant tab teleport across devices.",
+  "permissions": [
+    "storage",
+    "tabs",
+    "bookmarks"
+  ],
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Fireball Sync"
+  },
+  "commands": {
+    "teleport_tab": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "Teleport current tab to paired Fireball devices"
+    }
+  }
+}
