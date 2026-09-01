@@ -149,6 +149,53 @@ Located in `fireball-extension/`, the **Fireball WebExtension Companion** is a M
 
 ---
 
+## 🍎 Fireball for iOS & iPadOS (Apple Edition)
+
+Located in `fireball-ios/`, **Fireball iOS** is the native browser for iPhone and iPad built with **Swift 6 & SwiftUI**, supporting both native WebKit rendering and the Fireball Beam remote streaming protocol:
+
+- **Orbital Spaces & Tabs**: Full 3-tier tab model (*Favorites, Pinned, Today, Burner*).
+- **iPadOS & Mac Catalyst Tab Strip**: Dedicated horizontal tab strip with spaces switcher (`iPadTabStripView`).
+- **Bang Shortcuts Engine**: Omnibox search with instant bang operators (`!g`, `!b`, `!yt`, `!gh`, `!w`, `!k`, `!sp`, `!e`, `!r`).
+- **Encrypted Password Vault**: Device-derived AES-256-GCM zero-knowledge credential vault via Apple CryptoKit.
+- **Fireball Shields**: Built-in tracking URL parameter cleaner, cosmetic ad filtering, and HTTPS upgrade engine.
+- **Cross-Platform BIP-39 Sync**: Synchronizes with Fireball Mini (Android) and Fireball Desktop via 24-word sync phrases.
+
+```bash
+cd fireball-ios
+
+# Run FireballCore Swift test suite (18/18 tests passing)
+swift run FireballTestRunner
+
+# Build SwiftUI user interface library
+swift build --target FireballUI
+```
+
+---
+
+## ⚡ Fireball Beam (Remote Browser Streaming Engine)
+
+Located in `fireball-beam/`, **Fireball Beam** is a low-latency remote browser streaming daemon inspired by `seg6/surf`:
+
+```mermaid
+graph LR
+    Host["🖥️ Fireball Desktop Core (Blink/Chromium)"] -->|H.264 Video & Opus Audio| Protocol["🔒 Pinned TLS / FBEAM Protocol (:18080)"]
+    Protocol -->|Hardware Decoded 60 FPS| Client["📱 Fireball iOS / Mini Client"]
+    Client -->|Normalized Touch & Key Events| Protocol
+    Protocol -->|CDP Input Dispatch| Host
+```
+
+- **Offload Heavy Tabs**: Offload demanding JavaScript, WebGL, or desktop extensions from mobile to a host computer.
+- **Chromium Native Tab Capture**: High-efficiency 60 FPS video and audio capture without virtual audio/video drivers.
+- **Touch-to-Viewport Normalizer**: Translates device normalized touches (`0.0 - 1.0`) to host pixel viewport events.
+- **Single-Use Pairing Protocol**: Cryptographic pairing via QR code or 6-word visual confirmation phrases.
+
+```bash
+# Run Beam protocol verification tests
+python3 fireball-beam/test_beam_protocol.py
+```
+
+---
+
 ## 🖥️ macOS Model Preview (Blink Desktop)
 
 The repository includes a buildable AppKit preview that drives its four tab presentations from the real C++ `BrowserModel`:

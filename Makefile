@@ -15,6 +15,8 @@ check:
 	python3 -m unittest discover -s tests -v
 	python3 tools/run_cpp_tests.py
 	python3 tools/run_adblock_tests.py
+	python3 fireball-beam/test_beam_protocol.py
+	swift run --package-path fireball-ios FireballTestRunner
 
 test: check
 
