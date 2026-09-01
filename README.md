@@ -24,6 +24,30 @@ The detached meteor mark is the shared Fireball identity: an obsidian core, embe
   <img src="Brand/FireballMeteorMark.png" width="80" alt="Fireball Mini Android Logo">
 </div>
 
+### 📸 Live Android Showcase & Screenshots
+
+| 🪐 Multi-Tiered Tab & Spaces Tray | 🛡️ Fireball Shields & Adblock Engine |
+| :---: | :---: |
+| <img src="docs/assets/android/fireball-mini-tabs-tray.png" width="340" alt="Fireball Mini Tab & Spaces Tray"> | <img src="docs/assets/android/fireball-mini-shields.png" width="340" alt="Fireball Mini Shields & Filters"> |
+| **Spaces, Favorites, Pinned & Today Tabs** | **Rust Adblocker, Cosmetic Filters & Inset Safe** |
+
+| 🔄 Cross-Browser Sync (Firefox/Brave) | 🤖 Fireball AI Assistant & Reader Mode |
+| :---: | :---: |
+| <img src="docs/assets/android/fireball-mini-sync.png" width="340" alt="Fireball Mini Cross-Browser Sync"> | <img src="docs/assets/android/fireball-mini-ai-assistant.png" width="340" alt="Fireball Mini AI Assistant"> |
+| **24-Word BIP39 Chain & E2EE Key Derivation** | **Key Takeaways, Summary & Multi-Turn Chat** |
+
+| 🎬 Media Sniffer & Video Downloads | ⚙️ Settings & Configuration Deck |
+| :---: | :---: |
+| <img src="docs/assets/android/fireball-mini-media-sniffer.png" width="340" alt="Fireball Mini Media Sniffer"> | <img src="docs/assets/android/fireball-mini-settings.png" width="340" alt="Fireball Mini Settings Deck"> |
+| **HLS / DASH Streams & Track Selection** | **M3 Touch Targets, Privacy & Sync Settings** |
+
+| 🔍 Omnibox & Quick Search Grid | 📑 Bookmark Management & E2EE Backup |
+| :---: | :---: |
+| <img src="docs/assets/android/fireball-mini-search.png" width="340" alt="Fireball Mini Search Overlay"> | <img src="docs/assets/android/fireball-mini-bookmarks.png" width="340" alt="Fireball Mini Bookmarks Deck"> |
+| **Top Sites, Tracking Stripper & Search** | **HTML Netscape Import/Export & AES-GCM Backup** |
+
+---
+
 ### 🌟 Key Capabilities & Features
 
 #### 1. 🪐 Multi-Tiered Spaces & Tabs (Orbital Deck Model)

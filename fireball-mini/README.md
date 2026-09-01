@@ -4,6 +4,30 @@
 
 ---
 
+## 📸 Hình Ảnh Giao Diện Thực Tế (Live Screenshots)
+
+| 🪐 Quản lý Spaces & Tab Tray | 🛡️ Bộ Chặn Quảng Cáo & Shields |
+| :---: | :---: |
+| <img src="../docs/assets/android/fireball-mini-tabs-tray.png" width="340" alt="Spaces & Tab Tray"> | <img src="../docs/assets/android/fireball-mini-shields.png" width="340" alt="Fireball Shields"> |
+| **Spaces, Favorites, Pinned & Today Tabs** | **Rust Adblocker, Cosmetic Filters & Inset Safe** |
+
+| 🔄 Đồng Bộ Đa Trình Duyệt (Firefox/Brave) | 🤖 Trợ Lý Fireball AI & Reader Mode |
+| :---: | :---: |
+| <img src="../docs/assets/android/fireball-mini-sync.png" width="340" alt="Cross-Browser Sync"> | <img src="../docs/assets/android/fireball-mini-ai-assistant.png" width="340" alt="Fireball AI Assistant"> |
+| **24-Word BIP39 Chain & E2EE Key Derivation** | **Key Takeaways, Summary & Multi-Turn Chat** |
+
+| 🎬 Bắt Link Media & Video Downloads | ⚙️ Cài Đặt & Cấu Hình Nâng Cao |
+| :---: | :---: |
+| <img src="../docs/assets/android/fireball-mini-media-sniffer.png" width="340" alt="Media Sniffer"> | <img src="../docs/assets/android/fireball-mini-settings.png" width="340" alt="Settings Screen"> |
+| **HLS / DASH Streams & Chọn chất lượng** | **M3 Touch Targets, Privacy & Sync Settings** |
+
+| 🔍 Thanh Tìm Kiếm & Top Sites Grid | 📑 Quản Lý Dấu Trang & Sao Lưu E2EE |
+| :---: | :---: |
+| <img src="../docs/assets/android/fireball-mini-search.png" width="340" alt="Search Overlay"> | <img src="../docs/assets/android/fireball-mini-bookmarks.png" width="340" alt="Bookmarks Deck"> |
+| **Top Sites, Gỡ tham số theo dõi URL** | **HTML Netscape Import/Export & AES-GCM Backup** |
+
+---
+
 ## 🌟 Tính Năng Nổi Bật
 
 ### 1. Quản lý Tab Đa Tầng (Orbital Deck Model)
