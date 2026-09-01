@@ -41,10 +41,15 @@ The detached meteor mark is the shared Fireball identity: an obsidian core, embe
 | <img src="docs/assets/android/fireball-mini-media-sniffer.png" width="340" alt="Fireball Mini Media Sniffer"> | <img src="docs/assets/android/fireball-mini-settings.png" width="340" alt="Fireball Mini Settings Deck"> |
 | **HLS / DASH Streams & Track Selection** | **M3 Touch Targets, Privacy & Sync Settings** |
 
-| 🔍 Omnibox & Quick Search Grid | 📑 Bookmark Management & E2EE Backup |
+| 🔍 Omnibox & Bang Shortcuts Engine | 🛡️ Site Security & Origin Storage Manager |
 | :---: | :---: |
-| <img src="docs/assets/android/fireball-mini-search.png" width="340" alt="Fireball Mini Search Overlay"> | <img src="docs/assets/android/fireball-mini-bookmarks.png" width="340" alt="Fireball Mini Bookmarks Deck"> |
-| **Top Sites, Tracking Stripper & Search** | **HTML Netscape Import/Export & AES-GCM Backup** |
+| <img src="docs/assets/android/fireball-mini-search-bangs.png" width="340" alt="Fireball Mini Search Bangs"> | <img src="docs/assets/android/fireball-mini-site-info.png" width="340" alt="Fireball Mini Site Permissions"> |
+| **Instant Bangs (!g, !yt, !gh, !w, !k) & Quick Sites** | **HTTPS TLS Inspector, Origin Cookies & Permissions** |
+
+| 🔐 AES-256 Encrypted Password Vault | 📷 Procedural QR Code Tab Sharing |
+| :---: | :---: |
+| <img src="docs/assets/android/fireball-mini-passwords.png" width="340" alt="Fireball Mini Password Vault"> | <img src="docs/assets/android/fireball-mini-qr-share.png" width="340" alt="Fireball Mini QR Code Tab Share"> |
+| **Device-Derived AES-GCM-256 Password Manager** | **Live Tab QR Generator & System Share Intent** |
 
 ---
 
