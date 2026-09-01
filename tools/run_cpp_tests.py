@@ -281,6 +281,11 @@ def main() -> int:
                 "fireball/chromium/browser_cosmetic_document_state.cc",
                 "tests/browser_cosmetic_document_state_test.cc",
             ],
+            "profile_partition_manager_test": [
+                "fireball/browser/domain_model.cc",
+                "fireball/chromium/profile_partition_manager.cc",
+                "tests/profile_partition_manager_test.cc",
+            ],
             "browser_cosmetic_controller_state_test": [
                 "fireball/browser/domain_model.cc",
                 "fireball/chromium/cosmetic_dom_snapshot.cc",

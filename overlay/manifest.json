@@ -15,8 +15,8 @@
     "helium": "pinned-tree-checksum-and-ordered-series"
   },
   "tree": {
-    "file_count": 109,
-    "bytes": 635403,
-    "sha256": "a8ac1853300262f4d99677a5a500958455c25f12d3e7d0b604e9b5d93223af1a"
+    "file_count": 111,
+    "bytes": 641387,
+    "sha256": "751f3c6568d97f2106d52e4a865c1d56ef8243170c4c9c56c6450986b9e74025"
   }
 }

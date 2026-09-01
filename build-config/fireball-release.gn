@@ -1,0 +1,45 @@
+# Fireball Blink Production Release GN Configuration
+# Incorporates Thorium-grade compiler optimizations and Helium/Ungoogled privacy de-bloating.
+
+# Core build mode
+is_debug = false
+is_component_build = false
+is_official_build = true
+target_cpu = "x64"
+
+# Debug symbols stripped for maximum binary compactness and link speed
+symbol_level = 0
+blink_symbol_level = 0
+v8_symbol_level = 0
+
+# Optimization & Link-Time Optimization (LTO)
+use_thin_lto = true
+thin_lto_enable_cache = true
+chrome_pgo_phase = 0
+use_siso = false
+use_remoteexec = false
+
+# V8 Engine performance optimizations
+v8_enable_turbofan = true
+v8_enable_maglev = true
+v8_enable_webassembly = true
+
+# Helium & Ungoogled Privacy / Tracker Removal
+# Completely sever background connections to Google services
+enable_reporting = false
+enable_google_now = false
+enable_hangout_services_extension = false
+enable_service_discovery = false
+enable_mdns = false
+enable_remoting = false
+enable_gcm = false
+enable_feed_v2 = false
+safe_browsing_mode = 0
+use_official_google_api_keys = false
+google_api_key = ""
+google_default_client_id = ""
+google_default_client_secret = ""
+
+# Telemetry & Crash upload prevention
+enable_crash_reporter = false
+enable_crash_service = false

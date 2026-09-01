@@ -1,4 +1,9 @@
-.PHONY: check test chromium-builder-preflight macos-preview macos-preview-media
+.PHONY: check test chromium-builder-preflight macos-preview macos-preview-media clean
+
+clean:
+	rm -rf out
+
+build: clean macos-preview check
 
 check:
 	python3 tools/check_pins.py

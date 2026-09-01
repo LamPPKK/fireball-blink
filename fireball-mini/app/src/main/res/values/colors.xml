@@ -1,0 +1,5 @@
+<resources>
+    <color name="fireball_background">#060806</color>
+    <color name="fireball_meteor_orange">#FF5A1F</color>
+    <color name="fireball_electric_lime">#B8FF3D</color>
+</resources>

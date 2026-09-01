@@ -5,3 +5,13 @@ out/
 target/
 /chromium/
 depot_tools/
+.DS_Store
+.idea/
+.gradle/
+.cxx/
+build/
+app/build/
+*.apk
+*.aab
+local.properties
+

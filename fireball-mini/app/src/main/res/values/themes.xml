@@ -1,0 +1,7 @@
+<resources>
+    <style name="Theme.FireballMini" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@color/fireball_background</item>
+        <item name="android:navigationBarColor">@color/fireball_background</item>
+        <item name="android:windowBackground">@color/fireball_background</item>
+    </style>
+</resources>

@@ -1,0 +1,22 @@
+# Thorium Compiler Optimization Presets for Fireball Blink
+# Provides high-performance SIMD instruction profiles and aggressive compilation flags.
+
+# Preset 1: AVX2 + FMA + BMI2 (Modern x86_64 CPUs - Haswell / Zen 1+)
+# Set in out/Default/args.gn:
+# target_cpu = "x64"
+# is_official_build = true
+# use_thin_lto = true
+# v8_enable_turbofan = true
+# v8_enable_maglev = true
+
+# Preset 2: Apple Silicon ARM64 (M1 / M2 / M3 / M4)
+# target_cpu = "arm64"
+# is_official_build = true
+# use_thin_lto = true
+# arm_use_neon = true
+# arm_optionally_use_neon = true
+
+# Preset 3: Generic SSE4.2 (Legacy x86_64 compatible)
+# target_cpu = "x64"
+# is_official_build = true
+# use_thin_lto = true

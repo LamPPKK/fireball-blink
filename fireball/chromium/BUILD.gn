@@ -16,6 +16,8 @@ source_set("adapter_contract") {
     "cosmetic_dom_snapshot.h",
     "navigation_adapter_contract.cc",
     "navigation_adapter_contract.h",
+    "profile_partition_manager.cc",
+    "profile_partition_manager.h",
     "profile_request_policy_bundle.cc",
     "profile_request_policy_bundle.h",
     "renderer_cosmetic_style_state.cc",

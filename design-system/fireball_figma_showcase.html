@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fireball Browser — Figma Design System & UI Canvas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-canvas: #090B09;
+      --bg-surface: #0F1410;
+      --bg-card: #141A14;
+      --bg-raised: #1A221B;
+      --border: #233024;
+      --border-active: #38503A;
+      --text-primary: #F6F8F6;
+      --text-secondary: #A6B3A7;
+      --text-muted: #6B7A6C;
+      --orange: #FF5A1F;
+      --orange-glow: rgba(255, 90, 31, 0.35);
+      --lime: #B8FF3D;
+      --lime-glow: rgba(184, 255, 61, 0.35);
+      --burner: #FF2A6D;
+      --warp-blue: #00B4D8;
+      --tor-purple: #9D4EDD;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Top Figma Header */
+    header {
+      background: rgba(15, 20, 16, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand-logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, var(--orange), #FF8A3D);
+      color: #000;
+      font-weight: 800;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .figma-tag {
+      background: var(--bg-raised);
+      border: 1px solid var(--border);
+      color: var(--lime);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 6px 14px;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Canvas Workspace */
+    .canvas-container {
+      padding: 40px 24px;
+      max-width: 1600px;
+      margin: 0 auto;
+    }
+
+    .section-header {
+      margin-bottom: 28px;
+    }
+
+    .section-header h2 {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, #FFFFFF, var(--text-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .section-header p {
+      color: var(--text-muted);
+      font-size: 14px;
+      margin-top: 4px;
+    }
+
+    /* Screen Frames Grid */
+    .screens-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+      gap: 36px;
+      margin-bottom: 60px;
+    }
+
+    .frame-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      padding: 20px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+      transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+
+    .frame-card:hover {
+      border-color: var(--border-active);
+      transform: translateY(-4px);
+    }
+
+    .frame-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .frame-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .frame-badge {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--orange);
+      background: rgba(255, 90, 31, 0.12);
+      border: 1px solid rgba(255, 90, 31, 0.3);
+      padding: 2px 8px;
+      border-radius: 12px;
+    }
+
+    /* Mobile Device Canvas Simulator */
+    .mobile-mockup {
+      width: 100%;
+      height: 640px;
+      background: #000000;
+      border-radius: 20px;
+      border: 2px solid var(--border);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    /* Status Bar */
+    .mock-status-bar {
+      height: 28px;
+      padding: 0 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: transparent;
+      z-index: 10;
+    }
+
+    /* Screen 1: Browser Content Viewport */
+    .web-viewport {
+      flex: 1;
+      background: #0D1117;
+      padding: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .web-hero-card {
+      background: #161B22;
+      border: 1px solid #30363D;
+      border-radius: 16px;
+      padding: 20px 16px;
+      margin-top: 10px;
+    }
+
+    .web-hero-card h3 {
+      font-size: 18px;
+      font-weight: 800;
+      color: #FFFFFF;
+      margin-bottom: 8px;
+      line-height: 1.3;
+    }
+
+    .web-hero-card p {
+      font-size: 12px;
+      color: #8B949E;
+      line-height: 1.5;
+    }
+
+    .sniff-pill {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg-card);
+      border: 1px solid var(--lime);
+      box-shadow: 0 0 16px var(--lime-glow);
+      color: var(--text-primary);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      z-index: 20;
+    }
+
+    /* Bottom Command Deck */
+    .bottom-command-deck {
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      padding: 8px 12px 14px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .omnibox-capsule {
+      flex: 1;
+      height: 38px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      gap: 8px;
+      font-size: 12px;
+    }
+
+    .lock-icon {
+      color: var(--lime);
+    }
+
+    .omnibox-domain {
+      flex: 1;
+      color: var(--text-primary);
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .shield-badge-btn {
+      height: 32px;
+      background: rgba(255, 90, 31, 0.15);
+      border: 1px solid rgba(255, 90, 31, 0.5);
+      border-radius: 8px;
+      padding: 0 8px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      color: var(--orange);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .tab-counter-btn {
+      width: 32px;
+      height: 32px;
+      background: var(--bg-raised);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .deck-icon-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+
+    /* Screen 2: Search Overlay */
+    .search-viewport {
+      flex: 1;
+      background: var(--bg-canvas);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .search-input-box {
+      height: 44px;
+      background: var(--bg-card);
+      border: 1px solid var(--lime);
+      box-shadow: 0 0 12px var(--lime-glow);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .shortcuts-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+
+    .shortcut-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .shortcut-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--bg-raised);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .shortcut-name {
+      font-size: 10px;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    /* Screen 3: Tabs Screen */
+    .tabs-viewport {
+      flex: 1;
+      background: var(--bg-canvas);
+      padding: 12px 16px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .spaces-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+    }
+
+    .space-pill {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .space-pill.active {
+      border-color: var(--lime);
+      color: var(--lime);
+      background: rgba(184, 255, 61, 0.1);
+    }
+
+    .tab-cards-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      flex: 1;
+    }
+
+    .tab-item-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      height: 160px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tab-item-card.active {
+      border: 2px solid var(--orange);
+      box-shadow: 0 0 16px var(--orange-glow);
+    }
+
+    .tab-card-head {
+      background: var(--bg-raised);
+      padding: 6px 8px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .tab-card-preview {
+      flex: 1;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px;
+    }
+
+    /* Screen 4: Shields BottomSheet */
+    .shields-modal-view {
+      flex: 1;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+    }
+
+    .shields-sheet {
+      background: var(--bg-surface);
+      border-top: 1px solid var(--border);
+      border-radius: 24px 24px 0 0;
+      padding: 20px 16px;
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin: 16px 0;
+    }
+
+    .stat-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 8px;
+      text-align: center;
+    }
+
+    .stat-val {
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .stat-lbl {
+      font-size: 9px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .egress-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    /* Tokens & Components Section */
+    .tokens-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    .token-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+    }
+
+    .token-card h4 {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: var(--text-primary);
+    }
+
+    .color-swatch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 12px;
+    }
+
+    .swatch-circle {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header>
+    <div class="brand-logo">
+      <span class="brand-badge">FIGMA DESIGN SYSTEM</span>
+      <span class="brand-title">Fireball Browser UI Canvas (Mobile & Desktop)</span>
+    </div>
+    <div class="figma-tag">
+      <span>●</span> State of the Art Cyber-Obsidian UI
+    </div>
+  </header>
+
+  <!-- Main Canvas -->
+  <div class="canvas-container">
+    
+    <div class="section-header">
+      <h2>Mobile App UI Frames (Android & iOS)</h2>
+      <p>Bản thiết kế giao diện chuẩn Figma cho toàn bộ các màn hình chính của trình duyệt Fireball.</p>
+    </div>
+
+    <!-- 4 Screens Grid -->
+    <div class="screens-grid">
+
+      <!-- Frame 1: Browser View -->
+      <div class="frame-card">
+        <div class="frame-header">
+          <div class="frame-title">01 • Main Browser Screen</div>
+          <span class="frame-badge">Viewport</span>
+        </div>
+        <div class="mobile-mockup">
+          <div class="mock-status-bar">
+            <span>9:41</span>
+            <span>5G • 100%</span>
+          </div>
+
+          <div class="web-viewport">
+            <div class="sniff-pill">
+              <span>⬇️</span> 2 Media Streams Detected
+            </div>
+
+            <div class="web-hero-card">
+              <h3>Next-Gen Web Privacy Engine</h3>
+              <p>Experience zero-telemetry browsing powered by Blink and Native C++ adblock shields.</p>
+            </div>
+          </div>
+
+          <div class="bottom-command-deck">
+            <div class="deck-icon-btn">←</div>
+            <div class="deck-icon-btn">→</div>
+            <div class="omnibox-capsule">
+              <span class="lock-icon">🔒</span>
+              <span class="omnibox-domain">fireball.network</span>
+              <span>🔄</span>
+            </div>
+            <div class="shield-badge-btn">
+              <span>🛡️</span> 42
+            </div>
+            <div class="tab-counter-btn">1</div>
+            <div class="deck-icon-btn">⋮</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Frame 2: Search Overlay -->
+      <div class="frame-card">
+        <div class="frame-header">
+          <div class="frame-title">02 • Search Overlay & Shortcuts</div>
+          <span class="frame-badge">Interactive</span>
+        </div>
+        <div class="mobile-mockup">
+          <div class="mock-status-bar">
+            <span>9:41</span>
+            <span>5G • 100%</span>
+          </div>
+
+          <div class="search-viewport">
+            <div class="search-input-box">
+              <span style="color: var(--lime);">🔍</span>
+              <span style="color: var(--text-primary); font-size: 13px; font-weight: 500;">Search or type URL...</span>
+              <span style="margin-left: auto; font-size: 12px; color: var(--text-muted);">📋 Paste</span>
+            </div>
+
+            <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 12px;">TOP SITES & SHORTCUTS</div>
+
+            <div class="shortcuts-grid">
+              <div class="shortcut-card">
+                <div class="shortcut-icon">🦆</div>
+                <span class="shortcut-name">DuckDuckGo</span>
+              </div>
+              <div class="shortcut-card">
+                <div class="shortcut-icon">🔍</div>
+                <span class="shortcut-name">Google</span>
+              </div>
+              <div class="shortcut-card">
+                <div class="shortcut-icon">🐙</div>
+                <span class="shortcut-name">GitHub</span>
+              </div>
+              <div class="shortcut-card">
+                <div class="shortcut-icon">▶️</div>
+                <span class="shortcut-name">YouTube</span>
+              </div>
+              <div class="shortcut-card">
+                <div class="shortcut-icon">🤖</div>
+                <span class="shortcut-name">Reddit</span>
+              </div>
+              <div class="shortcut-card">
+                <div class="shortcut-icon">📚</div>
+                <span class="shortcut-name">Wikipedia</span>
+              </div>
+              <div class="shortcut-card">
+                <div class="shortcut-icon">📰</div>
+                <span class="shortcut-name">Hacker News</span>
+              </div>
+              <div class="shortcut-card">
+                <div class="shortcut-icon">✖️</div>
+                <span class="shortcut-name">X / Twitter</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Frame 3: Tabs & Spaces -->
+      <div class="frame-card">
+        <div class="frame-header">
+          <div class="frame-title">03 • Tabs & Spaces Management</div>
+          <span class="frame-badge">3D Grid</span>
+        </div>
+        <div class="mobile-mockup">
+          <div class="mock-status-bar">
+            <span>9:41</span>
+            <span>5G • 100%</span>
+          </div>
+
+          <div class="tabs-viewport">
+            <div class="spaces-bar">
+              <div class="space-pill active">Personal</div>
+              <div class="space-pill">Work</div>
+              <div class="space-pill">🔥 Burner</div>
+            </div>
+
+            <div class="tab-cards-container">
+              <div class="tab-item-card active">
+                <div class="tab-card-head">
+                  <span style="color: var(--orange);">● GitHub</span>
+                  <span>✕</span>
+                </div>
+                <div class="tab-card-preview">
+                  <span style="font-size: 10px; color: var(--text-muted);">github.com</span>
+                  <span style="font-size: 9px; font-weight: 700; color: var(--orange); background: rgba(255,90,31,0.2); padding: 2px 6px; border-radius: 4px;">ACTIVE</span>
+                </div>
+              </div>
+
+              <div class="tab-item-card">
+                <div class="tab-card-head">
+                  <span>DuckDuckGo</span>
+                  <span>✕</span>
+                </div>
+                <div class="tab-card-preview">
+                  <span style="font-size: 10px; color: var(--text-muted);">duckduckgo.com</span>
+                  <span style="font-size: 9px; color: var(--lime); background: rgba(184,255,61,0.15); padding: 2px 6px; border-radius: 4px;">💤 SLEEP</span>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top: auto; padding: 10px 0; display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 13px; color: var(--text-secondary); font-weight: 600;">Done</span>
+              <button style="background: var(--lime); color: #000; font-weight: 700; font-size: 12px; padding: 8px 16px; border-radius: 10px; border: none;">+ New Tab</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Frame 4: Shields & Egress -->
+      <div class="frame-card">
+        <div class="frame-header">
+          <div class="frame-title">04 • Shields & Egress Dashboard</div>
+          <span class="frame-badge">Protection</span>
+        </div>
+        <div class="mobile-mockup">
+          <div class="shields-modal-view">
+            <div class="shields-sheet">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 18px; color: var(--orange);">🛡️</span>
+                  <div>
+                    <div style="font-size: 13px; font-weight: 700;">Fireball Shields</div>
+                    <div style="font-size: 10px; color: var(--text-muted);">Adblock & Privacy Engine</div>
+                  </div>
+                </div>
+                <span style="font-size: 10px; font-weight: 700; color: var(--lime); background: rgba(184,255,61,0.2); padding: 3px 8px; border-radius: 6px;">PROTECTED</span>
+              </div>
+
+              <div class="stats-row">
+                <div class="stat-box">
+                  <div class="stat-val" style="color: var(--orange);">42</div>
+                  <div class="stat-lbl">Ads Blocked</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-val" style="color: var(--lime);">13 MB</div>
+                  <div class="stat-lbl">Data Saved</div>
+                </div>
+                <div class="stat-box">
+                  <div class="stat-val" style="color: var(--warp-blue);">1.4s</div>
+                  <div class="stat-lbl">Time Saved</div>
+                </div>
+              </div>
+
+              <div style="font-size: 10px; font-weight: 700; color: var(--text-secondary); margin-bottom: 8px;">EGRESS ROUTING</div>
+
+              <div class="egress-card">
+                <div>
+                  <div style="font-size: 12px; font-weight: 700;">Direct Internet</div>
+                  <div style="font-size: 10px; color: var(--text-muted);">Standard low-latency socket</div>
+                </div>
+                <span style="color: var(--lime); font-size: 11px; font-weight: 700;">● 12ms</span>
+              </div>
+
+              <div class="egress-card">
+                <div>
+                  <div style="font-size: 12px; font-weight: 700;">Cloudflare WARP</div>
+                  <div style="font-size: 10px; color: var(--text-muted);">Encrypted DoH + Egress</div>
+                </div>
+                <span style="color: var(--warp-blue); font-size: 11px; font-weight: 700;">18ms</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Design Tokens Section -->
+    <div class="section-header">
+      <h2>Fireball Design System Tokens</h2>
+      <p>Bảng mã màu HSL / HEX và quy chuẩn Typography chuẩn Figma.</p>
+    </div>
+
+    <div class="tokens-grid">
+      <div class="token-card">
+        <h4>Color Palette</h4>
+        <div class="color-swatch-row">
+          <span>Obsidian Background</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <code>#060806</code>
+            <div class="swatch-circle" style="background: #060806;"></div>
+          </div>
+        </div>
+        <div class="color-swatch-row">
+          <span>Meteor Orange (Accent)</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <code>#FF5A1F</code>
+            <div class="swatch-circle" style="background: #FF5A1F;"></div>
+          </div>
+        </div>
+        <div class="color-swatch-row">
+          <span>Electric Lime (Active)</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <code>#B8FF3D</code>
+            <div class="swatch-circle" style="background: #B8FF3D;"></div>
+          </div>
+        </div>
+        <div class="color-swatch-row">
+          <span>Burner Accent</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <code>#FF2A6D</code>
+            <div class="swatch-circle" style="background: #FF2A6D;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="token-card">
+        <h4>Typography Hierarchy</h4>
+        <div class="color-swatch-row">
+          <span>Display Large</span>
+          <code>Plus Jakarta Sans 26pt / Bold</code>
+        </div>
+        <div class="color-swatch-row">
+          <span>Title Medium</span>
+          <code>Plus Jakarta Sans 16pt / SemiBold</code>
+        </div>
+        <div class="color-swatch-row">
+          <span>Body Medium</span>
+          <code>Plus Jakarta Sans 13pt / Regular</code>
+        </div>
+        <div class="color-swatch-row">
+          <span>Code & Omnibox</span>
+          <code>JetBrains Mono 12pt</code>
+        </div>
+      </div>
+
+      <div class="token-card">
+        <h4>Elevation & Radii</h4>
+        <div class="color-swatch-row">
+          <span>Card Radius</span>
+          <code>16px / 20px (Curved)</code>
+        </div>
+        <div class="color-swatch-row">
+          <span>Button / Pill Radius</span>
+          <code>12px / 24px (Pill)</code>
+        </div>
+        <div class="color-swatch-row">
+          <span>Glow Shadow</span>
+          <code>0 0 16px rgba(255, 90, 31, 0.35)</code>
+        </div>
+        <div class="color-swatch-row">
+          <span>Border Stroke</span>
+          <code>1px solid #233024</code>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>
