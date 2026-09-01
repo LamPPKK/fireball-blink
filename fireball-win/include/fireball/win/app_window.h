@@ -43,6 +43,15 @@ public:
     PasswordVault& GetPasswordVault() { return vault_; }
     SyncEngine& GetSyncEngine() { return sync_engine_; }
 
+    enum class EngineMode {
+        NATIVE_WEBVIEW2,
+        FIREBALL_BEAM_STREAM
+    };
+    EngineMode GetEngineMode() const { return engine_mode_; }
+    void ToggleEngineMode() {
+        engine_mode_ = (engine_mode_ == EngineMode::NATIVE_WEBVIEW2) ? EngineMode::FIREBALL_BEAM_STREAM : EngineMode::NATIVE_WEBVIEW2;
+    }
+
     // Keyboard Shortcuts Dispatcher
     enum class ShortcutCommand {
         NEW_TAB,
@@ -52,9 +61,11 @@ public:
         FOCUS_OMNIBOX,
         NEW_INCOGNITO_SPACE,
         RELOAD,
+        TOGGLE_ENGINE,
         UNKNOWN
     };
     bool HandleShortcut(ShortcutCommand cmd);
+
 
 private:
     std::vector<Space> spaces_;
@@ -67,6 +78,8 @@ private:
     WebView2Host webview_host_;
     PasswordVault vault_;
     SyncEngine sync_engine_;
+    EngineMode engine_mode_ = EngineMode::NATIVE_WEBVIEW2;
 };
 
 } // namespace fireball::win
+

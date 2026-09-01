@@ -73,9 +73,24 @@ public struct FireballBrowserView: View {
                     )
                 }
 
-                // Web View Container Placeholder
+                // Web View Container / Remote Stream Stage
                 ZStack {
                     FireballTheme.cardSurface
+
+                    #if canImport(UIKit)
+                    if let tab = currentTab {
+                        NativeWKWebViewContainer(
+                            url: tab.url,
+                            spaceId: currentSpace?.id ?? "main",
+                            isBurner: currentSpace?.isBurner ?? false,
+                            shieldsEnabled: shieldsConfig.trackersAndAdsBlocking,
+                            estimatedProgress: .constant(0.8),
+                            currentTitle: .constant(tab.title),
+                            canGoBack: .constant(false),
+                            canGoForward: .constant(false)
+                        )
+                    }
+                    #else
                     VStack(spacing: 12) {
                         Image(systemName: "globe")
                             .font(.system(size: 44))
@@ -87,9 +102,11 @@ public struct FireballBrowserView: View {
                             .font(.system(size: 12))
                             .foregroundColor(FireballTheme.secondaryText)
                     }
+                    #endif
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+
 
             // Search Overlay
             if showSearchOverlay {

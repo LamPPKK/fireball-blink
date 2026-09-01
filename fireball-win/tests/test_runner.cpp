@@ -199,9 +199,17 @@ void TestAppWindow() {
     assert(app.HandleShortcut(AppWindow::ShortcutCommand::NEW_TAB));
     assert(app.GetTabsForActiveSpace().size() == 2);
 
+    // Engine Switcher
+    assert(app.GetEngineMode() == AppWindow::EngineMode::NATIVE_WEBVIEW2);
+    assert(app.HandleShortcut(AppWindow::ShortcutCommand::TOGGLE_ENGINE));
+    assert(app.GetEngineMode() == AppWindow::EngineMode::FIREBALL_BEAM_STREAM);
+    app.ToggleEngineMode();
+    assert(app.GetEngineMode() == AppWindow::EngineMode::NATIVE_WEBVIEW2);
+
     assert(app.HandleShortcut(AppWindow::ShortcutCommand::NEXT_TAB));
     assert(app.HandleShortcut(AppWindow::ShortcutCommand::PREV_TAB));
 }
+
 
 int main() {
     std::cout << "==========================================\n";

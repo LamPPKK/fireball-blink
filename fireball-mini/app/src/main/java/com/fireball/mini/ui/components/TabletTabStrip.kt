@@ -64,6 +64,8 @@ fun TabletTabStrip(
     onTabClose: (String) -> Unit,
     onNewTabClick: () -> Unit,
     onSpaceClick: () -> Unit,
+    engineType: com.fireball.mini.core.models.BrowserEngineType = com.fireball.mini.core.models.BrowserEngineType.NATIVE_WEBVIEW,
+    onToggleEngine: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
@@ -151,8 +153,40 @@ fun TabletTabStrip(
                 )
             }
         }
+
+        // Engine Switcher Pill (e.g. [ ⚡ Stream ] vs [ 🌐 Native ])
+        val isStream = engineType == com.fireball.mini.core.models.BrowserEngineType.FIREBALL_BEAM_STREAM
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(if (isStream) FireballElectricLime.copy(alpha = 0.15f) else FireballDeepSurface)
+                .border(
+                    1.dp,
+                    if (isStream) FireballElectricLime else FireballBorder,
+                    RoundedCornerShape(16.dp)
+                )
+                .clickable { onToggleEngine() }
+                .padding(horizontal = 8.dp, vertical = 4.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(6.dp)
+                        .clip(CircleShape)
+                        .background(if (isStream) FireballElectricLime else FireballMeteorOrange)
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = if (isStream) "⚡ STREAM" else "🌐 NATIVE",
+                    color = if (isStream) FireballElectricLime else FireballMutedText,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }
+
 
 @Composable
 private fun TabletTabItem(

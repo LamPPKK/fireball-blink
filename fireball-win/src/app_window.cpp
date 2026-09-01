@@ -209,10 +209,14 @@ bool AppWindow::HandleShortcut(ShortcutCommand cmd) {
         case ShortcutCommand::RELOAD:
             webview_host_.Reload();
             return true;
+        case ShortcutCommand::TOGGLE_ENGINE:
+            ToggleEngineMode();
+            return true;
         case ShortcutCommand::UNKNOWN:
             return false;
     }
     return false;
 }
+
 
 } // namespace fireball::win

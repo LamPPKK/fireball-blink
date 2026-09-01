@@ -123,11 +123,14 @@ fun BrowserScreen(
                             activeTabId = uiState.activeTab?.id,
                             activeSpace = uiState.activeSpace,
                             isBurner = uiState.isBurnerMode,
+                            engineType = uiState.engineType,
+                            onToggleEngine = { viewModel.toggleBrowserEngine() },
                             onTabClick = { tabId -> viewModel.selectTab(tabId) },
                             onTabClose = { tabId -> viewModel.closeTab(tabId) },
                             onNewTabClick = { viewModel.createNewTab() },
                             onSpaceClick = onNavigateToTabs
                         )
+
                     }
 
                     // Unified Chromium Toolbar
