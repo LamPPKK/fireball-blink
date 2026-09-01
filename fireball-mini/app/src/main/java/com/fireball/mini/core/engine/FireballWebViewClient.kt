@@ -153,9 +153,14 @@ class FireballWebViewClient(
             CosmeticFilterHelper.injectCosmeticCss(view, profileId, url)
             injectSecurityGuards(view)
             view.evaluateJavascript(com.fireball.mini.core.ruffle.RuffleHelper.ruffleInjectionScript, null)
+            val userscriptPayload = com.fireball.mini.core.userscripts.UserscriptEngine.generateInjectionPayload(url)
+            if (userscriptPayload.isNotEmpty()) {
+                view.evaluateJavascript(userscriptPayload, null)
+            }
             onPageFinishedCallback(url, view.title)
         }
     }
+
 
     override fun onReceivedSslError(view: WebView?, handler: SslErrorHandler?, error: SslError?) {
         handler?.cancel()

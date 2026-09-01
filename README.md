@@ -9,7 +9,7 @@ A privacy-centric, multi-tier browser ecosystem structured into 3 distinct pilla
 | **Pillar 2** | [**⚡ Fireball Mini Browser**](fireball-mini/) | **Android, Windows, iOS, Java ME** | Native OS WebViews & Thin Streamers | Sub-5MB to <60KB, <60MB to <1.5MB RAM, Multi-Space isolation, Shields, Zero-Knowledge Vault |
 | **Pillar 3** | [**🌐 Fireball Browser**](docs/FIREBALL_BROWSER_FULL.md) | **Android, Windows, macOS, Linux** | Full Chromium / Blink Engine Overlay (GN/Ninja) | Hardened default-deny network policy, `adblock-rust` FFI, HLS/DASH aria2 transfers, Orbital Command Deck |
 | **Thin Client** | [**📡 Fireball Client**](fireball-client/) | **Web/PWA, Desktop, Android, Apple, J2ME** | HTML5 Canvas / WebSockets / Native Canvas | Pure thin streaming client solely for connecting to Fireball Server (`< 2MB` to Zero-install) |
-| **Companion** | [**🧩 Fireball Extension**](fireball-extension/) | **Chrome, Brave, Edge, Firefox, Opera** | Manifest V3 / WebAssembly | 7 auxiliary modules: Fireball Sync, Shield, Media Downloader, Authenticator, Reader, Remote Browser, Retro Player |
+| **Companion** | [**🧩 Fireball Extension**](fireball-extension/) | **Chrome, Brave, Edge, Firefox, Opera** | Manifest V3 / WebAssembly | 9 standalone modules: Sync, Shield, Media Downloader, Authenticator, Reader, Remote Browser, Retro Player, Tampermonkey, uBlock Origin |
 
 ---
 
@@ -30,11 +30,18 @@ fireball-blink/
 │   ├── ios/                  #    - iOS Edition (SwiftUI, WebKit, Stream Stage)
 │   └── j2me/                 #    - Java ME Edition (MIDP 2.0, LCDUI Canvas, TileCache)
 │
-├── 🧩 fireball-extension/      # 3. Fireball Extension (Bộ 7 tiện ích mở rộng Manifest V3)
-│   ├── background/           #    - Fireball Sync & Fireball Shield Service Workers
-│   ├── content_scripts/      #    - Fireball Media Downloader, Fireball Reader & Fireball Retro Player (Ruffle)
-│   ├── lib/                  #    - Fireball Authenticator (AES-256-GCM / TOTP) & Fireball Remote Browser (FBEAM)
-│   └── popup/                #    - Extension Popup & Teleport UI
+├── 🧩 fireball-extension/      # 3. Fireball Extension (Bộ 9 tiện ích mở rộng độc lập Manifest V3)
+│   ├── fireball-sync/        #    - 1. Fireball Sync (Đồng bộ 24 từ BIP-39)
+│   ├── fireball-shield/      #    - 2. Fireball Shield (Chống rò WebRTC)
+│   ├── fireball-media-downloader/ # 3. Fireball Media Downloader (Bắt link HLS/MP4)
+│   ├── fireball-authenticator/ #   - 4. Fireball Authenticator (Ví mật khẩu & 2FA TOTP)
+│   ├── fireball-reader/      #    - 5. Fireball Reader (Đọc báo sạch AI & TTS)
+│   ├── fireball-remote-browser/ #  - 6. Fireball Remote Browser (FBEAM Stream)
+│   ├── fireball-retro-player/ #   - 7. Fireball Retro Player (Ruffle Flash)
+│   ├── fireball-tampermonkey/ #   - 8. Fireball Tampermonkey (Quản lý UserScript .user.js)
+│   ├── fireball-ublock/      #    - 9. Fireball uBlock Origin (Chặn quảng cáo diện rộng)
+│   └── suite/                #    - Gói tổng hợp Master Suite
+
 │
 ├── 🌐 fireball/                # 4. Fireball Browser (Bản Full Chromium/Blink Engine GN Overlay)
 │   ├── browser/              #    - Domain models, Multi-presentation tabs & Spaces

@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Fireball uBlock Origin",
+  "version": "1.0.0",
+  "description": "High-efficiency wide-spectrum content blocker for ads, trackers, coin miners, and malicious popups.",
+  "permissions": [
+    "declarativeNetRequest",
+    "declarativeNetRequestFeedback",
+    "storage",
+    "activeTab",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "ruleset_1",
+        "enabled": true,
+        "path": "rules/rules.json"
+      }
+    ]
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Fireball uBlock Origin"
+  }
+}

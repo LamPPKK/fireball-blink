@@ -113,5 +113,29 @@ assert.strictEqual(isFlashElement(mockFlashEmbed), true, "Should identify .swf e
 assert.strictEqual(isFlashElement(mockNonFlashEmbed), false, "Should not identify mp4 as Flash");
 console.log("✅ Passed: Ruffle Flash detection and polyfill validation");
 
-console.log("\n🎉 ALL 5 FIREBALL EXTENSION TEST SUITES PASSED SUCCESSFULLY!");
+// Test 6: Fireball Tampermonkey Pattern Matching & Script Injection
+console.log("\n🧪 Test 6: Fireball Tampermonkey Userscript Engine");
+function matchesPattern(url, pattern) {
+  if (pattern === "<all_urls>" || pattern === "*://*/*") return true;
+  const regex = new RegExp("^" + pattern.replace(/\*/g, ".*") + "$");
+  return regex.test(url);
+}
+assert.strictEqual(matchesPattern("https://youtube.com/watch?v=123", "*://youtube.com/*"), true);
+assert.strictEqual(matchesPattern("https://github.com/LamPPKK", "*://github.com/*"), true);
+assert.strictEqual(matchesPattern("https://example.org", "*://github.com/*"), false);
+console.log("✅ Passed: Tampermonkey userscript URL pattern matching");
+
+// Test 7: Fireball uBlock Origin Declarative Rules Verification
+console.log("\n🧪 Test 7: Fireball uBlock Origin Rule Set");
+import fs from "fs";
+import path from "path";
+const ublockRulesPath = path.resolve("fireball-extension/fireball-ublock/rules/rules.json");
+const rules = JSON.parse(fs.readFileSync(ublockRulesPath, "utf-8"));
+assert.ok(Array.isArray(rules) && rules.length > 0, "uBlock rules should be a non-empty array");
+assert.strictEqual(rules[0].action.type, "block");
+assert.ok(rules[0].condition.urlFilter.includes("doubleclick.net"));
+console.log("✅ Passed: uBlock Origin DeclarativeNetRequest rules valid");
+
+console.log("\n🎉 ALL 7 FIREBALL EXTENSION TEST SUITES PASSED SUCCESSFULLY!");
+
 

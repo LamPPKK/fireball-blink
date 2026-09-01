@@ -4,7 +4,7 @@
 
 ---
 
-## 📂 Danh Mục 7 Tiện Ích Độc Lập (Standalone Extensions)
+## 📂 Danh Mục 9 Tiện Ích Độc Lập (Standalone Extensions)
 
 ```
 fireball-extension/
@@ -15,7 +15,9 @@ fireball-extension/
 ├── 5️⃣ fireball-reader/             # 5. Fireball Reader (Đọc báo sạch AI & Đọc to TTS)
 ├── 6️⃣ fireball-remote-browser/     # 6. Fireball Remote Browser (Stream FBEAM từ xa)
 ├── 7️⃣ fireball-retro-player/       # 7. Fireball Retro Player (Giả lập Ruffle Flash Game)
-└── 📦 suite/                       # Gói tổng hợp 7-trong-1 All-in-One Suite
+├── 8️⃣ fireball-tampermonkey/       # 8. Fireball Tampermonkey (Quản lý UserScript .user.js)
+├── 9️⃣ fireball-ublock/             # 9. Fireball uBlock Origin (Chặn quảng cáo & tracker diện rộng)
+└── 📦 suite/                       # Gói tổng hợp Master Suite
 ```
 
 ---
@@ -31,8 +33,11 @@ fireball-extension/
 | **5. Fireball Reader** | `fireball-reader/` | Trích xuất văn bản sạch không quảng cáo và đọc to thành tiếng (TTS). |
 | **6. Fireball Remote Browser** | `fireball-remote-browser/` | Kết nối và điều khiển luồng duyệt web từ xa chạy trên Fireball Server (`FBEAM`). |
 | **7. Fireball Retro Player** | `fireball-retro-player/` | Giả lập WebAssembly Ruffle để chơi game Flash cổ (`.swf`) trực tiếp trên web. |
+| **8. Fireball Tampermonkey** | `fireball-tampermonkey/` | Trình quản lý UserScript (.user.js) chạy script tùy biến với hỗ trợ GM_* API. |
+| **9. Fireball uBlock Origin** | `fireball-ublock/` | Công cụ chặn quảng cáo, tracker phân tích, mã đào coin và popup độc hại. |
 
 ---
+
 
 ## 🚀 Hướng Dẫn Cài Đặt (Load Unpacked)
 
