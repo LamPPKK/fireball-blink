@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -131,6 +132,7 @@ fun AiAssistantBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .padding(horizontal = 20.dp, vertical = 12.dp)
         ) {
             // Drag Handle / Dialog Header
@@ -154,7 +156,10 @@ fun AiAssistantBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f, fill = false)
+                ) {
                     Box(
                         modifier = Modifier
                             .size(36.dp)
@@ -174,25 +179,28 @@ fun AiAssistantBottomSheet(
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
 
                     Column {
                         Text(
-                            text = "Fireball AI Assistant",
+                            text = "Fireball AI",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
                             color = FireballPrimaryText,
-                            fontSize = 16.sp
+                            fontSize = 15.5.sp,
+                            maxLines = 1
                         )
                         Text(
-                            text = currentArticle?.domain ?: "Active Page Context",
+                            text = currentArticle?.domain ?: "Page Context",
                             style = MaterialTheme.typography.bodySmall,
                             color = FireballElectricLime,
-                            fontSize = 12.sp,
+                            fontSize = 11.5.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     }
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 // Tab Switcher Pill: [ ✨ Tóm tắt ] [ 💬 Chat ]
                 Row(
@@ -653,7 +661,9 @@ private fun AiTabPill(
                 text = title,
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                 color = if (isSelected) FireballElectricLime else FireballMutedText,
-                fontSize = 11.sp
+                fontSize = 11.sp,
+                maxLines = 1,
+                softWrap = false
             )
         }
     }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -638,6 +639,7 @@ private fun HistoryRowCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 52.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(FireballCardSurface)
             .border(1.dp, FireballBorder, RoundedCornerShape(12.dp))
@@ -717,6 +719,7 @@ private fun BookmarkRowCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 52.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(FireballCardSurface)
             .border(1.dp, FireballBorder, RoundedCornerShape(12.dp))

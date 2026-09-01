@@ -216,7 +216,7 @@ private fun TabletTabItem(
             // Tab Close (x) Button
             Box(
                 modifier = Modifier
-                    .size(18.dp)
+                    .size(24.dp)
                     .clip(CircleShape)
                     .clickable { onClose() },
                 contentAlignment = Alignment.Center
@@ -224,8 +224,8 @@ private fun TabletTabItem(
                 Icon(
                     imageVector = Icons.Default.Close,
                     contentDescription = "Close Tab",
-                    tint = if (isActive) FireballPrimaryText.copy(alpha = 0.7f) else FireballMutedText.copy(alpha = 0.6f),
-                    modifier = Modifier.size(12.dp)
+                    tint = if (isActive) FireballPrimaryText.copy(alpha = 0.85f) else FireballMutedText.copy(alpha = 0.6f),
+                    modifier = Modifier.size(13.dp)
                 )
             }
         }
