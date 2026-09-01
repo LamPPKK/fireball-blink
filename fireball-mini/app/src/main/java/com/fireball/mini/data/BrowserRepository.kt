@@ -166,7 +166,13 @@ class BrowserRepository {
         return newTab
     }
 
-    fun updateTab(tabId: String, url: String? = null, title: String? = null, faviconUrl: String? = null) {
+    fun updateTab(
+        tabId: String,
+        url: String? = null,
+        title: String? = null,
+        faviconUrl: String? = null,
+        previewThumbnailPath: String? = null
+    ) {
         _tabs.update { list ->
             list.map {
                 if (it.id == tabId) {
@@ -174,6 +180,7 @@ class BrowserRepository {
                         url = url ?: it.url,
                         title = title ?: it.title,
                         faviconUrl = faviconUrl ?: it.faviconUrl,
+                        previewThumbnailPath = previewThumbnailPath ?: it.previewThumbnailPath,
                         lastAccessedTimestampMs = System.currentTimeMillis()
                     )
                 } else it

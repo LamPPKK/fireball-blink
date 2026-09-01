@@ -235,6 +235,20 @@ class BrowserViewModel(
         }
     }
 
+    fun saveTabSnapshot(tabId: String?, bitmap: android.graphics.Bitmap, context: Context) {
+        if (tabId == null) return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val file = java.io.File(context.cacheDir, "tab_preview_${tabId}.jpg")
+                val fos = java.io.FileOutputStream(file)
+                bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 85, fos)
+                fos.flush()
+                fos.close()
+                browserRepo.updateTab(tabId, previewThumbnailPath = file.absolutePath)
+            } catch (_: Exception) {}
+        }
+    }
+
     fun onProgressChanged(progress: Int) {
         _uiState.value = _uiState.value.copy(
             pageProgress = progress,

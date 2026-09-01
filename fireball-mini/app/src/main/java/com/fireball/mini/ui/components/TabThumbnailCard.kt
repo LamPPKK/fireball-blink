@@ -1,5 +1,7 @@
 package com.fireball.mini.ui.components
 
+import android.graphics.BitmapFactory
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,12 +20,19 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DriveFileMove
+import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.DropdownMenu
@@ -43,6 +52,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,6 +71,7 @@ import com.fireball.mini.ui.theme.FireballMeteorOrange
 import com.fireball.mini.ui.theme.FireballMutedText
 import com.fireball.mini.ui.theme.FireballPrimaryText
 import com.fireball.mini.ui.theme.FireballRaisedSurface
+import java.io.File
 
 @Composable
 fun TabThumbnailCard(
@@ -282,40 +294,15 @@ fun TabThumbnailCard(
                 }
             }
 
-            // Preview Stage (Center Canvas with Domain Emblem)
-            Box(
+            // Rich Webpage Preview Stage (Live Screenshot or Styled Simulated Viewport)
+            WebpagePreviewStage(
+                tab = tab,
+                displayDomain = displayDomain,
+                isActive = isActive,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(1.25f)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                FireballDeepSurface,
-                                FireballCardSurface
-                            )
-                        )
-                    )
-                    .padding(horizontal = 8.dp, vertical = 10.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(FireballRaisedSurface)
-                        .border(1.dp, FireballBorder.copy(alpha = 0.6f), RoundedCornerShape(10.dp))
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = if (displayDomain.isNotBlank() && displayDomain != "about:blank") displayDomain else "duckduckgo.com",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
-                        color = if (isActive) FireballElectricLime else FireballPrimaryText,
-                        fontSize = 12.sp,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
+                    .aspectRatio(1.28f)
+            )
 
             // Bottom Status Bar (Footer: Active / Inactive / RAM Discarded indicator)
             Row(
@@ -399,6 +386,278 @@ fun TabThumbnailCard(
                             fontSize = 9.sp
                         )
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WebpagePreviewStage(
+    tab: TabItem,
+    displayDomain: String,
+    isActive: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val thumbnailBitmap = remember(tab.previewThumbnailPath) {
+        tab.previewThumbnailPath?.let { path ->
+            val file = File(path)
+            if (file.exists()) {
+                BitmapFactory.decodeFile(file.absolutePath)
+            } else null
+        }
+    }
+
+    Box(
+        modifier = modifier
+            .background(Color(0xFF141418)),
+        contentAlignment = Alignment.Center
+    ) {
+        if (thumbnailBitmap != null) {
+            // Real Captured Snapshot from Live WebView
+            Image(
+                bitmap = thumbnailBitmap.asImageBitmap(),
+                contentDescription = tab.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            // Realistic Webpage Viewport Simulator
+            val domainLower = displayDomain.lowercase()
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Top Simulated Browser/Site Bar
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(FireballDeepSurface)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = null,
+                        tint = FireballElectricLime,
+                        modifier = Modifier.size(10.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = if (displayDomain.isNotBlank() && displayDomain != "about:blank") displayDomain else "duckduckgo.com",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = FireballPrimaryText.copy(alpha = 0.8f),
+                        fontSize = 9.5.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                // Center Webpage Body tailored by website
+                when {
+                    domainLower.contains("duckduckgo") || domainLower.isEmpty() || tab.url == "https://duckduckgo.com" -> {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            // DuckDuckGo Logo Emblem
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(FireballMeteorOrange),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp)
+                                        .clip(CircleShape)
+                                        .background(FireballElectricLime)
+                                )
+                            }
+                            Text(
+                                text = "DuckDuckGo",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = FireballPrimaryText,
+                                fontSize = 12.sp
+                            )
+                            // Search Box Replica
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(FireballRaisedSurface)
+                                    .border(0.8.dp, FireballBorder, RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = FireballMutedText,
+                                    modifier = Modifier.size(11.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "Search privately",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = FireballMutedText,
+                                    fontSize = 9.sp
+                                )
+                            }
+                        }
+                    }
+                    domainLower.contains("youtube") -> {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFFF0000)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.PlayArrow,
+                                    contentDescription = null,
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Text(
+                                text = "YouTube",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = FireballPrimaryText,
+                                fontSize = 11.5.sp
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Box(modifier = Modifier.size(width = 44.dp, height = 24.dp).clip(RoundedCornerShape(4.dp)).background(FireballRaisedSurface))
+                                Box(modifier = Modifier.size(width = 44.dp, height = 24.dp).clip(RoundedCornerShape(4.dp)).background(FireballRaisedSurface))
+                            }
+                        }
+                    }
+                    domainLower.contains("github") -> {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Code,
+                                contentDescription = null,
+                                tint = FireballElectricLime,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Text(
+                                text = "GitHub",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = FireballPrimaryText,
+                                fontSize = 12.sp
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(4.dp))
+                                    .background(FireballRaisedSurface)
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = "Repositories & Code",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = FireballMutedText,
+                                    fontSize = 8.5.sp
+                                )
+                            }
+                        }
+                    }
+                    domainLower.contains("reddit") -> {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Forum,
+                                contentDescription = null,
+                                tint = FireballMeteorOrange,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Text(
+                                text = "Reddit",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = FireballPrimaryText,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                    domainLower.contains("wikipedia") -> {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MenuBook,
+                                contentDescription = null,
+                                tint = FireballPrimaryText,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Text(
+                                text = "Wikipedia",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                                color = FireballPrimaryText,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+                    else -> {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(5.dp),
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Language,
+                                contentDescription = null,
+                                tint = if (isActive) FireballElectricLime else FireballMutedText,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Text(
+                                text = tab.title.ifEmpty { displayDomain },
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = FireballPrimaryText,
+                                fontSize = 11.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Box(modifier = Modifier.width(90.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(FireballRaisedSurface))
+                            Box(modifier = Modifier.width(60.dp).height(4.dp).clip(RoundedCornerShape(2.dp)).background(FireballRaisedSurface.copy(alpha = 0.6f)))
+                        }
+                    }
+                }
+
+                // Bottom watermark pill
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(FireballDeepSurface.copy(alpha = 0.7f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = FireballElectricLime,
+                        modifier = Modifier.size(8.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
+                    Text(
+                        text = "Fireball Engine",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = FireballMutedText,
+                        fontSize = 7.5.sp
+                    )
                 }
             }
         }

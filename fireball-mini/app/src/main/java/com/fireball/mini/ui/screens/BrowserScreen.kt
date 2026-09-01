@@ -42,6 +42,7 @@ import androidx.compose.ui.input.key.isMetaPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -74,6 +75,7 @@ fun BrowserScreen(
     isDesktopMode: Boolean = false
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var webViewInstance by remember { mutableStateOf<FireballWebView?>(null) }
     var showSearchOverlay by remember { mutableStateOf(false) }
 
@@ -161,7 +163,19 @@ fun BrowserScreen(
                         },
                         onShieldsClick = onOpenShields,
                         onSiteInfoClick = onOpenSiteInfo,
-                        onTabsClick = onNavigateToTabs,
+                        onTabsClick = {
+                            val wv = webViewInstance
+                            if (wv != null && wv.width > 0 && wv.height > 0) {
+                                try {
+                                    val bitmap = android.graphics.Bitmap.createBitmap(wv.width / 2, wv.height / 2, android.graphics.Bitmap.Config.ARGB_8888)
+                                    val canvas = android.graphics.Canvas(bitmap)
+                                    canvas.scale(0.5f, 0.5f)
+                                    wv.draw(canvas)
+                                    viewModel.saveTabSnapshot(uiState.activeTab?.id, bitmap, context)
+                                } catch (_: Exception) {}
+                            }
+                            onNavigateToTabs()
+                        },
                         onBookmarkClick = onToggleBookmark,
                         onMenuClick = onOpenMenu
                     )
