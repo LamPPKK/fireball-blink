@@ -158,7 +158,7 @@ class BrowserRepository {
             spaceId = space.id,
             profileId = space.profileId,
             url = url,
-            title = if (url == "https://duckduckgo.com") "New Tab" else url,
+            title = if (url == "https://duckduckgo.com") "DuckDuckGo" else url.removePrefix("https://").removePrefix("http://").substringBefore('/'),
             section = if (space.isBurner) TabSection.TODAY else section
         )
         _tabs.update { it + newTab }
@@ -200,7 +200,7 @@ class BrowserRepository {
             spaceId = spaceId,
             profileId = if (spaceId == "space-incognito") burnerProfile.id else defaultProfile.id,
             url = "https://duckduckgo.com",
-            title = "New Tab",
+            title = "DuckDuckGo",
             section = TabSection.TODAY
         )
         val updated = remaining + newTab

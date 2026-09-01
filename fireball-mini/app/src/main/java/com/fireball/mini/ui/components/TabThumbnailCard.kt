@@ -327,7 +327,7 @@ fun TabThumbnailCard(
                     .border(0.5.dp, FireballBorder.copy(alpha = 0.5f))
                     .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
-                // Left: Audio indicator or Section name
+                // Left: Audio indicator or Section tag (Favorite / Pinned)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (tab.isAudible) {
                         Icon(
@@ -339,16 +339,20 @@ fun TabThumbnailCard(
                         Spacer(modifier = Modifier.width(4.dp))
                     }
 
-                    Text(
-                        text = when (tab.section) {
-                            TabSection.FAVORITE -> "Favorite"
-                            TabSection.PINNED -> "Pinned"
-                            TabSection.TODAY -> "Tab"
-                        },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = FireballMutedText,
-                        fontSize = 10.sp
-                    )
+                    val sectionLabel = when (tab.section) {
+                        TabSection.FAVORITE -> "★ Favorite"
+                        TabSection.PINNED -> "📌 Pinned"
+                        TabSection.TODAY -> ""
+                    }
+
+                    if (sectionLabel.isNotEmpty()) {
+                        Text(
+                            text = sectionLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (tab.section == TabSection.FAVORITE) FireballMeteorOrange else FireballElectricLime,
+                            fontSize = 10.sp
+                        )
+                    }
                 }
 
                 // Right: Active / Inactive / RAM Discarded indicator
