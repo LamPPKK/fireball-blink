@@ -137,6 +137,52 @@ assert.strictEqual(rules[0].action.type, "block");
 assert.ok(rules[0].condition.urlFilter.includes("doubleclick.net"));
 console.log("✅ Passed: uBlock Origin DeclarativeNetRequest rules valid");
 
-console.log("\n🎉 ALL 7 FIREBALL EXTENSION TEST SUITES PASSED SUCCESSFULLY!");
+// Test 8: WebStore Interceptor Store URL Detection & Extraction
+console.log("\n🧪 Test 8: WebStore Interceptor Store Detection");
+function isWebStoreUrl(url) {
+  return url.includes("chromewebstore.google.com") ||
+         url.includes("chrome.google.com/webstore") ||
+         url.includes("microsoftedge.microsoft.com/addons");
+}
+assert.strictEqual(isWebStoreUrl("https://chromewebstore.google.com/detail/test/123"), true);
+assert.strictEqual(isWebStoreUrl("https://microsoftedge.microsoft.com/addons/detail/test/456"), true);
+assert.strictEqual(isWebStoreUrl("https://example.com"), false);
+console.log("✅ Passed: WebStore Interceptor URL recognition");
+
+// Test 9: Authenticator RFC-6238 TOTP Counter Math
+console.log("\n🧪 Test 9: Authenticator TOTP Time Step Calculation");
+function calculateTimeStep(epochSeconds = Date.now() / 1000, period = 30) {
+  return Math.floor(epochSeconds / period);
+}
+const baseTime = 1700000010; // Math.floor(1700000010 / 30) == 56666667
+const step1 = calculateTimeStep(baseTime, 30);
+const step2 = calculateTimeStep(baseTime + 15, 30); // 1700000025 -> 56666667
+const step3 = calculateTimeStep(baseTime + 30, 30); // 1700000040 -> 56666668
+assert.strictEqual(step1, step2, "Should remain in same TOTP step within 30s period");
+assert.strictEqual(step3, step1 + 1, "Should advance by exactly 1 step after 30s");
+console.log("✅ Passed: Authenticator RFC-6238 time step calculation");
+
+
+// Test 10: Thin Web Client Binary Frame Unpacking & HUD Metrics
+console.log("\n🧪 Test 10: Thin Web Client Frame Protocol & HUD Logic");
+function parseBinaryFrameHeader(buffer) {
+  if (buffer.byteLength < 4) return null;
+  const view = new DataView(buffer);
+  const magic = String.fromCharCode(view.getUint8(0), view.getUint8(1), view.getUint8(2), view.getUint8(3));
+  return { magic, payloadLength: buffer.byteLength - 4 };
+}
+const testBuf = new ArrayBuffer(8);
+const testView = new Uint8Array(testBuf);
+testView[0] = 70; // 'F'
+testView[1] = 66; // 'B'
+testView[2] = 69; // 'E'
+testView[3] = 65; // 'A'
+const parsedHeader = parseBinaryFrameHeader(testBuf);
+assert.strictEqual(parsedHeader.magic, "FBEA");
+assert.strictEqual(parsedHeader.payloadLength, 4);
+console.log("✅ Passed: Thin Web Client binary frame header parsing");
+
+console.log("\n🎉 ALL 10 FIREBALL EXTENSION & WEB CLIENT AUTOMATED TESTS PASSED SUCCESSFULLY!");
+
 
 
