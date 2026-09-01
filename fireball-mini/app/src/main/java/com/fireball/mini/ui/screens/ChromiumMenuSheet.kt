@@ -27,6 +27,9 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FindInPage
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
@@ -82,6 +85,9 @@ fun ChromiumMenuSheet(
     onReaderModeClick: () -> Unit,
     onShieldsClick: () -> Unit,
     onSyncClick: () -> Unit = {},
+    onQrShareClick: () -> Unit = {},
+    onPasswordsClick: () -> Unit = {},
+    onSiteInfoClick: () -> Unit = {},
     onToggleDesktopMode: () -> Unit,
     onSettingsClick: () -> Unit
 ) {
@@ -240,6 +246,25 @@ fun ChromiumMenuSheet(
                 title = "Fireball Shields & Privacy",
                 iconTint = FireballElectricLime,
                 onClick = { onShieldsClick(); onDismiss() }
+            )
+
+            ChromiumMenuItem(
+                icon = Icons.Default.QrCode2,
+                title = "Chia sẻ / Mã QR Tab",
+                iconTint = FireballElectricLime,
+                onClick = { onQrShareClick(); onDismiss() }
+            )
+
+            ChromiumMenuItem(
+                icon = Icons.Default.Key,
+                title = "Mật khẩu đã lưu (Password Vault)",
+                onClick = { onPasswordsClick(); onDismiss() }
+            )
+
+            ChromiumMenuItem(
+                icon = Icons.Default.Lock,
+                title = "Quyền trang web (Site Permissions)",
+                onClick = { onSiteInfoClick(); onDismiss() }
             )
 
             ChromiumMenuItem(

@@ -24,14 +24,17 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.fireball.mini.ui.components.QrShareDialog
 import com.fireball.mini.ui.screens.AiAssistantBottomSheet
 import com.fireball.mini.ui.screens.BrowserScreen
 import com.fireball.mini.ui.screens.ChromiumMenuSheet
 import com.fireball.mini.ui.screens.HistoryBookmarksScreen
 import com.fireball.mini.ui.screens.MediaDownloadBottomSheet
+import com.fireball.mini.ui.screens.PasswordsScreen
 import com.fireball.mini.ui.screens.ReaderModeScreen
 import com.fireball.mini.ui.screens.SettingsScreen
 import com.fireball.mini.ui.screens.ShieldsBottomSheet
+import com.fireball.mini.ui.screens.SiteInfoBottomSheet
 import com.fireball.mini.ui.screens.SyncBottomSheet
 import com.fireball.mini.ui.screens.TabTrayScreen
 import com.fireball.mini.ui.screens.TransfersScreen
@@ -76,6 +79,8 @@ fun FireballAppNavigation(browserViewModel: BrowserViewModel) {
     var showAiAssistantSheet by remember { mutableStateOf(false) }
     var showFindInPage by remember { mutableStateOf(false) }
     var showSyncSheet by remember { mutableStateOf(false) }
+    var showSiteInfoSheet by remember { mutableStateOf(false) }
+    var showQrDialog by remember { mutableStateOf(false) }
     var isDesktopMode by remember { mutableStateOf(false) }
 
     NavHost(navController = navController, startDestination = "browser") {
@@ -86,6 +91,8 @@ fun FireballAppNavigation(browserViewModel: BrowserViewModel) {
                 onCloseFindInPage = { showFindInPage = false },
                 onNavigateToTabs = { navController.navigate("tabs") },
                 onOpenShields = { showShieldsSheet = true },
+                onOpenSiteInfo = { showSiteInfoSheet = true },
+                onOpenQrShare = { showQrDialog = true },
                 onOpenMediaDownloads = { showMediaSheet = true },
                 onOpenAiAssistant = { showAiAssistantSheet = true },
                 onOpenMenu = { showMenuSheet = true },
@@ -107,6 +114,21 @@ fun FireballAppNavigation(browserViewModel: BrowserViewModel) {
                     viewModel = browserViewModel,
                     sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
                     onDismiss = { showShieldsSheet = false }
+                )
+            }
+
+            if (showSiteInfoSheet) {
+                SiteInfoBottomSheet(
+                    viewModel = browserViewModel,
+                    onDismiss = { showSiteInfoSheet = false }
+                )
+            }
+
+            if (showQrDialog) {
+                QrShareDialog(
+                    url = uiState.currentUrl,
+                    title = uiState.currentTitle,
+                    onDismiss = { showQrDialog = false }
                 )
             }
 
@@ -135,7 +157,7 @@ fun FireballAppNavigation(browserViewModel: BrowserViewModel) {
                     onDownloadClick = { navController.navigate("transfers") },
                     onInfoClick = {
                         showMenuSheet = false
-                        showShieldsSheet = true
+                        showSiteInfoSheet = true
                     },
                     onNewTabClick = {
                         showMenuSheet = false
@@ -169,6 +191,18 @@ fun FireballAppNavigation(browserViewModel: BrowserViewModel) {
                     onShieldsClick = {
                         showMenuSheet = false
                         showShieldsSheet = true
+                    },
+                    onQrShareClick = {
+                        showMenuSheet = false
+                        showQrDialog = true
+                    },
+                    onPasswordsClick = {
+                        showMenuSheet = false
+                        navController.navigate("passwords")
+                    },
+                    onSiteInfoClick = {
+                        showMenuSheet = false
+                        showSiteInfoSheet = true
                     },
                     onSyncClick = {
                         showMenuSheet = false
@@ -231,13 +265,22 @@ fun FireballAppNavigation(browserViewModel: BrowserViewModel) {
             )
         }
 
+        composable("passwords") {
+            PasswordsScreen(
+                viewModel = browserViewModel,
+                onBack = { navController.popBackStack() }
+            )
+        }
+
         composable("settings") {
             SettingsScreen(
                 viewModel = browserViewModel,
                 onBack = { navController.popBackStack() },
                 onOpenShields = { showShieldsSheet = true },
                 onOpenSync = { showSyncSheet = true },
-                onOpenBookmarks = { navController.navigate("history_bookmarks/1") }
+                onOpenBookmarks = { navController.navigate("history_bookmarks/1") },
+                onOpenPasswords = { navController.navigate("passwords") },
+                onOpenSitePermissions = { showSiteInfoSheet = true }
             )
         }
     }

@@ -18,6 +18,12 @@ import com.fireball.mini.core.models.AutoArchiveDuration
 import com.fireball.mini.core.models.BrowserSettings
 import com.fireball.mini.core.models.PreferredVideoQuality
 import com.fireball.mini.core.models.SearchEngine
+import com.fireball.mini.core.models.SearchEngineDefaults
+import com.fireball.mini.core.models.SavedCredential
+import com.fireball.mini.core.models.DecryptedCredential
+import com.fireball.mini.core.models.SitePermissionType
+import com.fireball.mini.core.models.PermissionStatus
+import com.fireball.mini.core.models.SiteStorageInfo
 import com.fireball.mini.core.models.TabItem
 import com.fireball.mini.core.models.TtsPlaybackStatus
 import com.fireball.mini.core.models.TtsState
@@ -31,6 +37,9 @@ import com.fireball.mini.data.HistoryRepository
 import com.fireball.mini.data.ShieldsRepository
 import com.fireball.mini.data.SyncRepository
 import com.fireball.mini.data.TransferRepository
+import com.fireball.mini.data.SearchEngineRepository
+import com.fireball.mini.data.SiteSettingsRepository
+import com.fireball.mini.data.PasswordVaultRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -68,6 +77,9 @@ class BrowserViewModel(
     private val bookmarkRepo: BookmarkRepository = BookmarkRepository(),
     private val aiRepo: AiAssistantRepository = AiAssistantRepository(),
     private val syncRepo: SyncRepository = SyncRepository(),
+    private val searchEngineRepo: SearchEngineRepository = SearchEngineRepository(),
+    private val siteSettingsRepo: SiteSettingsRepository = SiteSettingsRepository(),
+    private val passwordVaultRepo: PasswordVaultRepository = PasswordVaultRepository(),
     private val scope: CoroutineScope = CoroutineScope(Dispatchers.Default)
 ) : ViewModel() {
 
@@ -90,6 +102,10 @@ class BrowserViewModel(
     val bookmarks = bookmarkRepo.bookmarks
     val syncState = syncRepo.syncState
     val remoteTabs = syncRepo.remoteTabs
+
+    val availableSearchEngines = searchEngineRepo.availableEngines
+    val savedCredentials = passwordVaultRepo.credentials
+    val sitePermissions = siteSettingsRepo.sitePermissions
 
     // AI Assistant & Reader Mode States
     val currentArticle = aiRepo.currentArticle
@@ -163,21 +179,7 @@ class BrowserViewModel(
     }
 
     fun submitUrl(input: String, onUrlReady: (String) -> Unit) {
-        val trimmed = input.trim()
-        val targetUrl = if (trimmed.startsWith("http://") || trimmed.startsWith("https://") || (trimmed.contains(".") && !trimmed.contains(" "))) {
-            if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
-                "https://$trimmed"
-            } else {
-                trimmed
-            }
-        } else {
-            val template = _browserSettings.value.searchEngine.searchUrlTemplate
-            try {
-                template.format(URLEncoder.encode(trimmed, "UTF-8"))
-            } catch (_: Exception) {
-                _browserSettings.value.searchEngine.homeUrl
-            }
-        }
+        val targetUrl = SearchEngineDefaults.resolveQueryOrUrl(input, _browserSettings.value.searchEngine)
 
         val cleanedUrl = if (_browserSettings.value.isUrlCleanerEnabled) {
             UrlCleanerHelper.cleanUrl(targetUrl)
@@ -520,6 +522,41 @@ class BrowserViewModel(
 
     fun setSearchEngine(engine: SearchEngine) {
         _browserSettings.update { it.copy(searchEngine = engine) }
+        searchEngineRepo.setDefaultEngine(engine.id)
+    }
+
+    fun addCustomSearchEngine(name: String, searchUrl: String, suggestUrl: String? = null, bang: String? = null): SearchEngine {
+        return searchEngineRepo.addCustomEngine(name, searchUrl, suggestUrl, bang)
+    }
+
+    fun deleteCustomSearchEngine(id: String) {
+        searchEngineRepo.deleteCustomEngine(id)
+    }
+
+    // Passwords Vault
+    fun saveCredential(domain: String, username: String, plainPassword: String): SavedCredential {
+        return passwordVaultRepo.saveCredential(domain, username, plainPassword)
+    }
+
+    fun decryptCredential(cred: SavedCredential): DecryptedCredential? {
+        return passwordVaultRepo.decryptCredential(cred)
+    }
+
+    fun deleteCredential(id: String) {
+        passwordVaultRepo.deleteCredential(id)
+    }
+
+    // Site Permissions & Data
+    fun getSiteInfo(urlOrDomain: String): SiteStorageInfo {
+        return siteSettingsRepo.getSiteInfo(urlOrDomain)
+    }
+
+    fun setSitePermission(domain: String, type: SitePermissionType, status: PermissionStatus) {
+        siteSettingsRepo.setPermission(domain, type, status)
+    }
+
+    fun clearSiteData(domain: String, onCleared: () -> Unit = {}) {
+        siteSettingsRepo.clearSiteData(domain, onCleared)
     }
 
     fun setHttpsOnly(enabled: Boolean) {

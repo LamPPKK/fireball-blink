@@ -67,6 +67,8 @@ fun BrowserScreen(
     onOpenShields: () -> Unit,
     onOpenMediaDownloads: () -> Unit,
     onOpenAiAssistant: () -> Unit = {},
+    onOpenSiteInfo: () -> Unit = {},
+    onOpenQrShare: () -> Unit = {},
     onOpenMenu: () -> Unit,
     onToggleBookmark: () -> Unit,
     isDesktopMode: Boolean = false
@@ -158,6 +160,7 @@ fun BrowserScreen(
                             onOpenAiAssistant()
                         },
                         onShieldsClick = onOpenShields,
+                        onSiteInfoClick = onOpenSiteInfo,
                         onTabsClick = onNavigateToTabs,
                         onBookmarkClick = onToggleBookmark,
                         onMenuClick = onOpenMenu

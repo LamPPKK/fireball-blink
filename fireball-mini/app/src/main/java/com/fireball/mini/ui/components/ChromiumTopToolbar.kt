@@ -78,6 +78,7 @@ fun ChromiumTopToolbar(
     onSwipePrevTab: () -> Unit = {},
     onReload: () -> Unit,
     onShieldsClick: () -> Unit,
+    onSiteInfoClick: () -> Unit = onShieldsClick,
     onTabsClick: () -> Unit,
     onBookmarkClick: () -> Unit = {},
     onAiClick: () -> Unit = {},
@@ -188,6 +189,7 @@ fun ChromiumTopToolbar(
                         if (isBurner) FireballMeteorOrange.copy(alpha = 0.5f) else FireballBorder,
                         RoundedCornerShape(24.dp)
                     )
+                    .clickable { onOmniboxClick() }
                     .pointerInput(Unit) {
                         detectHorizontalDragGestures(
                             onDragStart = { totalDragX = 0f },
@@ -205,7 +207,6 @@ fun ChromiumTopToolbar(
                             }
                         )
                     }
-                    .clickable { onOmniboxClick() }
                     .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
@@ -222,7 +223,9 @@ fun ChromiumTopToolbar(
                             imageVector = if (isSecure) Icons.Filled.Lock else Icons.Filled.Search,
                             contentDescription = "Security",
                             tint = if (isSecure) FireballElectricLime else FireballMutedText,
-                            modifier = Modifier.size(15.dp)
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clickable { onSiteInfoClick() }
                         )
 
                         Spacer(modifier = Modifier.width(8.dp))

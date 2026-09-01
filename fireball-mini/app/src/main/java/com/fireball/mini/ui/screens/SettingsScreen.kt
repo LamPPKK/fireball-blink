@@ -111,7 +111,9 @@ fun SettingsScreen(
     onBack: () -> Unit,
     onOpenShields: () -> Unit = {},
     onOpenSync: () -> Unit = {},
-    onOpenBookmarks: () -> Unit = {}
+    onOpenBookmarks: () -> Unit = {},
+    onOpenPasswords: () -> Unit = {},
+    onOpenSitePermissions: () -> Unit = {}
 ) {
     val settings by viewModel.browserSettings.collectAsState()
     val syncState by viewModel.syncState.collectAsState()
@@ -120,6 +122,7 @@ fun SettingsScreen(
     val isRedirectBlockingEnabled by viewModel.isRedirectBlockingEnabled.collectAsState()
     val readerTheme by viewModel.readerTheme.collectAsState()
     val activeSpace = viewModel.uiState.collectAsState().value.activeSpace
+    val availableEngines by viewModel.availableSearchEngines.collectAsState()
 
     val context = LocalContext.current
 
@@ -144,7 +147,7 @@ fun SettingsScreen(
             },
             text = {
                 Column {
-                    SearchEngine.entries.forEach { engine ->
+                    availableEngines.forEach { engine ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -157,7 +160,7 @@ fun SettingsScreen(
                                 .padding(vertical = 8.dp, horizontal = 4.dp)
                         ) {
                             RadioButton(
-                                selected = settings.searchEngine == engine,
+                                selected = settings.searchEngine.id == engine.id,
                                 onClick = {
                                     viewModel.setSearchEngine(engine)
                                     showSearchEngineDialog = false
@@ -166,7 +169,7 @@ fun SettingsScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Column {
-                                Text(text = engine.displayName, color = FireballPrimaryText, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                Text(text = "${engine.iconEmoji} ${engine.name}", color = FireballPrimaryText, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                                 Text(text = engine.homeUrl, color = FireballMutedText, fontSize = 11.sp)
                             }
                         }
@@ -522,6 +525,24 @@ fun SettingsScreen(
                         subtitle = "Yêu cầu giao diện máy tính trên máy tính bảng & PC",
                         checked = settings.isDesktopModeDefault,
                         onCheckedChange = { viewModel.setDesktopModeDefault(it) }
+                    )
+
+                    HorizontalDivider(color = FireballBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
+
+                    SettingsRowClickable(
+                        icon = Icons.Default.VpnKey,
+                        title = "Password Manager & Vault",
+                        subtitle = "Quản lý mật khẩu đã lưu (mã hóa AES-256-GCM)",
+                        onClick = onOpenPasswords
+                    )
+
+                    HorizontalDivider(color = FireballBorder.copy(alpha = 0.5f), thickness = 0.5.dp)
+
+                    SettingsRowClickable(
+                        icon = Icons.Default.Lock,
+                        title = "Site Permissions & Storage",
+                        subtitle = "Cấu hình quyền Camera, Micro, Vị trí và Cookie từng trang",
+                        onClick = onOpenSitePermissions
                     )
                 }
             }

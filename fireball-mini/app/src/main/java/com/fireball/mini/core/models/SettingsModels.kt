@@ -1,49 +1,5 @@
 package com.fireball.mini.core.models
 
-enum class SearchEngine(
-    val displayName: String,
-    val searchUrlTemplate: String,
-    val homeUrl: String,
-    val iconName: String
-) {
-    DUCKDUCKGO(
-        displayName = "DuckDuckGo",
-        searchUrlTemplate = "https://duckduckgo.com/?q=%s",
-        homeUrl = "https://duckduckgo.com",
-        iconName = "privacy_shield"
-    ),
-    GOOGLE(
-        displayName = "Google",
-        searchUrlTemplate = "https://www.google.com/search?q=%s",
-        homeUrl = "https://www.google.com",
-        iconName = "search"
-    ),
-    BRAVE_SEARCH(
-        displayName = "Brave Search",
-        searchUrlTemplate = "https://search.brave.com/search?q=%s",
-        homeUrl = "https://search.brave.com",
-        iconName = "lion"
-    ),
-    BING(
-        displayName = "Microsoft Bing",
-        searchUrlTemplate = "https://www.bing.com/search?q=%s",
-        homeUrl = "https://www.bing.com",
-        iconName = "bing"
-    ),
-    STARTPAGE(
-        displayName = "Startpage",
-        searchUrlTemplate = "https://www.startpage.com/sp/search?query=%s",
-        homeUrl = "https://www.startpage.com",
-        iconName = "lock"
-    ),
-    ECOSIA(
-        displayName = "Ecosia",
-        searchUrlTemplate = "https://www.ecosia.org/search?q=%s",
-        homeUrl = "https://www.ecosia.org",
-        iconName = "tree"
-    )
-}
-
 enum class AutoArchiveDuration(
     val displayName: String,
     val hours: Int
@@ -66,7 +22,7 @@ enum class PreferredVideoQuality(
 }
 
 data class BrowserSettings(
-    val searchEngine: SearchEngine = SearchEngine.DUCKDUCKGO,
+    val searchEngine: SearchEngine = SearchEngineDefaults.DUCKDUCKGO,
     val isHttpsOnly: Boolean = true,
     val isUrlCleanerEnabled: Boolean = true,
     val isMediaSnifferEnabled: Boolean = true,

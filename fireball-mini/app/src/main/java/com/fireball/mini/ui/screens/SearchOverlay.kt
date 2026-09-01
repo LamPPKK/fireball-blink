@@ -18,9 +18,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -243,6 +245,63 @@ fun SearchOverlay(
                     color = if (searchQuery.isNotBlank()) FireballBackground else FireballMutedText,
                     fontSize = 13.sp
                 )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Bang Shortcuts Engine Quick Chips
+        val bangChips = listOf(
+            Pair("!g", "Google"),
+            Pair("!b", "Brave"),
+            Pair("!yt", "YouTube"),
+            Pair("!gh", "GitHub"),
+            Pair("!w", "Wiki"),
+            Pair("!k", "Kagi"),
+            Pair("!sp", "Startpage"),
+            Pair("!e", "Ecosia"),
+            Pair("!r", "Reddit")
+        )
+
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            Text(
+                text = "BANG SHORTCUTS (!BANG QUERY)",
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                color = FireballSecondaryText,
+                fontSize = 11.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                items(bangChips) { (bang, name) ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(FireballCardSurface)
+                            .border(1.dp, FireballBorder, RoundedCornerShape(20.dp))
+                            .clickable {
+                                searchQuery = "$bang "
+                            }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = bang,
+                            color = FireballElectricLime,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = name,
+                            color = FireballPrimaryText,
+                            fontSize = 12.sp
+                        )
+                    }
+                }
             }
         }
 

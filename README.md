@@ -98,12 +98,31 @@ The detached meteor mark is the shared Fireball identity: an obsidian core, embe
 - **Responsive Form Factors**: Optimized for Phones, Foldables, Tablets (with dedicated **Tablet Tab Strip**), and Desktop/PC mode.
 - **Ergonomic Touch Targets**: Minimum $\ge 48\text{dp}$ touch targets for effortless one-handed use.
 
+#### 8. 🔍 Search Engine Provider & Bang Shortcuts Engine
+- **Multi-Engine Switching**: Switch default search provider (DuckDuckGo, Google, Brave, Bing, Ecosia, Startpage, Kagi).
+- **Bang Shortcuts Engine**: Instant Bang queries directly from the Omnibox or quick suggestion chips (`!g` for Google, `!gh` for GitHub, `!yt` for YouTube, `!w` for Wikipedia, `!k` for Kagi, `!r` for Reddit, etc.).
+- **Custom Engine URL Templates**: Support for `%s` parameter search query URLs.
+
+#### 9. 🛡️ Site Permissions & Origin Storage Manager
+- **Site Security Inspector**: Interactive lock icon revealing HTTPS TLS certificate state, tracker block metrics, and connection security.
+- **Granular Permissions**: Domain-level controls for Geolocation, Camera, Microphone, Notifications, and Popups.
+- **Origin Storage Purge**: View domain-specific cookie and cache usage with one-tap instant data clearing.
+
+#### 10. 🔐 Encrypted Password & Credential Vault (E2EE)
+- **Zero-Knowledge Encryption**: AES-256-GCM authenticated encryption with device-derived master key seed.
+- **Password Manager Screen**: Instant credential search, reveal/hide password toggles, clipboard copy helpers, and delete protections.
+- **Manual Credential Creation**: Quick modal dialog to add and encrypt credentials for any domain.
+
+#### 11. 📷 Procedural QR Code Tab Sharing
+- **Instant QR Generator**: Procedural QR code generation for the active tab URL.
+- **System Integration**: One-tap URL copying and native Android system share intent integration.
+
 ### 🔨 Building & Running Fireball Mini
 
 ```bash
 cd fireball-mini
 
-# Run the complete Android unit test suite (42/42 tests passing)
+# Run the complete Android unit test suite (47/47 tests passing)
 ./gradlew testDebugUnitTest
 
 # Assemble Debug APK
