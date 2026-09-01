@@ -296,10 +296,11 @@ fun BrowserScreen(
                         update = { webView ->
                             webViewInstance = webView
                             webView.setDesktopMode(isDesktopMode)
-                            if (webView.url != uiState.currentUrl && !uiState.isLoading && uiState.currentUrl != "about:blank") {
+                            if (webView.url != uiState.currentUrl && uiState.currentUrl.isNotEmpty() && uiState.currentUrl != "about:blank") {
                                 webView.loadUrl(uiState.currentUrl)
                             }
                         }
+
                     )
                 }
             }

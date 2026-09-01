@@ -30,6 +30,8 @@ test: check
 
 package:
 	python3 tools/package_ecosystem.py
+	python3 tools/build_installers.py
+
 
 
 chromium-builder-preflight:

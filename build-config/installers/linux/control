@@ -1,0 +1,10 @@
+Package: fireball-browser
+Version: 1.0.0
+Section: web
+Priority: optional
+Architecture: amd64
+Maintainer: Fireball Project <info@fireball.dev>
+Depends: libc6 (>= 2.31), libglib2.0-0 (>= 2.64), libnss3 (>= 3.53)
+Description: Fireball Browser - Modern, Private & Secure Multi-Tier Web Browser
+ Fireball is a next-generation web browser combining hardened Chromium
+ engine security, native Rust adblock filtering, and multi-space tabs.

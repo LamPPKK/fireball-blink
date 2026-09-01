@@ -34,7 +34,7 @@ class FireballWebViewClient(
         val url = request?.url?.toString() ?: return false
         val uri = request.url
 
-        // 1. Intercept abusive app store / intent redirect schemes
+        // 1. Intercept abusive custom app store / intent redirect schemes
         val scheme = uri.scheme?.lowercase() ?: ""
         if (scheme != "http" && scheme != "https" && scheme != "about" && scheme != "data" && scheme != "blob") {
             if (isRedirectBlockingEnabled()) {
@@ -45,19 +45,6 @@ class FireballWebViewClient(
             }
         }
 
-        // 2. Check if the redirected target is an ad/malware network
-        val destHost = uri.host ?: ""
-        if (isRedirectBlockingEnabled() && destHost.isNotEmpty() && currentSourceHost.isNotEmpty() && destHost != currentSourceHost) {
-            val cat = FireballNativeBridge.evaluateRequestCategory(profileId, url, currentSourceHost, destHost)
-            if (cat != 0) {
-                mainHandler.post {
-                    onRedirectBlockedCallback(url)
-                    onAdBlockedCallback(cat)
-                }
-                return true // Block redirect to ad/malware domain
-            }
-        }
-
         if (request.isForMainFrame) {
             val cleanedUrl = UrlCleanerHelper.cleanUrlIfNeeded(url)
             if (cleanedUrl != url) {
@@ -65,6 +52,8 @@ class FireballWebViewClient(
                 return true
             }
         }
+
+        // Allow WebView to navigate to the clicked link
         return false
     }
 
@@ -93,18 +82,21 @@ class FireballWebViewClient(
             }
         }
 
-        // 2. Evaluate Multi-Category Adblock Engine
-        val blockCategory = FireballNativeBridge.evaluateRequestCategory(profileId, url, sourceHost, destHost)
-        if (blockCategory != 0) {
-            mainHandler.post {
-                onAdBlockedCallback(blockCategory)
+        // 2. Evaluate Multi-Category Adblock Engine ONLY for sub-resources (scripts, images, iframes)
+        if (!request.isForMainFrame && destHost.isNotEmpty()) {
+            val blockCategory = FireballNativeBridge.evaluateRequestCategory(profileId, url, sourceHost, destHost)
+            if (blockCategory != 0) {
+                mainHandler.post {
+                    onAdBlockedCallback(blockCategory)
+                }
+                // Return empty response to drop the ad/tracker sub-resource
+                return WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream(ByteArray(0)))
             }
-            // Return empty response to drop the request
-            return WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream(ByteArray(0)))
         }
 
         return super.shouldInterceptRequest(view, request)
     }
+
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)

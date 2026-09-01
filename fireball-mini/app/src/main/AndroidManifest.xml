@@ -16,7 +16,8 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.FireballMini"
         android:hardwareAccelerated="true"
-        android:usesCleartextTraffic="false">
+        android:usesCleartextTraffic="true">
+
 
         <activity
             android:name=".MainActivity"

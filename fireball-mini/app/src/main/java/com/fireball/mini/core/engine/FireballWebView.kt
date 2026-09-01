@@ -63,8 +63,8 @@ class FireballWebView(
 
         settings.apply {
             javaScriptEnabled = true
-            domStorageEnabled = !isOffTheRecord // Disable persistent DOM storage in Incognito
-            databaseEnabled = !isOffTheRecord
+            domStorageEnabled = true // Required for all modern websites (Google, YouTube, Twitter, SPAs)
+            databaseEnabled = true
             useWideViewPort = true
             loadWithOverviewMode = true
             setSupportZoom(true)
@@ -72,11 +72,12 @@ class FireballWebView(
             displayZoomControls = false
             allowFileAccess = false
             allowContentAccess = false
-            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+            mixedContentMode = WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE
             cacheMode = if (isOffTheRecord) WebSettings.LOAD_NO_CACHE else WebSettings.LOAD_DEFAULT
-            userAgentString = userAgentString.replace("; wv", "") // Modern browser UA
+            userAgentString = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36"
         }
     }
+
 
     fun setDesktopMode(enabled: Boolean) {
         if (enabled) {
