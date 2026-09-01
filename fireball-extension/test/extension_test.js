@@ -85,6 +85,33 @@ const parsed = parseNetscapeHtml(htmlExport);
 assert.strictEqual(parsed.length, 2);
 assert.strictEqual(parsed[0].url, "https://google.com");
 assert.strictEqual(parsed[1].url, "https://fireball.dev");
-console.log("✅ Passed: Netscape HTML export and parsing");
+// Test 5: Ruffle Flash Element Detection & Polyfill
+console.log("\n🧪 Test 5: Ruffle Flash Element Detection & Polyfill");
+const { isFlashElement } = await import("../content_scripts/ruffle_interceptor.js");
 
-console.log("\n🎉 ALL 4 FIREBALL EXTENSION TEST SUITES PASSED SUCCESSFULLY!");
+const mockFlashEmbed = {
+  tagName: "EMBED",
+  getAttribute: (name) => {
+    if (name === "type") return "application/x-shockwave-flash";
+    if (name === "src") return "https://example.com/games/strike-force-heroes.swf";
+    return null;
+  },
+  querySelectorAll: () => []
+};
+
+const mockNonFlashEmbed = {
+  tagName: "EMBED",
+  getAttribute: (name) => {
+    if (name === "type") return "video/mp4";
+    if (name === "src") return "https://example.com/video.mp4";
+    return null;
+  },
+  querySelectorAll: () => []
+};
+
+assert.strictEqual(isFlashElement(mockFlashEmbed), true, "Should identify .swf embed as Flash");
+assert.strictEqual(isFlashElement(mockNonFlashEmbed), false, "Should not identify mp4 as Flash");
+console.log("✅ Passed: Ruffle Flash detection and polyfill validation");
+
+console.log("\n🎉 ALL 5 FIREBALL EXTENSION TEST SUITES PASSED SUCCESSFULLY!");
+

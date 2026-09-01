@@ -14,6 +14,8 @@
 | **4. Zero-Knowledge Password & 2FA Vault** | `lib/crypto.js` | Tự động điền tài khoản/mật khẩu mã hóa AES-256-GCM, hỗ trợ bộ tạo mã xác thực 2 bước (TOTP Authenticator) mã hóa cục bộ. |
 | **5. Fireball AI Reader & TTS Auxiliary** | `content_scripts/reader.js` | Trích xuất nội dung bài viết sạch không quảng cáo (Readability), tóm tắt ý chính bài viết, hỗ trợ đọc văn bản thành giọng nói (TTS) và dịch thuật. |
 | **6. Fireball Beam Remote Control** | `lib/beam_ws.js` | Kết nối điều khiển và xem luồng duyệt web từ xa chạy trên Fireball Server thông qua giao thức nhị phân `FBEAM`. |
+| **7. Ruffle Flash Emulator & Retro Games** | `content_scripts/ruffle_interceptor.js` | Tự động phát hiện và kích hoạt giả lập Adobe Flash bằng WebAssembly (Rust/Ruffle) để chơi trực tiếp các tựa game Flash cổ điển (`.swf`). |
+
 
 ---
 

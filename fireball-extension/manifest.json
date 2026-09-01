@@ -41,10 +41,11 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content_scripts/media_detector.js"],
+      "js": ["content_scripts/media_detector.js", "content_scripts/ruffle_interceptor.js"],
       "run_at": "document_idle"
     }
   ],
+
   "commands": {
     "_execute_action": {
       "suggested_key": {

@@ -152,6 +152,7 @@ class FireballWebViewClient(
             currentPageTitle = view.title ?: "Page"
             CosmeticFilterHelper.injectCosmeticCss(view, profileId, url)
             injectSecurityGuards(view)
+            view.evaluateJavascript(com.fireball.mini.core.ruffle.RuffleHelper.ruffleInjectionScript, null)
             onPageFinishedCallback(url, view.title)
         }
     }
@@ -160,3 +161,4 @@ class FireballWebViewClient(
         handler?.cancel()
     }
 }
+
