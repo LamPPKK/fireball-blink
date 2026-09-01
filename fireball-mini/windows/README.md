@@ -22,9 +22,10 @@ Ultra-lightweight, high-performance desktop browser client for Windows powered b
 ## 📂 Project Structure
 
 ```
-fireball-win/
+fireball-mini/windows/
 ├── CMakeLists.txt
 ├── README.md
+
 ├── include/
 │   └── fireball/win/
 │       ├── app_window.h

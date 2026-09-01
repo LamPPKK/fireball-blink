@@ -49,7 +49,7 @@ def package_server(repo_root: pathlib.Path, dist_dir: pathlib.Path) -> pathlib.P
 
 
 def package_j2me(repo_root: pathlib.Path, dist_dir: pathlib.Path) -> pathlib.Path:
-    j2me_dir = repo_root / "fireball-j2me"
+    j2me_dir = repo_root / "fireball-mini" / "j2me"
     out_zip = dist_dir / "fireball-j2me-v1.0.0.zip"
     print(f"📦 Packaging Java ME Edition into {out_zip.name}...")
     with zipfile.ZipFile(out_zip, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -62,7 +62,7 @@ def package_j2me(repo_root: pathlib.Path, dist_dir: pathlib.Path) -> pathlib.Pat
 
 
 def package_windows_source(repo_root: pathlib.Path, dist_dir: pathlib.Path) -> pathlib.Path:
-    win_dir = repo_root / "fireball-win"
+    win_dir = repo_root / "fireball-mini" / "windows"
     out_zip = dist_dir / "fireball-win-v1.0.0-src.zip"
     print(f"📦 Packaging Windows Lite Source into {out_zip.name}...")
     with zipfile.ZipFile(out_zip, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -72,6 +72,7 @@ def package_windows_source(repo_root: pathlib.Path, dist_dir: pathlib.Path) -> p
                 rel_path = full_path.relative_to(win_dir)
                 zf.write(full_path, arcname=str(rel_path))
     return out_zip
+
 
 
 def main() -> int:
