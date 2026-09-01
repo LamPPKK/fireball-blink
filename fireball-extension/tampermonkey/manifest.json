@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Fireball Tampermonkey",
+  "name": "Tampermonkey",
   "version": "1.0.0",
-  "description": "Userscript Manager for Fireball. Execute custom Greasemonkey/Tampermonkey (.user.js) scripts with GM_* API support.",
+  "description": "The world's most popular userscript manager. Execute custom Greasemonkey/Tampermonkey (.user.js) scripts with GM_* API support.",
+
   "permissions": [
     "storage",
     "activeTab",

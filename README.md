@@ -37,10 +37,11 @@ fireball-blink/
 │   ├── fireball-authenticator/ #   - 4. Fireball Authenticator (Ví mật khẩu & 2FA TOTP)
 │   ├── fireball-reader/      #    - 5. Fireball Reader (Đọc báo sạch AI & TTS)
 │   ├── fireball-remote-browser/ #  - 6. Fireball Remote Browser (FBEAM Stream)
-│   ├── fireball-retro-player/ #   - 7. Fireball Retro Player (Ruffle Flash)
-│   ├── fireball-tampermonkey/ #   - 8. Fireball Tampermonkey (Quản lý UserScript .user.js)
-│   ├── fireball-ublock/      #    - 9. Fireball uBlock Origin (Chặn quảng cáo diện rộng)
+│   ├── ruffle/               #    - 7. Ruffle (Giả lập Flash Player WebAssembly)
+│   ├── tampermonkey/         #    - 8. Tampermonkey (Trình quản lý UserScript .user.js)
+│   ├── ublock-origin/        #    - 9. uBlock Origin (Chặn quảng cáo & tracker diện rộng)
 │   └── suite/                #    - Gói tổng hợp Master Suite
+
 
 │
 ├── 🌐 fireball/                # 4. Fireball Browser (Bản Full Chromium/Blink Engine GN Overlay)

@@ -125,12 +125,13 @@ assert.strictEqual(matchesPattern("https://github.com/LamPPKK", "*://github.com/
 assert.strictEqual(matchesPattern("https://example.org", "*://github.com/*"), false);
 console.log("✅ Passed: Tampermonkey userscript URL pattern matching");
 
-// Test 7: Fireball uBlock Origin Declarative Rules Verification
-console.log("\n🧪 Test 7: Fireball uBlock Origin Rule Set");
+// Test 7: uBlock Origin Declarative Rules Verification
+console.log("\n🧪 Test 7: uBlock Origin Rule Set");
 import fs from "fs";
 import path from "path";
-const ublockRulesPath = path.resolve("fireball-extension/fireball-ublock/rules/rules.json");
+const ublockRulesPath = path.resolve("fireball-extension/ublock-origin/rules/rules.json");
 const rules = JSON.parse(fs.readFileSync(ublockRulesPath, "utf-8"));
+
 assert.ok(Array.isArray(rules) && rules.length > 0, "uBlock rules should be a non-empty array");
 assert.strictEqual(rules[0].action.type, "block");
 assert.ok(rules[0].condition.urlFilter.includes("doubleclick.net"));

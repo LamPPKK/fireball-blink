@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Fireball Retro Player",
+  "name": "Ruffle - Flash Emulator",
   "version": "1.0.0",
   "description": "Ruffle WebAssembly Flash Player emulator for running classic Flash games (.swf) and animations safely in modern browsers.",
+
   "permissions": [
     "activeTab"
   ],

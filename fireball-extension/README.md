@@ -14,9 +14,9 @@ fireball-extension/
 ├── 4️⃣ fireball-authenticator/      # 4. Fireball Authenticator (Ví mật khẩu AES & 2FA TOTP)
 ├── 5️⃣ fireball-reader/             # 5. Fireball Reader (Đọc báo sạch AI & Đọc to TTS)
 ├── 6️⃣ fireball-remote-browser/     # 6. Fireball Remote Browser (Stream FBEAM từ xa)
-├── 7️⃣ fireball-retro-player/       # 7. Fireball Retro Player (Giả lập Ruffle Flash Game)
-├── 8️⃣ fireball-tampermonkey/       # 8. Fireball Tampermonkey (Quản lý UserScript .user.js)
-├── 9️⃣ fireball-ublock/             # 9. Fireball uBlock Origin (Chặn quảng cáo & tracker diện rộng)
+├── 7️⃣ ruffle/                      # 7. Ruffle (Giả lập Flash Player WebAssembly)
+├── 8️⃣ tampermonkey/                # 8. Tampermonkey (Trình quản lý UserScript .user.js)
+├── 9️⃣ ublock-origin/               # 9. uBlock Origin (Chặn quảng cáo & tracker diện rộng)
 └── 📦 suite/                       # Gói tổng hợp Master Suite
 ```
 
@@ -32,9 +32,10 @@ fireball-extension/
 | **4. Fireball Authenticator** | `fireball-authenticator/` | Lưu mật khẩu mã hóa AES-256 và sinh mã xác thực 2 bước 2FA (RFC-6238 TOTP). |
 | **5. Fireball Reader** | `fireball-reader/` | Trích xuất văn bản sạch không quảng cáo và đọc to thành tiếng (TTS). |
 | **6. Fireball Remote Browser** | `fireball-remote-browser/` | Kết nối và điều khiển luồng duyệt web từ xa chạy trên Fireball Server (`FBEAM`). |
-| **7. Fireball Retro Player** | `fireball-retro-player/` | Giả lập WebAssembly Ruffle để chơi game Flash cổ (`.swf`) trực tiếp trên web. |
-| **8. Fireball Tampermonkey** | `fireball-tampermonkey/` | Trình quản lý UserScript (.user.js) chạy script tùy biến với hỗ trợ GM_* API. |
-| **9. Fireball uBlock Origin** | `fireball-ublock/` | Công cụ chặn quảng cáo, tracker phân tích, mã đào coin và popup độc hại. |
+| **7. Ruffle** | `ruffle/` | Giả lập WebAssembly Ruffle chính gốc để chơi game Flash cổ (`.swf`) trực tiếp trên web. |
+| **8. Tampermonkey** | `tampermonkey/` | Trình quản lý UserScript (.user.js) chính gốc chạy script tùy biến với hỗ trợ GM_* API. |
+| **9. uBlock Origin** | `ublock-origin/` | Công cụ chặn quảng cáo, tracker phân tích, mã đào coin và popup độc hại chính gốc. |
+
 
 ---
 

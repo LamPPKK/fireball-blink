@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Fireball uBlock Origin",
+  "name": "uBlock Origin",
   "version": "1.0.0",
-  "description": "High-efficiency wide-spectrum content blocker for ads, trackers, coin miners, and malicious popups.",
+  "description": "Finally, an efficient wide-spectrum content blocker. Easy on CPU and memory.",
+
   "permissions": [
     "declarativeNetRequest",
     "declarativeNetRequestFeedback",
