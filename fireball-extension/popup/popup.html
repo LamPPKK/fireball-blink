@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fireball Companion</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="fireball-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="brand-badge">F</div>
+        <div>
+          <h1 class="brand-title">Fireball Companion</h1>
+          <p class="brand-subtitle">Desktop ⇄ Mobile Bridge</p>
+        </div>
+      </div>
+      <div class="sync-pill" id="syncStatusPill">
+        <span class="status-dot"></span>
+        <span id="syncStatusText">Local</span>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+      <button class="nav-tab active" data-tab="sync-panel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        Sync
+      </button>
+      <button class="nav-tab" data-tab="spaces-panel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/></svg>
+        Spaces & Tabs
+      </button>
+      <button class="nav-tab" data-tab="sniffer-panel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>
+        Media (<span id="mediaCountBadge">0</span>)
+      </button>
+      <button class="nav-tab" data-tab="backup-panel">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Backup & Shields
+      </button>
+    </nav>
+
+    <!-- Panels Container -->
+    <main class="content-body">
+      <!-- 1. SYNC PANEL -->
+      <section id="sync-panel" class="tab-panel active">
+        <div id="syncDisconnectedState" class="panel-section">
+          <div class="card card-glow">
+            <h3 class="card-title">Brave Sync Chain (BIP-39)</h3>
+            <p class="card-desc">Ghép nối bảo mật không cần email/mật khẩu với Fireball Mini Android bằng 24 từ.</p>
+
+            <div class="button-row">
+              <button id="btnGenerateWords" class="btn btn-primary">Sinh chuỗi 24 từ mới</button>
+              <button id="btnEnterWords" class="btn btn-outline">Nhập từ đã có</button>
+            </div>
+
+            <div id="wordsDisplayBox" class="words-container hidden">
+              <div class="words-header">
+                <span>Chuỗi khôi phục (Zero-Knowledge):</span>
+                <button id="btnCopyWords" class="btn-text">Sao chép</button>
+              </div>
+              <div id="wordsGrid" class="words-grid"></div>
+              <button id="btnConfirmConnect" class="btn btn-primary btn-block mt-2">Bắt đầu Đồng bộ</button>
+            </div>
+
+            <div id="wordsInputBox" class="words-input-box hidden">
+              <textarea id="inputWordsArea" placeholder="Dán hoặc nhập 24 từ cách nhau bởi dấu cách..." rows="3"></textarea>
+              <button id="btnConnectExisting" class="btn btn-primary btn-block mt-2">Kết nối</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="syncConnectedState" class="panel-section hidden">
+          <div class="card card-connected">
+            <div class="card-header-flex">
+              <div>
+                <h3 class="card-title text-lime">Đã kết nối Brave Sync Chain</h3>
+                <p id="lastSyncedLabel" class="card-desc">Lần đồng bộ gần nhất: Vừa xong</p>
+              </div>
+              <button id="btnPushSync" class="btn btn-small btn-primary">Đồng bộ ngay</button>
+            </div>
+          </div>
+
+          <div class="section-header">
+            <h4>Remote Tabs từ Thiết bị Khác</h4>
+            <span id="remoteTabCount" class="badge">0 tabs</span>
+          </div>
+          <div id="remoteTabsList" class="item-list"></div>
+
+          <button id="btnDisconnectSync" class="btn btn-outline-danger btn-block mt-3">Ngắt kết nối Sync</button>
+        </div>
+      </section>
+
+      <!-- 2. SPACES & TABS PANEL -->
+      <section id="spaces-panel" class="tab-panel">
+        <div class="card">
+          <div class="card-header-flex">
+            <div>
+              <h3 class="card-title">Tab hiện tại</h3>
+              <p id="currentTabTitle" class="card-desc text-truncate">Đang tải...</p>
+            </div>
+            <button id="btnTeleportCurrent" class="btn btn-primary btn-small">🚀 Teleport to Phone</button>
+          </div>
+        </div>
+
+        <div class="section-header">
+          <h4>Nhóm Tab Không Gian (Spaces)</h4>
+          <button id="btnSaveSpace" class="btn-text">+ Lưu Không gian</button>
+        </div>
+
+        <div class="spaces-grid">
+          <div class="space-card active" data-space="main">
+            <div class="space-dot" style="background: #B8FF3D;"></div>
+            <span class="space-name">Main Space</span>
+            <span class="space-tabs-count" id="mainSpaceTabCount">0 tabs</span>
+          </div>
+          <div class="space-card" data-space="work">
+            <div class="space-dot" style="background: #4285F4;"></div>
+            <span class="space-name">Work</span>
+            <span class="space-tabs-count">Active</span>
+          </div>
+          <div class="space-card" data-space="research">
+            <div class="space-dot" style="background: #FF4500;"></div>
+            <span class="space-name">Research</span>
+            <span class="space-tabs-count">Session</span>
+          </div>
+        </div>
+
+        <div class="section-header mt-2">
+          <h4>Tab đang mở trên trình duyệt</h4>
+        </div>
+        <div id="localTabsList" class="item-list"></div>
+      </section>
+
+      <!-- 3. MEDIA SNIFFER PANEL -->
+      <section id="sniffer-panel" class="tab-panel">
+        <div class="section-header">
+          <h4>Luồng Video / Audio đã phát hiện</h4>
+          <span id="snifferCountBadge" class="badge">0</span>
+        </div>
+
+        <div id="snifferEmptyState" class="empty-state">
+          <p>Chưa phát hiện luồng media trên trang này.<br>Hãy phát một video/nhạc để tự động bóc tách luồng HLS / MP4.</p>
+        </div>
+
+        <div id="mediaListContainer" class="item-list"></div>
+      </section>
+
+      <!-- 4. BACKUP & SHIELDS PANEL -->
+      <section id="backup-panel" class="tab-panel">
+        <div class="card">
+          <h3 class="card-title">Dấu trang Netscape HTML</h3>
+          <p class="card-desc">Xuất toàn bộ bookmark để nạp vào Fireball Mini Android hoặc trình duyệt khác.</p>
+          <div class="button-row">
+            <button id="btnExportHtmlBookmarks" class="btn btn-outline">📥 Xuất file HTML</button>
+          </div>
+        </div>
+
+        <div class="card mt-2">
+          <h3 class="card-title">Sao lưu Toàn diện E2EE (AES-256)</h3>
+          <p class="card-desc">Tạo bản sao lưu mã hóa bảo vệ bằng mật khẩu (Spaces, Bookmarks, Tab Sessions).</p>
+          <div class="input-row">
+            <input type="password" id="backupPasswordInput" placeholder="Nhập mật khẩu mã hoá..." />
+            <button id="btnCreateEncryptedBackup" class="btn btn-primary">Tạo sao lưu</button>
+          </div>
+        </div>
+
+        <div class="card mt-2">
+          <div class="toggle-row">
+            <div>
+              <h4 class="toggle-title">Strict URL Tracker Cleaner</h4>
+              <p class="toggle-desc">Tự động bóc tách utm_*, fbclid, gclid khi copy link</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="toggleTrackerCleaner" checked>
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <!-- Footer Status -->
+    <footer class="footer">
+      <span>Fireball Companion v1.0.0</span>
+      <span id="toastMessage" class="toast-msg"></span>
+    </footer>
+  </div>
+
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+{
+  "manifest_version": 3,
+  "name": "Fireball Companion — Sync, Spaces & Sniffer",
+  "version": "1.0.0",
+  "description": "Cross-device companion for Fireball Mini: BIP-39 Brave Sync, Firefox Sync, Space Tab Manager, Media Sniffer & E2EE Backup.",
+  "author": "Fireball Browser Team",
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    },
+    "default_title": "Fireball Companion"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "tabs",
+    "activeTab",
+    "scripting",
+    "bookmarks",
+    "downloads",
+    "contextMenus",
+    "clipboardWrite",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background/service_worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content_scripts/media_detector.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+F",
+        "mac": "Command+Shift+F"
+      },
+      "description": "Open Fireball Companion Popup"
+    },
+    "teleport_current_tab": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+Y",
+        "mac": "Command+Shift+Y"
+      },
+      "description": "Teleport Current Tab to Fireball Mini Android"
+    }
+  }
+}
