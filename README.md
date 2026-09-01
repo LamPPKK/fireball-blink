@@ -4,9 +4,11 @@ A privacy-centric, multi-tier browser ecosystem structured into 3 distinct pilla
 
 | Pillar | Product | Target Platforms | Engine & Stack | Key Highlights |
 |---|---|---|---|---|
-| **Pillar 1** | [**🔥 Fireball Server**](fireball-server/) | **Windows, macOS, Linux, Docker** | Python, CDP, XVFB, Docker | Headless streaming daemon (`FBEAM` / HTTP), BIP-39 sync hub, Tor/WARP egress, 1-click Docker Compose |
+| **Pillar 1** | [**🔥 Fireball Server**](fireball-server/) | **Windows, macOS, Linux, Docker, Android** | Python, CDP, Android Daemon, Docker | Headless streaming daemon (`FBEAM` / HTTP), Pocket Server To Go (Android), BIP-39 sync hub |
+
 | **Pillar 2** | [**⚡ Fireball Mini Browser**](fireball-mini/) | **Android, Windows, iOS, Java ME** | Native OS WebViews & Thin Streamers | Sub-5MB to <60KB, <60MB to <1.5MB RAM, Multi-Space isolation, Shields, Zero-Knowledge Vault |
 | **Pillar 3** | [**🌐 Fireball Browser**](docs/FIREBALL_BROWSER_FULL.md) | **Android, Windows, macOS, Linux** | Full Chromium / Blink Engine Overlay (GN/Ninja) | Hardened default-deny network policy, `adblock-rust` FFI, HLS/DASH aria2 transfers, Orbital Command Deck |
+| **Thin Client** | [**📡 Fireball Client**](fireball-client/) | **Web/PWA, Desktop, Android, Apple, J2ME** | HTML5 Canvas / WebSockets / Native Canvas | Pure thin streaming client solely for connecting to Fireball Server (`< 2MB` to Zero-install) |
 | **Companion** | [**🧩 Fireball Extension**](fireball-extension/) | **Chrome, Brave, Edge, Firefox, Opera** | Manifest V3 / WebAssembly | 7 auxiliary modules: Fireball Sync, Shield, Media Downloader, Authenticator, Reader, Remote Browser, Retro Player |
 
 ---
@@ -15,32 +17,40 @@ A privacy-centric, multi-tier browser ecosystem structured into 3 distinct pilla
 
 ```
 fireball-blink/
-├── ⚡ fireball-mini/          # 1. Fireball Mini Browser (Đầy đủ 4 nền tảng)
-│   ├── app/                 #    - Android Edition (Kotlin, Jetpack Compose, WebView, NDK)
-│   ├── windows/ (win/)      #    - Windows Edition (C++20, Win32, MS Edge WebView2)
-│   ├── ios/                 #    - iOS Edition (SwiftUI, WebKit, Stream Stage)
-│   └── j2me/                #    - Java ME Edition (MIDP 2.0, LCDUI Canvas, TileCache)
+├── 📡 fireball-client/         # 1. Fireball Client (Client streaming chuyên dụng cho MỌI nền tảng)
+│   ├── web/                  #    - Web / PWA Client (HTML5 Canvas, WebSockets, Zero-install)
+│   ├── desktop/              #    - Desktop Client (Windows, macOS, Linux Standalone Thin Client)
+│   ├── android/              #    - Android Thin Client (< 2MB APK)
+│   ├── apple/                #    - iOS, iPadOS, macOS Native Swift Thin Client
+│   └── j2me/                 #    - Java ME Pure Streaming MIDlet (< 40KB JAR)
 │
-├── 🧩 fireball-extension/     # 2. Fireball Extension (Bộ 7 tiện ích mở rộng Manifest V3)
-│   ├── background/          #    - Fireball Sync & Fireball Shield Service Workers
-│   ├── content_scripts/     #    - Fireball Media Downloader, Fireball Reader & Fireball Retro Player (Ruffle)
-│   ├── lib/                 #    - Fireball Authenticator (AES-256-GCM / TOTP) & Fireball Remote Browser (FBEAM)
-│   └── popup/               #    - Extension Popup & Teleport UI
+├── ⚡ fireball-mini/           # 2. Fireball Mini Browser (Trình duyệt độc lập nhẹ đa nền tảng)
+│   ├── app/                  #    - Android Edition (Kotlin, Jetpack Compose, WebView, NDK)
+│   ├── windows/ (win/)       #    - Windows Edition (C++20, Win32, MS Edge WebView2)
+│   ├── ios/                  #    - iOS Edition (SwiftUI, WebKit, Stream Stage)
+│   └── j2me/                 #    - Java ME Edition (MIDP 2.0, LCDUI Canvas, TileCache)
 │
-├── 🌐 fireball/               # 3. Fireball Browser (Bản Full Chromium/Blink Engine GN Overlay)
-│   ├── browser/             #    - Domain models, Multi-presentation tabs & Spaces
-│   ├── components/          #    - adblock-rust FFI, navigation adapters, aria2 transfers, egress
-│   └── app/                 #    - Application entrypoint and overlay integration
+├── 🧩 fireball-extension/      # 3. Fireball Extension (Bộ 7 tiện ích mở rộng Manifest V3)
+│   ├── background/           #    - Fireball Sync & Fireball Shield Service Workers
+│   ├── content_scripts/      #    - Fireball Media Downloader, Fireball Reader & Fireball Retro Player (Ruffle)
+│   ├── lib/                  #    - Fireball Authenticator (AES-256-GCM / TOTP) & Fireball Remote Browser (FBEAM)
+│   └── popup/                #    - Extension Popup & Teleport UI
 │
-├── 🔥 fireball-server/        # 4. Fireball Server (Headless Streaming & Sync Daemon)
-│   ├── beam_server.py       #    - Headless Chromium CDP controller & FBEAM streamer
-│   ├── sync_relay.py        #    - BIP-39 WebRTC real-time sync signaling hub
-│   ├── media_remuxer.py     #    - HLS/DASH chunk stitcher & MP4 converter
-│   └── Dockerfile           #    - Multi-arch container image
+├── 🌐 fireball/                # 4. Fireball Browser (Bản Full Chromium/Blink Engine GN Overlay)
+│   ├── browser/              #    - Domain models, Multi-presentation tabs & Spaces
+│   ├── components/           #    - adblock-rust FFI, navigation adapters, aria2 transfers, egress
+│   └── app/                  #    - Application entrypoint and overlay integration
 │
-└── 🛠️ tools/                  # 5. Bộ công cụ kiểm thử & đóng gói tự động
-    └── package_ecosystem.py #    - One-click multi-platform release packager
+├── 🔥 fireball-server/         # 5. Fireball Server (Headless Streaming & Sync Daemon)
+│   ├── beam_server.py        #    - Headless Chromium CDP controller & FBEAM streamer
+│   ├── sync_relay.py         #    - BIP-39 WebRTC real-time sync signaling hub
+│   ├── media_remuxer.py      #    - HLS/DASH chunk stitcher & MP4 converter
+│   └── Dockerfile            #    - Multi-arch container image
+│
+└── 🛠️ tools/                   # 6. Bộ công cụ kiểm thử & đóng gói tự động
+    └── package_ecosystem.py  #    - One-click multi-platform release packager
 ```
+
 
 ---
 

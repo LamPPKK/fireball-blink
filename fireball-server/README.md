@@ -2,7 +2,7 @@
 
 Multi-platform headless browser streaming daemon, encrypted sync coordinator, and privacy egress hub.
 
-Supported Platforms: **Windows**, **macOS**, **Linux**, **Docker**.
+Supported Platforms: **Windows**, **macOS**, **Linux**, **Docker**, **Android (Server To Go)**.
 
 ---
 

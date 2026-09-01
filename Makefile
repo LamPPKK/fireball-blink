@@ -20,8 +20,10 @@ check:
 	python3 fireball-server/media_remuxer.py
 	swift run --package-path fireball-mini/ios FireballTestRunner
 	node fireball-extension/test/extension_test.js
+	python3 fireball-client/desktop/test_client.py
 	mkdir -p out && $(CXX) -std=c++20 -Wall -Wextra -Werror -I./fireball-mini/windows/include fireball-mini/windows/src/domain_models.cpp fireball-mini/windows/src/search_engines.cpp fireball-mini/windows/src/shields_engine.cpp fireball-mini/windows/src/password_vault.cpp fireball-mini/windows/src/sync_engine.cpp fireball-mini/windows/src/beam_client.cpp fireball-mini/windows/src/webview2_host.cpp fireball-mini/windows/src/app_window.cpp fireball-mini/windows/tests/test_runner.cpp -o out/fireball_win_tests && ./out/fireball_win_tests
 	python3 tools/package_ecosystem.py
+
 
 
 test: check

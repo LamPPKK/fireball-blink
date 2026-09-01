@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Fireball Client — Remote Browser Stream</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app-container">
+    <!-- Top Control HUD -->
+    <header id="hud-bar">
+      <div class="hud-left">
+        <span class="brand-logo">🔥 FIREBALL CLIENT</span>
+        <span id="connection-badge" class="badge disconnected">DISCONNECTED</span>
+      </div>
+      <div class="hud-center">
+        <input type="text" id="omnibox-input" placeholder="Enter URL or search query..." disabled />
+        <button id="btn-navigate" disabled>GO</button>
+      </div>
+      <div class="hud-right">
+        <span id="fps-counter" class="metric">0 FPS</span>
+        <span id="latency-counter" class="metric">-- ms</span>
+        <button id="btn-pair" class="btn-primary">PAIR SERVER</button>
+      </div>
+    </header>
+
+    <!-- Main Streaming Stage -->
+    <main id="stream-stage">
+      <canvas id="beam-canvas"></canvas>
+
+      <!-- Welcome / Pairing Overlay -->
+      <div id="pairing-overlay">
+        <div class="card-pairing">
+          <h2>Connect to Fireball Server</h2>
+          <p>Stream high-performance desktop Chromium directly to your browser.</p>
+          <div class="form-group">
+            <label for="server-address">Server URL:</label>
+            <input type="text" id="server-address" value="http://localhost:9090" />
+          </div>
+          <div class="form-group">
+            <label for="pairing-phrase">6-Word Pairing Phrase (Optional):</label>
+            <input type="text" id="pairing-phrase" placeholder="e.g. apple brave cyber dragon echo flame" />
+          </div>
+          <button id="btn-connect" class="btn-accent">START STREAMING</button>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="client.js"></script>
+</body>
+</html>

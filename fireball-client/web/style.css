@@ -1,0 +1,218 @@
+:root {
+  --bg-dark: #0D0E12;
+  --surface-deep: #14161D;
+  --surface-card: #1A1D26;
+  --text-primary: #F0F2F5;
+  --text-muted: #8E95A5;
+  --accent-lime: #00FF88;
+  --accent-meteor: #FF5500;
+  --border-color: rgba(255, 255, 255, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  font-family: 'Outfit', sans-serif;
+  height: 100vh;
+  overflow: hidden;
+  user-select: none;
+}
+
+#app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+#hud-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--surface-deep);
+  border-bottom: 1px solid var(--border-color);
+  height: 48px;
+  z-index: 10;
+}
+
+.brand-logo {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+}
+
+.badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 8px;
+}
+
+.badge.disconnected {
+  background: rgba(255, 85, 0, 0.2);
+  color: var(--accent-meteor);
+  border: 1px solid var(--accent-meteor);
+}
+
+.badge.connected {
+  background: rgba(0, 255, 136, 0.2);
+  color: var(--accent-lime);
+  border: 1px solid var(--accent-lime);
+}
+
+.hud-center {
+  display: flex;
+  align-items: center;
+  flex: 0.6;
+  gap: 8px;
+}
+
+#omnibox-input {
+  flex: 1;
+  background: var(--surface-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  outline: none;
+}
+
+#omnibox-input:focus {
+  border-color: var(--accent-lime);
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 6px 12px;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background: var(--surface-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.btn-primary:hover {
+  background: var(--border-color);
+}
+
+.btn-accent {
+  background: var(--accent-lime);
+  color: #000;
+}
+
+.btn-accent:hover {
+  filter: brightness(1.1);
+}
+
+.hud-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.metric {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+#stream-stage {
+  position: relative;
+  flex: 1;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#beam-canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+#pairing-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(13, 14, 18, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.card-pairing {
+  background: var(--surface-card);
+  border: 1px solid var(--border-color);
+  padding: 24px;
+  border-radius: 12px;
+  width: 380px;
+  max-width: 90%;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.5);
+}
+
+.card-pairing h2 {
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.card-pairing p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.form-group input {
+  width: 100%;
+  background: var(--surface-deep);
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+}
+
+.form-group input:focus {
+  border-color: var(--accent-lime);
+}
+
+.card-pairing button {
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+}

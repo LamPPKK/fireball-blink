@@ -75,6 +75,19 @@ def package_windows_source(repo_root: pathlib.Path, dist_dir: pathlib.Path) -> p
 
 
 
+def package_client(repo_root: pathlib.Path, dist_dir: pathlib.Path) -> pathlib.Path:
+    client_dir = repo_root / "fireball-client"
+    out_zip = dist_dir / "fireball-client-v1.0.0.zip"
+    print(f"📦 Packaging Fireball Thin Client Suite into {out_zip.name}...")
+    with zipfile.ZipFile(out_zip, "w", zipfile.ZIP_DEFLATED) as zf:
+        for root, _, files in os.walk(client_dir):
+            for file in files:
+                full_path = pathlib.Path(root) / file
+                rel_path = full_path.relative_to(client_dir)
+                zf.write(full_path, arcname=str(rel_path))
+    return out_zip
+
+
 def main() -> int:
     repo_root = pathlib.Path(__file__).resolve().parent.parent
     dist_dir = repo_root / "dist"
@@ -86,10 +99,12 @@ def main() -> int:
 
     artifacts = [
         package_server(repo_root, dist_dir),
+        package_client(repo_root, dist_dir),
         package_extension(repo_root, dist_dir),
         package_j2me(repo_root, dist_dir),
         package_windows_source(repo_root, dist_dir),
     ]
+
 
     manifest = {
         "schema_version": 1,
