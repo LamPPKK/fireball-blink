@@ -7,10 +7,47 @@ A privacy-centric, multi-tier browser ecosystem structured into 3 distinct pilla
 | **Pillar 1** | [**🔥 Fireball Server**](fireball-server/) | **Windows, macOS, Linux, Docker** | Python, CDP, XVFB, Docker | Headless streaming daemon (`FBEAM` / HTTP), BIP-39 sync hub, Tor/WARP egress, 1-click Docker Compose |
 | **Pillar 2** | [**⚡ Fireball Mini Browser**](fireball-mini/) | **Android, Windows, iOS, Java ME** | Native OS WebViews & Thin Streamers | Sub-5MB to <60KB, <60MB to <1.5MB RAM, Multi-Space isolation, Shields, Zero-Knowledge Vault |
 | **Pillar 3** | [**🌐 Fireball Browser**](docs/FIREBALL_BROWSER_FULL.md) | **Android, Windows, macOS, Linux** | Full Chromium / Blink Engine Overlay (GN/Ninja) | Hardened default-deny network policy, `adblock-rust` FFI, HLS/DASH aria2 transfers, Orbital Command Deck |
+| **Companion** | [**🧩 Fireball Extension**](fireball-extension/) | **Chrome, Brave, Edge, Firefox, Opera** | Manifest V3 / WebAssembly | 7 auxiliary modules: Fireball Sync, Shield, Media Downloader, Authenticator, Reader, Remote Browser, Retro Player |
+
+---
+
+## 📂 Sơ Đồ Cấu Trúc Mã Nguồn (Repository Layout)
+
+```
+fireball-blink/
+├── ⚡ fireball-mini/          # 1. Fireball Mini Browser (Đầy đủ 4 nền tảng)
+│   ├── app/                 #    - Android Edition (Kotlin, Jetpack Compose, WebView, NDK)
+│   ├── windows/ (win/)      #    - Windows Edition (C++20, Win32, MS Edge WebView2)
+│   ├── ios/                 #    - iOS Edition (SwiftUI, WebKit, Stream Stage)
+│   └── j2me/                #    - Java ME Edition (MIDP 2.0, LCDUI Canvas, TileCache)
+│
+├── 🧩 fireball-extension/     # 2. Fireball Extension (Bộ 7 tiện ích mở rộng Manifest V3)
+│   ├── background/          #    - Fireball Sync & Fireball Shield Service Workers
+│   ├── content_scripts/     #    - Fireball Media Downloader, Fireball Reader & Fireball Retro Player (Ruffle)
+│   ├── lib/                 #    - Fireball Authenticator (AES-256-GCM / TOTP) & Fireball Remote Browser (FBEAM)
+│   └── popup/               #    - Extension Popup & Teleport UI
+│
+├── 🌐 fireball/               # 3. Fireball Browser (Bản Full Chromium/Blink Engine GN Overlay)
+│   ├── browser/             #    - Domain models, Multi-presentation tabs & Spaces
+│   ├── components/          #    - adblock-rust FFI, navigation adapters, aria2 transfers, egress
+│   └── app/                 #    - Application entrypoint and overlay integration
+│
+├── 🔥 fireball-server/        # 4. Fireball Server (Headless Streaming & Sync Daemon)
+│   ├── beam_server.py       #    - Headless Chromium CDP controller & FBEAM streamer
+│   ├── sync_relay.py        #    - BIP-39 WebRTC real-time sync signaling hub
+│   ├── media_remuxer.py     #    - HLS/DASH chunk stitcher & MP4 converter
+│   └── Dockerfile           #    - Multi-arch container image
+│
+└── 🛠️ tools/                  # 5. Bộ công cụ kiểm thử & đóng gói tự động
+    └── package_ecosystem.py #    - One-click multi-platform release packager
+```
+
+---
 
 <div align="center">
   <img src="Brand/FireballMeteorMark.png" width="96" alt="Fireball Meteor Brand Mark">
 </div>
+
 
 The detached meteor mark is the shared Fireball identity: an obsidian core, ember-orange flight surfaces and one electric-lime trail.
 
@@ -151,11 +188,17 @@ Output APK: `fireball-mini/app/build/outputs/apk/debug/app-debug.apk`.
 
 ---
 
-## 🧩 WebExtension Companion
+## 🧩 WebExtension Suite & Companion Modules
 
-Located in `fireball-extension/`, the **Fireball WebExtension Companion** is a Manifest V3 / V2 compatible extension for Chromium browsers (Brave, Chrome, Edge) and Mozilla Firefox:
-- **Bi-directional Sync**: Syncs tabs, history, and bookmarks between desktop browsers and Fireball Mini.
-- **Native Messaging Bridge**: Communicates with the local Fireball desktop core or Android device via encrypted WebSocket/WebRTC sync channels.
+Located in `fireball-extension/`, the **Fireball WebExtension Suite** is a modular Manifest V3 companion for Chromium browsers (Brave, Chrome, Edge, Opera, Vivaldi) and Mozilla Firefox:
+- **1. Fireball Sync**: Đồng bộ hóa chuỗi 24 từ BIP-39 (Brave Sync v2), dịch chuyển tab tức thì qua phím tắt `Ctrl+Shift+Y`.
+- **2. Fireball Shield**: Tự động cắt tỉa tham số theo dõi URL (`utm_*`, `fbclid`, `gclid`), chống WebRTC leak.
+- **3. Fireball Media Downloader**: Tự động phát hiện và bắt link video trực tuyến **HLS (`.m3u8`)**, **DASH (`.mpd`)**, **MP4**.
+- **4. Fireball Authenticator**: Két mật khẩu mã hóa AES-256-GCM và bộ tạo mã xác thực 2 bước (TOTP Authenticator).
+- **5. Fireball Reader**: Trích xuất nội dung bài viết sạch (Readability), tóm tắt AI và đọc văn bản thành giọng nói (TTS).
+- **6. Fireball Remote Browser**: Kết nối điều khiển và xem luồng duyệt web từ xa chạy trên Fireball Server (`FBEAM`).
+- **7. Fireball Retro Player**: Giả lập Adobe Flash bằng WebAssembly (Rust/Ruffle) chơi game Flash cổ điển (`.swf`).
+
 
 ---
 

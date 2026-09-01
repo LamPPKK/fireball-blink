@@ -8,13 +8,14 @@
 
 | Tiện ích / Module Phụ Trợ | Mã nguồn / Thành phần | Chức năng chính |
 |---|---|---|
-| **1. Fireball Sync & Teleport Companion** | `background/`, `popup/` | Đồng bộ hóa chuỗi 24 từ BIP-39 (Brave Sync v2), dịch chuyển tab tức thì sang điện thoại Android/iOS qua phím tắt `Ctrl+Shift+Y`, tạo mã QR chia sẻ tab. |
-| **2. Fireball Shields Auxiliary** | `background/shields.js` | Tự động cắt tỉa tham số theo dõi URL (`utm_*`, `fbclid`, `gclid`), chặn quảng cáo, bảo vệ chống WebRTC IP leak và fingerprinting. |
-| **3. Smart Media Sniffer Auxiliary** | `content_scripts/media_detector.js` | Tự động phát hiện và bắt link video trực tuyến **HLS (`.m3u8`)**, **DASH (`.mpd`)**, **MP4/WebM**, gửi sang Fireball Server / aria2 RPC để tải đa luồng. |
-| **4. Zero-Knowledge Password & 2FA Vault** | `lib/crypto.js` | Tự động điền tài khoản/mật khẩu mã hóa AES-256-GCM, hỗ trợ bộ tạo mã xác thực 2 bước (TOTP Authenticator) mã hóa cục bộ. |
-| **5. Fireball AI Reader & TTS Auxiliary** | `content_scripts/reader.js` | Trích xuất nội dung bài viết sạch không quảng cáo (Readability), tóm tắt ý chính bài viết, hỗ trợ đọc văn bản thành giọng nói (TTS) và dịch thuật. |
-| **6. Fireball Beam Remote Control** | `lib/beam_ws.js` | Kết nối điều khiển và xem luồng duyệt web từ xa chạy trên Fireball Server thông qua giao thức nhị phân `FBEAM`. |
-| **7. Ruffle Flash Emulator & Retro Games** | `content_scripts/ruffle_interceptor.js` | Tự động phát hiện và kích hoạt giả lập Adobe Flash bằng WebAssembly (Rust/Ruffle) để chơi trực tiếp các tựa game Flash cổ điển (`.swf`). |
+| **1. Fireball Sync** | `background/`, `popup/` | Đồng bộ hóa chuỗi 24 từ BIP-39 (Brave Sync v2), dịch chuyển tab tức thì sang điện thoại Android/iOS qua phím tắt `Ctrl+Shift+Y`, tạo mã QR chia sẻ tab. |
+| **2. Fireball Shield** | `background/shields.js` | Tự động cắt tỉa tham số theo dõi URL (`utm_*`, `fbclid`, `gclid`), chặn quảng cáo, bảo vệ chống WebRTC IP leak và fingerprinting. |
+| **3. Fireball Media Downloader** | `content_scripts/media_detector.js` | Tự động phát hiện và bắt link video trực tuyến **HLS (`.m3u8`)**, **DASH (`.mpd`)**, **MP4/WebM**, gửi sang Fireball Server / aria2 RPC để tải đa luồng tốc độ cao. |
+| **4. Fireball Authenticator** | `lib/crypto.js` | Tự động điền tài khoản/mật khẩu mã hóa AES-256-GCM, bộ tạo mã xác thực 2 bước (TOTP Authenticator) mã hóa cục bộ an toàn. |
+| **5. Fireball Reader** | `content_scripts/reader.js` | Trích xuất nội dung bài viết sạch không quảng cáo (Readability), tóm tắt ý chính bài viết, hỗ trợ đọc văn bản thành giọng nói (TTS) và dịch thuật. |
+| **6. Fireball Remote Browser** | `lib/beam_ws.js` | Kết nối điều khiển và xem luồng duyệt web từ xa chạy trên Fireball Server thông qua giao thức nhị phân `FBEAM`. |
+| **7. Fireball Retro Player** | `content_scripts/ruffle_interceptor.js` | Tự động phát hiện và kích hoạt giả lập Adobe Flash bằng WebAssembly (Rust/Ruffle) để chơi trực tiếp các tựa game Flash cổ điển (`.swf`). |
+
 
 
 ---
