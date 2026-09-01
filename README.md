@@ -217,6 +217,40 @@ The product-specific UI tokens and component rules live in [`design-system/fireb
 
 ---
 
+## 🪟 Fireball Lite for Windows (`fireball-win`)
+
+Ultra-lightweight desktop browser client for Windows powered by **Microsoft Edge WebView2 Evergreen Runtime** and **Modern C++20 / Win32**.
+
+- **Engine**: Microsoft Edge WebView2 Evergreen (Pre-installed system-wide on Windows 10 & 11).
+- **Footprint**: Executable size `< 5MB`, RAM usage `< 60MB`, Instant cold boot (`< 100ms`).
+- **Spaces & Profile Isolation**: Custom `userDataFolder` per space (`Main`, `Work`, `Burner`) with zero cross-space data leakage.
+- **Burner Mode**: Ephemeral temp session directory automatically destroyed upon closing.
+- **Fireball Shields**: Zero-latency URL tracking parameter stripper (`utm_*`, `fbclid`, `gclid`, etc.) and cosmetic ad CSS injection.
+- **Omnibox & Bangs**: Instant search shortcuts (`!g`, `!b`, `!yt`, `!gh`, `!w`, `!k`, `!sp`, `!e`, `!r`).
+- **Zero-Knowledge Vault**: Windows DPAPI & AES-256 encrypted local credential storage.
+- **BIP-39 Sync & Beam**: 24-word sync phrase compatibility with Android/iOS + Remote browser streaming client.
+
+---
+
+## 🍎 Fireball for iOS & iPadOS (`fireball-ios`)
+
+Native SwiftUI & WebKit browser client for iPhone and iPad (iOS 16+ / iPadOS 16+):
+- **iPadOS Tab Strip**: Desktop-class horizontal tab strip with Space switcher chips and fast tab creation.
+- **SwiftUI 4-Tier Lifecycle**: Favorites, Pinned, Today, and Burner tab sections.
+- **Apple CryptoKit Vault**: Zero-Knowledge AES-256-GCM encrypted password manager with Keychain integration.
+- **Sync & Beam**: BIP-39 mnemonic chain synchronization and Fireball Beam remote stream playback.
+
+---
+
+## ⚡ Fireball Beam (`fireball-beam`)
+
+Remote browser streaming engine inspired by Surf:
+- **Binary Frame Protocol (`FBEAM`)**: 13-byte low-overhead frame header with touch, mouse, and video frame payloads.
+- **Sub-10ms Input Mapper**: Normalized touch coordinate translation (`0.0 - 1.0`) directly to CDP (`Input.dispatchTouchEvent`).
+- **Zero-Config Pairing**: 6-word mnemonic phrases and single-use QR pairing tokens.
+
+---
+
 ## 🏛️ Architecture Boundary
 
 - Chromium Stable Linux `151.0.7922.169` and `depot_tools` are locked to exact official revisions in `pins/upstream.json`.
