@@ -107,8 +107,13 @@ class FireballWebViewClient(
                 currentSourceHost = ""
             }
             onPageStartedCallback(it, favicon)
+            if (view != null) {
+                CosmeticFilterHelper.injectCosmeticCss(view, profileId, it)
+                injectSecurityGuards(view)
+            }
         }
     }
+
 
     private fun injectSecurityGuards(view: WebView) {
         view.evaluateJavascript(

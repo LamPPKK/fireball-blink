@@ -120,7 +120,14 @@ object FireballNativeBridge {
             "taboola.com", "outbrain.com", "amazon-adsystem.com", "rubiconproject.com",
             "pubmatic.com", "openx.net", "applovin.com", "unityads.unity3d.com",
             "ironsrc.com", "vungle.com", "mintegral.com", "popads.net", "propellerads.com",
-            "admicro.vn", "eclick.vn", "ambientplatform.vn"
+            "exoclick.com", "trafficstars.com", "zedo.com", "adroll.com", "smartadserver.com",
+            "moatads.com", "serving-sys.com", "flashtalking.com", "adform.net", "inmobi.com",
+            // Vietnamese & Regional Ad Networks (ABPVN)
+            "admicro.vn", "eclick.vn", "ambientplatform.vn", "ants.vn", "novanet.vn",
+            "vietnamnetad.vn", "admatic.vn", "adpia.vn", "accesstrade.vn", "mgid.com",
+            "adtrue.com", "adtarget.me", "vlit.vn", "blueseed.tv", "yomedia.vn",
+            "adnetwork.vn", "innity.com", "adclick.vn", "vcmedia.vn/ad", "vnecdn.net/ads",
+            "ad.tinhte.vn", "tinhte.vn/ads", "media.tinhte.vn/ads"
         )
         for (domain in adDomains) {
             if (lowerHost.contains(domain) || lowerUrl.contains(domain)) return 1
@@ -129,7 +136,7 @@ object FireballNativeBridge {
         val trackerDomains = listOf(
             "google-analytics.com", "analytics.google.com", "hotjar.com", "clarity.ms",
             "mixpanel.com", "segment.io", "amplitude.com", "appsflyer.com", "adjust.com",
-            "mc.yandex.ru", "scorecardresearch.com"
+            "mc.yandex.ru", "scorecardresearch.com", "branch.io", "kochava.com", "singular.net"
         )
         for (domain in trackerDomains) {
             if (lowerHost.contains(domain) || lowerUrl.contains(domain)) return 2
@@ -137,7 +144,7 @@ object FireballNativeBridge {
 
         val annoyanceDomains = listOf(
             "onetrust.com", "cookielaw.org", "cookiebot.com", "didomi.io", "trustarc.com",
-            "usercentrics.eu", "iubenda.com"
+            "usercentrics.eu", "iubenda.com", "quantserve.com"
         )
         for (domain in annoyanceDomains) {
             if (lowerHost.contains(domain) || lowerUrl.contains(domain)) return 3
@@ -158,6 +165,7 @@ object FireballNativeBridge {
         }
 
         return 0
+
     }
 
     private fun fallbackSniffMedia(url: String, mimeType: String): MediaKind? {
