@@ -17,6 +17,7 @@ check:
 	python3 tools/run_adblock_tests.py
 	python3 fireball-server/test_beam_protocol.py
 	swift run --package-path fireball-ios FireballTestRunner
+	node fireball-extension/test/extension_test.js
 	mkdir -p out && $(CXX) -std=c++20 -Wall -Wextra -Werror -I./fireball-win/include fireball-win/src/domain_models.cpp fireball-win/src/search_engines.cpp fireball-win/src/shields_engine.cpp fireball-win/src/password_vault.cpp fireball-win/src/sync_engine.cpp fireball-win/src/beam_client.cpp fireball-win/src/webview2_host.cpp fireball-win/src/app_window.cpp fireball-win/tests/test_runner.cpp -o out/fireball_win_tests && ./out/fireball_win_tests
 
 test: check

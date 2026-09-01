@@ -1,48 +1,39 @@
-# 🔥 Fireball WebExtension Companion
+# 🔥 Fireball WebExtension Suite & Auxiliary Extensions
 
-**Fireball WebExtension Companion** is a cross-browser extension (**Manifest V3**) that seamlessly connects any desktop browser (**Google Chrome, Brave, Microsoft Edge, Mozilla Firefox, Opera, Vivaldi**) with **Fireball Mini Browser** on Android.
-
----
-
-## 🌟 Key Features
-
-1. **Brave Sync Chain (BIP-39 24 Words)**:
-   - Zero-knowledge end-to-end encrypted synchronization without requiring account registration.
-   - Sync Open Tabs, Bookmarks, and History between Desktop and Android.
-2. **Space & Tab Teleport**:
-   - One-click teleporting of current desktop tabs or entire workspace groups directly to Fireball Mini Android.
-3. **Smart Media Sniffer**:
-   - Automatically sniffs HLS master playlists (`.m3u8`), DASH streams (`.mpd`), MP4/WebM videos, and audio.
-   - Provides instant download or stream URL copying.
-4. **Strict URL Tracker Cleaner**:
-   - Automatically strips intrusive tracking query parameters (`utm_*`, `fbclid`, `gclid`, `mc_eid`, etc.) upon copying or navigating.
-5. **Netscape HTML Bookmarks & E2EE Backup**:
-   - Export standard Netscape Bookmark HTML files compatible with Fireball Mini import.
-   - Generate password-protected AES-256-GCM encrypted backup files (`.fireball`).
-6. **Cyber Dark OLED Popup UI**:
-   - Modern glassmorphic interface styled with Fireball’s signature Obsidian Black, Electric Lime, and Meteor Orange palette.
+**Fireball WebExtension Suite** is a modular collection of companion extensions (**Manifest V3**) that bridge desktop browsers (**Google Chrome, Brave, Microsoft Edge, Mozilla Firefox, Opera, Vivaldi**) with the **Fireball Ecosystem** (Fireball Server, Fireball Mini, and Fireball Browser).
 
 ---
 
-## 🚀 How to Install & Load Extension
+## 🧩 Danh Mục Các Tiện Ích & Module Phụ Trợ (Auxiliary Modules)
 
-### In Google Chrome / Brave / Microsoft Edge / Opera:
-1. Open your browser and navigate to `chrome://extensions` (or `edge://extensions`, `brave://extensions`).
-2. Enable **Developer mode** (toggle in the top right corner).
-3. Click **Load unpacked** (Tải tiện ích đã giải nén).
-4. Select the folder: `/path/to/fireball-blink/fireball-extension`.
-5. The **Fireball Companion** icon will appear on your browser toolbar!
-
-### In Mozilla Firefox:
-1. Open Firefox and go to `about:debugging#/runtime/this-firefox`.
-2. Click **Load Temporary Add-on...**
-3. Select the `manifest.json` file inside `fireball-extension/`.
+| Tiện ích / Module Phụ Trợ | Mã nguồn / Thành phần | Chức năng chính |
+|---|---|---|
+| **1. Fireball Sync & Teleport Companion** | `background/`, `popup/` | Đồng bộ hóa chuỗi 24 từ BIP-39 (Brave Sync v2), dịch chuyển tab tức thì sang điện thoại Android/iOS qua phím tắt `Ctrl+Shift+Y`, tạo mã QR chia sẻ tab. |
+| **2. Fireball Shields Auxiliary** | `background/shields.js` | Tự động cắt tỉa tham số theo dõi URL (`utm_*`, `fbclid`, `gclid`), chặn quảng cáo, bảo vệ chống WebRTC IP leak và fingerprinting. |
+| **3. Smart Media Sniffer Auxiliary** | `content_scripts/media_detector.js` | Tự động phát hiện và bắt link video trực tuyến **HLS (`.m3u8`)**, **DASH (`.mpd`)**, **MP4/WebM**, gửi sang Fireball Server / aria2 RPC để tải đa luồng. |
+| **4. Zero-Knowledge Password & 2FA Vault** | `lib/crypto.js` | Tự động điền tài khoản/mật khẩu mã hóa AES-256-GCM, hỗ trợ bộ tạo mã xác thực 2 bước (TOTP Authenticator) mã hóa cục bộ. |
+| **5. Fireball AI Reader & TTS Auxiliary** | `content_scripts/reader.js` | Trích xuất nội dung bài viết sạch không quảng cáo (Readability), tóm tắt ý chính bài viết, hỗ trợ đọc văn bản thành giọng nói (TTS) và dịch thuật. |
+| **6. Fireball Beam Remote Control** | `lib/beam_ws.js` | Kết nối điều khiển và xem luồng duyệt web từ xa chạy trên Fireball Server thông qua giao thức nhị phân `FBEAM`. |
 
 ---
 
-## 🧪 Testing
+## 🚀 Hướng Dẫn Cài Đặt (Load Unpacked)
 
-Run automated cryptographic, sync packet, and HTML parser unit tests:
+### Trên Google Chrome / Brave / Microsoft Edge / Opera:
+1. Mở trình duyệt và truy cập `chrome://extensions` (hoặc `edge://extensions`, `brave://extensions`).
+2. Bật công tắc **Developer mode** (Chế độ dành cho nhà phát triển).
+3. Bấm nút **Load unpacked** (Tải tiện ích đã giải nén).
+4. Chọn thư mục: `fireball-blink/fireball-extension`.
+5. Biểu tượng **Fireball Companion** sẽ xuất hiện trên thanh công cụ!
+
+### Trên Mozilla Firefox:
+1. Mở Firefox và truy cập `about:debugging#/runtime/this-firefox`.
+2. Bấm **Load Temporary Add-on...**
+3. Chọn file `manifest.json` trong thư mục `fireball-extension/`.
+
+---
+
+## 🧪 Kiểm Thử Tự Động
 ```bash
 node fireball-extension/test/extension_test.js
 ```
