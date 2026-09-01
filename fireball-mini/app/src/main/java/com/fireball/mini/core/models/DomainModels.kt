@@ -9,6 +9,11 @@ enum class PresentationLayout {
     GRID
 }
 
+enum class BrowserEngineType {
+    NATIVE_WEBVIEW,
+    FIREBALL_BEAM_STREAM
+}
+
 enum class TabSection {
     FAVORITE,
     PINNED,

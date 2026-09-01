@@ -231,67 +231,76 @@ fun BrowserScreen(
                 .padding(paddingValues)
                 .background(FireballBackground)
         ) {
-            // Main WebView with Space Session Isolation
-            androidx.compose.runtime.key(uiState.activeTab?.spaceId, uiState.isBurnerMode) {
-                AndroidView(
-                    modifier = Modifier.fillMaxSize(),
-                    factory = { context ->
-                        FireballWebView(
-                            context = context,
-                            spaceId = uiState.activeTab?.spaceId ?: "space-main",
-                            profileId = uiState.activeTab?.profileId ?: "profile-main",
-                            isOffTheRecord = uiState.isBurnerMode
-                        ).apply {
-                            layoutParams = FrameLayout.LayoutParams(
-                                ViewGroup.LayoutParams.MATCH_PARENT,
-                                ViewGroup.LayoutParams.MATCH_PARENT
-                            )
-                            setFindListener { activeMatchOrdinal, numberOfMatches, isDoneCounting ->
-                                currentMatchIndex = activeMatchOrdinal
-                                totalMatchesCount = numberOfMatches
-                            }
-                            webViewClient = FireballWebViewClient(
-                                tabId = uiState.activeTab?.id ?: "tab-default",
-                                profileId = uiState.activeTab?.profileId ?: "default-profile",
-                                onPageStartedCallback = { url, _ -> viewModel.onPageStarted(url) },
-                                onPageFinishedCallback = { url, title ->
-                                    viewModel.onPageFinished(url, title)
-                                    // Pre-extract article content in background for instant AI readiness
-                                    evaluateJavascript(ArticleExtractorHelper.extractionJs) { rawJson ->
-                                        if (!rawJson.isNullOrBlank() && rawJson != "null") {
-                                            viewModel.onArticleExtracted(rawJson, url)
-                                        }
-                                    }
-                                },
-                                onAdBlockedCallback = { categoryCode -> viewModel.onAdBlocked(categoryCode) },
-                                onMediaDiscoveredCallback = { media -> viewModel.onMediaDiscovered(media) },
-                                isRedirectBlockingEnabled = { viewModel.isRedirectBlockingEnabled.value },
-                                onRedirectBlockedCallback = { _ -> viewModel.recordRedirectBlocked() }
-                            )
-                            webChromeClient = FireballWebChromeClient(
-                                onProgressChangedCallback = { progress -> viewModel.onProgressChanged(progress) },
-                                onTitleReceivedCallback = { title -> viewModel.onPageFinished(url ?: "", title) },
-                                onIconReceivedCallback = {},
-                                onCustomViewShowCallback = { _, _ -> },
-                                onCustomViewHideCallback = {},
-                                isPopupBlockingEnabled = { viewModel.isPopupBlockingEnabled.value },
-                                onPopupBlockedCallback = { viewModel.recordPopupBlocked() },
-                                onNewTabRequestedCallback = { newUrl -> viewModel.createNewTab(newUrl) }
-                            )
-                            setDesktopMode(isDesktopMode)
-                            loadUrl(uiState.currentUrl)
-                            webViewInstance = this
-                        }
-                    },
-                    update = { webView ->
-                        webViewInstance = webView
-                        webView.setDesktopMode(isDesktopMode)
-                        if (webView.url != uiState.currentUrl && !uiState.isLoading && uiState.currentUrl != "about:blank") {
-                            webView.loadUrl(uiState.currentUrl)
-                        }
-                    }
+            // Browser Engine: Native WebView vs Fireball Beam Stream
+            if (uiState.engineType == com.fireball.mini.core.models.BrowserEngineType.FIREBALL_BEAM_STREAM) {
+                com.fireball.mini.ui.components.BeamStreamStage(
+                    beamClient = viewModel.beamClient,
+                    modifier = Modifier.fillMaxSize()
                 )
+            } else {
+                // Main WebView with Space Session Isolation
+                androidx.compose.runtime.key(uiState.activeTab?.spaceId, uiState.isBurnerMode) {
+                    AndroidView(
+                        modifier = Modifier.fillMaxSize(),
+                        factory = { context ->
+                            FireballWebView(
+                                context = context,
+                                spaceId = uiState.activeTab?.spaceId ?: "space-main",
+                                profileId = uiState.activeTab?.profileId ?: "profile-main",
+                                isOffTheRecord = uiState.isBurnerMode
+                            ).apply {
+                                layoutParams = FrameLayout.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT
+                                )
+                                setFindListener { activeMatchOrdinal, numberOfMatches, isDoneCounting ->
+                                    currentMatchIndex = activeMatchOrdinal
+                                    totalMatchesCount = numberOfMatches
+                                }
+                                webViewClient = FireballWebViewClient(
+                                    tabId = uiState.activeTab?.id ?: "tab-default",
+                                    profileId = uiState.activeTab?.profileId ?: "default-profile",
+                                    onPageStartedCallback = { url, _ -> viewModel.onPageStarted(url) },
+                                    onPageFinishedCallback = { url, title ->
+                                        viewModel.onPageFinished(url, title)
+                                        // Pre-extract article content in background for instant AI readiness
+                                        evaluateJavascript(ArticleExtractorHelper.extractionJs) { rawJson ->
+                                            if (!rawJson.isNullOrBlank() && rawJson != "null") {
+                                                viewModel.onArticleExtracted(rawJson, url)
+                                            }
+                                        }
+                                    },
+                                    onAdBlockedCallback = { categoryCode -> viewModel.onAdBlocked(categoryCode) },
+                                    onMediaDiscoveredCallback = { media -> viewModel.onMediaDiscovered(media) },
+                                    isRedirectBlockingEnabled = { viewModel.isRedirectBlockingEnabled.value },
+                                    onRedirectBlockedCallback = { _ -> viewModel.recordRedirectBlocked() }
+                                )
+                                webChromeClient = FireballWebChromeClient(
+                                    onProgressChangedCallback = { progress -> viewModel.onProgressChanged(progress) },
+                                    onTitleReceivedCallback = { title -> viewModel.onPageFinished(url ?: "", title) },
+                                    onIconReceivedCallback = {},
+                                    onCustomViewShowCallback = { _, _ -> },
+                                    onCustomViewHideCallback = {},
+                                    isPopupBlockingEnabled = { viewModel.isPopupBlockingEnabled.value },
+                                    onPopupBlockedCallback = { viewModel.recordPopupBlocked() },
+                                    onNewTabRequestedCallback = { newUrl -> viewModel.createNewTab(newUrl) }
+                                )
+                                setDesktopMode(isDesktopMode)
+                                loadUrl(uiState.currentUrl)
+                                webViewInstance = this
+                            }
+                        },
+                        update = { webView ->
+                            webViewInstance = webView
+                            webView.setDesktopMode(isDesktopMode)
+                            if (webView.url != uiState.currentUrl && !uiState.isLoading && uiState.currentUrl != "about:blank") {
+                                webView.loadUrl(uiState.currentUrl)
+                            }
+                        }
+                    )
+                }
             }
+
 
             // Floating Media Sniffer SnackBar (if media discovered on page)
             AnimatedVisibility(

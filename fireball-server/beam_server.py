@@ -172,6 +172,64 @@ class BeamSession:
         }
 
 
+class HeadlessChromiumController:
+    """Manages spawning headless Chromium instances and CDP automation."""
+
+    def __init__(self, port: int = 9222) -> None:
+        self.port = port
+        self.process: Optional[Any] = None
+        self.browser_path = self._find_browser_executable()
+        self.current_url = "https://duckduckgo.com"
+
+    def _find_browser_executable(self) -> Optional[str]:
+        import shutil
+        candidates = ["chromium", "chromium-browser", "google-chrome", "chrome", "msedge"]
+        for c in candidates:
+            path = shutil.which(c)
+            if path:
+                return path
+        mac_paths = [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge"
+        ]
+        for p in mac_paths:
+            if os.path.exists(p):
+                return p
+        return None
+
+    def start(self) -> bool:
+        if not self.browser_path:
+            return False
+        try:
+            import subprocess
+            cmd = [
+                self.browser_path,
+                "--headless=new",
+                f"--remote-debugging-port={self.port}",
+                "--disable-gpu",
+                "--no-sandbox",
+                "--hide-scrollbars",
+                "--window-size=1080,1920",
+                self.current_url
+            ]
+            self.process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return True
+        except Exception:
+            return False
+
+    def navigate(self, url: str) -> None:
+        self.current_url = url
+
+    def stop(self) -> None:
+        if self.process:
+            try:
+                self.process.terminate()
+            except Exception:
+                pass
+            self.process = None
+
+
 def create_mock_png_tile(width: int = 240, height: int = 320) -> bytes:
     """Generates a valid minimal 1x1 / 240x320 PNG tile for J2ME / HTTP clients."""
     # 1x1 PNG transparent / dark pixel fallback
@@ -195,9 +253,17 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Fireball Beam & Sync Server")
     parser.add_argument("--host", default="0.0.0.0", help="Binding host")
     parser.add_argument("--port", type=int, default=9090, help="Binding port")
+    parser.add_argument("--launch-chromium", action="store_true", help="Launch headless Chromium backend")
     args = parser.parse_args()
 
     pairing_mgr = BeamPairingManager()
+    chromium_ctrl = HeadlessChromiumController()
+
+    if args.launch_chromium:
+        if chromium_ctrl.start():
+            print(f"🚀 Headless Chromium launched via {chromium_ctrl.browser_path}")
+        else:
+            print("⚠️ Chromium not found, falling back to lightweight synthetic rasterizer.")
 
     class BeamHttpHandler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
@@ -213,6 +279,19 @@ if __name__ == "__main__":
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(b'{"status":"ok","service":"fireball-server"}\n')
+            elif self.path == "/pair/init":
+                token, words, qr = pairing_mgr.create_invitation()
+                import json
+                payload = json.dumps({
+                    "token": token,
+                    "phrase": words,
+                    "qr": qr
+                }).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(payload)))
+                self.end_headers()
+                self.wfile.write(payload)
             else:
                 self.send_response(200)
                 self.send_header("Content-Type", "text/plain")
@@ -220,6 +299,9 @@ if __name__ == "__main__":
                 self.wfile.write(b"Fireball Server Online\n")
 
         def do_POST(self) -> None:
+            if self.path.startswith("/navigation/load"):
+                # Handle navigation URL
+                pass
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
@@ -234,5 +316,7 @@ if __name__ == "__main__":
         server.serve_forever()
     except KeyboardInterrupt:
         print("\nStopping Fireball Server...")
+        chromium_ctrl.stop()
         server.server_close()
+
 

@@ -66,10 +66,12 @@ data class BrowserUiState(
     val discoveredMediaCount: Int = 0,
     val adsBlockedThisSession: Long = 0,
     val isBurnerMode: Boolean = false,
-    val isBookmarked: Boolean = false
+    val isBookmarked: Boolean = false,
+    val engineType: com.fireball.mini.core.models.BrowserEngineType = com.fireball.mini.core.models.BrowserEngineType.NATIVE_WEBVIEW
 )
 
 class BrowserViewModel(
+    val beamClient: com.fireball.mini.core.beam.BeamStreamingClient = com.fireball.mini.core.beam.BeamStreamingClient(),
     private val browserRepo: BrowserRepository = BrowserRepository(),
     private val shieldsRepo: ShieldsRepository = ShieldsRepository(),
     private val transferRepo: TransferRepository = TransferRepository(),
@@ -628,8 +630,28 @@ class BrowserViewModel(
         }
     }
 
+    fun toggleBrowserEngine() {
+        val nextEngine = if (_uiState.value.engineType == com.fireball.mini.core.models.BrowserEngineType.NATIVE_WEBVIEW) {
+            com.fireball.mini.core.models.BrowserEngineType.FIREBALL_BEAM_STREAM
+        } else {
+            com.fireball.mini.core.models.BrowserEngineType.NATIVE_WEBVIEW
+        }
+        setBrowserEngine(nextEngine)
+    }
+
+    fun setBrowserEngine(type: com.fireball.mini.core.models.BrowserEngineType) {
+        _uiState.value = _uiState.value.copy(engineType = type)
+        if (type == com.fireball.mini.core.models.BrowserEngineType.FIREBALL_BEAM_STREAM) {
+            beamClient.startStream()
+        } else {
+            beamClient.stopStream()
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         ttsEngine?.release()
+        beamClient.destroy()
     }
 }
+
