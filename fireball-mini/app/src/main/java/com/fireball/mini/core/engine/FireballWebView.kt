@@ -3,12 +3,15 @@ package com.fireball.mini.core.engine
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
+import android.view.GestureDetector
+import android.view.MotionEvent
 import android.webkit.CookieManager
 import android.webkit.WebSettings
 import android.webkit.WebView
 import androidx.webkit.ProfileStore
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import kotlin.math.abs
 
 @SuppressLint("SetJavaScriptEnabled")
 class FireballWebView(
@@ -20,10 +23,51 @@ class FireballWebView(
 
     companion object {
         private const val TAG = "FireballWebView"
+        private const val SWIPE_THRESHOLD = 120f
+        private const val SWIPE_VELOCITY_THRESHOLD = 150f
     }
 
+    private val gestureDetector = GestureDetector(context, object : GestureDetector.SimpleOnGestureListener() {
+        override fun onFling(
+            e1: MotionEvent?,
+            e2: MotionEvent,
+            velocityX: Float,
+            velocityY: Float
+        ): Boolean {
+            if (e1 == null) return false
+            val diffX = e2.x - e1.x
+            val diffY = e2.y - e1.y
+
+            // Horizontal edge swipe detection
+            if (abs(diffX) > abs(diffY) && abs(diffX) > SWIPE_THRESHOLD && abs(velocityX) > SWIPE_VELOCITY_THRESHOLD) {
+                if (diffX > 0 && e1.x < 120f) {
+                    // Swiped from left edge -> Go Back
+                    if (canGoBack()) {
+                        goBack()
+                        return true
+                    }
+                } else if (diffX < 0 && e1.x > (width - 120f)) {
+                    // Swiped from right edge -> Go Forward
+                    if (canGoForward()) {
+                        goForward()
+                        return true
+                    }
+                }
+            }
+            return false
+        }
+    })
+
     init {
+        isFocusable = true
+        isFocusableInTouchMode = true
+        isNestedScrollingEnabled = true
         setupProfileAndSettings()
+    }
+
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        gestureDetector.onTouchEvent(event)
+        return super.onTouchEvent(event)
     }
 
     private fun setupProfileAndSettings() {
@@ -35,8 +79,7 @@ class FireballWebView(
                 val profileStore = ProfileStore.getInstance()
                 val profile = profileStore.getOrCreateProfile(profileName)
                 WebViewCompat.setProfile(this, profileName)
-                
-                // Configure profile-specific cookie manager if needed
+
                 val profileCookieManager = profile.cookieManager
                 if (isOffTheRecord) {
                     profileCookieManager.setAcceptCookie(false)
@@ -48,7 +91,6 @@ class FireballWebView(
                 Log.w(TAG, "Failed to configure Multi-Profile isolation: ${e.message}")
             }
         } else {
-            // Fallback for devices where MULTI_PROFILE is not supported
             val globalCookieManager = CookieManager.getInstance()
             if (isOffTheRecord) {
                 globalCookieManager.setAcceptCookie(false)
@@ -77,7 +119,6 @@ class FireballWebView(
             userAgentString = "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36"
         }
     }
-
 
     fun setDesktopMode(enabled: Boolean) {
         if (enabled) {

@@ -190,26 +190,10 @@ fun ChromiumTopToolbar(
                         RoundedCornerShape(24.dp)
                     )
                     .clickable { onOmniboxClick() }
-                    .pointerInput(Unit) {
-                        detectHorizontalDragGestures(
-                            onDragStart = { totalDragX = 0f },
-                            onDragEnd = {
-                                if (totalDragX > 80f) {
-                                    onSwipePrevTab()
-                                } else if (totalDragX < -80f) {
-                                    onSwipeNextTab()
-                                }
-                                totalDragX = 0f
-                            },
-                            onDragCancel = { totalDragX = 0f },
-                            onHorizontalDrag = { _, dragAmount ->
-                                totalDragX += dragAmount
-                            }
-                        )
-                    }
                     .padding(horizontal = 12.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
+
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
