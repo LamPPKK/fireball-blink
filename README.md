@@ -4,9 +4,9 @@ A privacy-centric, multi-tier browser ecosystem structured into 3 distinct pilla
 
 | Pillar | Product | Target Platforms | Engine & Stack | Key Highlights |
 |---|---|---|---|---|
-| **Pillar 1** | [**🔥 Fireball Server**](fireball-server/) | **Windows, macOS, Linux, Docker** | Python, CDP, XVFB, Docker | Headless streaming daemon (`FBEAM`), BIP-39 sync hub, Tor/WARP egress, 1-click Docker Compose |
-| **Pillar 2** | [**⚡ Fireball Mini Browser**](fireball-mini/) | **Android & Windows** | Native OS WebViews (Android WebView / MS Edge WebView2) | Sub-5MB binary, <60MB RAM, <100ms startup, Multi-Space isolation, Shields, Zero-Knowledge Vault |
-| **Pillar 3** | [**🌐 Fireball Browser**](fireball/) | **Android, Windows, macOS, Linux** | Full Chromium / Blink Engine Overlay (GN/Ninja) | Hardened default-deny network policy, `adblock-rust` FFI, HLS/DASH aria2 transfers, Orbital Command Deck |
+| **Pillar 1** | [**🔥 Fireball Server**](fireball-server/) | **Windows, macOS, Linux, Docker** | Python, CDP, XVFB, Docker | Headless streaming daemon (`FBEAM` / HTTP), BIP-39 sync hub, Tor/WARP egress, 1-click Docker Compose |
+| **Pillar 2** | [**⚡ Fireball Mini Browser**](fireball-mini/) | **Android, Windows, iOS, Java ME** | Native OS WebViews & Thin Streamers | Sub-5MB to <60KB, <60MB to <1.5MB RAM, Multi-Space isolation, Shields, Zero-Knowledge Vault |
+| **Pillar 3** | [**🌐 Fireball Browser**](docs/FIREBALL_BROWSER_FULL.md) | **Android, Windows, macOS, Linux** | Full Chromium / Blink Engine Overlay (GN/Ninja) | Hardened default-deny network policy, `adblock-rust` FFI, HLS/DASH aria2 transfers, Orbital Command Deck |
 
 <div align="center">
   <img src="Brand/FireballMeteorMark.png" width="96" alt="Fireball Meteor Brand Mark">
@@ -227,37 +227,33 @@ The product-specific UI tokens and component rules live in [`design-system/fireb
 
 ---
 
-## 🪟 Fireball Lite for Windows (`fireball-win`)
+## ⚡ Fireball Mini Browser (4 Lightweight Editions)
 
-Ultra-lightweight desktop browser client for Windows powered by **Microsoft Edge WebView2 Evergreen Runtime** and **Modern C++20 / Win32**.
+### 1. 🤖 Android Edition (`fireball-mini/app/`)
+- Kotlin + Jetpack Compose + Material Design 3 (Material You) + System Android WebView + NDK C++/Rust.
+- Tablet Tab Strip, Phone bottom command capsule, AI Assistant, Live Tab Previews, HLS/DASH media stream sniffer.
 
-- **Engine**: Microsoft Edge WebView2 Evergreen (Pre-installed system-wide on Windows 10 & 11).
-- **Footprint**: Executable size `< 5MB`, RAM usage `< 60MB`, Instant cold boot (`< 100ms`).
-- **Spaces & Profile Isolation**: Custom `userDataFolder` per space (`Main`, `Work`, `Burner`) with zero cross-space data leakage.
-- **Burner Mode**: Ephemeral temp session directory automatically destroyed upon closing.
-- **Fireball Shields**: Zero-latency URL tracking parameter stripper (`utm_*`, `fbclid`, `gclid`, etc.) and cosmetic ad CSS injection.
-- **Omnibox & Bangs**: Instant search shortcuts (`!g`, `!b`, `!yt`, `!gh`, `!w`, `!k`, `!sp`, `!e`, `!r`).
-- **Zero-Knowledge Vault**: Windows DPAPI & AES-256 encrypted local credential storage.
-- **BIP-39 Sync & Beam**: 24-word sync phrase compatibility with Android/iOS + Remote browser streaming client.
+### 2. 🪟 Windows Edition (`fireball-win/` or `fireball-mini/windows/`)
+- Native C++20 / Win32 application utilizing Microsoft Edge WebView2 Evergreen.
+- Sub-5MB executable, <60MB RAM, Multi-Space User Data Folder isolation (`Main`, `Work`, `Burner`), Zero-Knowledge Vault.
 
----
+### 3. 🍎 iOS & iPadOS Streaming Edition (`fireball-ios/` or `fireball-mini/ios/`)
+- Native SwiftUI & WebKit client with integrated Fireball Beam WebSocket streaming codec.
+- Desktop-class iPadOS tab strip, Apple CryptoKit Vault, BIP-39 sync, and sub-10ms streaming touch dispatcher.
 
-## 🍎 Fireball for iOS & iPadOS (`fireball-ios`)
-
-Native SwiftUI & WebKit browser client for iPhone and iPad (iOS 16+ / iPadOS 16+):
-- **iPadOS Tab Strip**: Desktop-class horizontal tab strip with Space switcher chips and fast tab creation.
-- **SwiftUI 4-Tier Lifecycle**: Favorites, Pinned, Today, and Burner tab sections.
-- **Apple CryptoKit Vault**: Zero-Knowledge AES-256-GCM encrypted password manager with Keychain integration.
-- **Sync & Beam**: BIP-39 mnemonic chain synchronization and Fireball Beam remote stream playback.
+### 4. ☕ Java ME Edition (`fireball-j2me/` or `fireball-mini/j2me/`)
+- MIDP 2.0 / CLDC 1.1 thin streaming client for feature phones, Symbian, and BlackBerry devices (<60KB JAR, <1.5MB RAM).
+- Opera Mini-style remote rendering: receives compressed screen tiles from Fireball Server and sends D-Pad virtual cursor actions.
 
 ---
 
-## ⚡ Fireball Beam (`fireball-beam`)
+## 🔥 Fireball Server (`fireball-server/`)
 
-Remote browser streaming engine inspired by Surf:
-- **Binary Frame Protocol (`FBEAM`)**: 13-byte low-overhead frame header with touch, mouse, and video frame payloads.
-- **Sub-10ms Input Mapper**: Normalized touch coordinate translation (`0.0 - 1.0`) directly to CDP (`Input.dispatchTouchEvent`).
-- **Zero-Config Pairing**: 6-word mnemonic phrases and single-use QR pairing tokens.
+Multi-platform headless browser streaming daemon, encrypted sync coordinator, and privacy egress hub.
+
+- **Supported Platforms**: Windows, macOS, Linux, and Docker (`docker compose up -d`).
+- **Remote Streaming Engine**: Headless Chromium CDP controller streaming video/PNG frames to client devices with sub-10ms latency.
+- **Zero-Config Pairing**: 6-word mnemonic confirmation and single-use QR pairing tokens.
 
 ---
 
