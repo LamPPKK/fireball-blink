@@ -39,6 +39,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -250,27 +251,30 @@ fun TabTrayScreen(
             }
         },
         bottomBar = {
-            // Bottom Action Bar
+            // Bottom Action Bar (Material 3 Surface with proper Button Hierarchy)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(FireballDeepSurface)
-                    .border(1.dp, FireballBorder)
+                    .border(1.dp, FireballBorder.copy(alpha = 0.6f))
                     .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable { onCloseTray() }
-                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                OutlinedButton(
+                    onClick = { onCloseTray() },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = FireballPrimaryText
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, FireballBorder),
+                    contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
                 ) {
                     Text(
                         text = "Done",
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                        color = FireballSecondaryText
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        fontSize = 14.sp
                     )
                 }
 
@@ -294,7 +298,8 @@ fun TabTrayScreen(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = if (currentSpace.isBurner) "New Incognito Tab" else "New Tab",
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                        fontSize = 14.sp
                     )
                 }
             }

@@ -160,7 +160,7 @@ fun SyncBottomSheet(
                     }
                 }
 
-                // Status Badge
+                // Status Badge (Material 3 Chip with non-wrapping label)
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
@@ -171,7 +171,7 @@ fun SyncBottomSheet(
                                 else -> FireballRaisedSurface
                             }
                         )
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 10.dp, vertical = 5.dp)
                 ) {
                     Text(
                         text = when (syncState.status) {
@@ -184,6 +184,8 @@ fun SyncBottomSheet(
                         },
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        softWrap = false,
                         color = when (syncState.status) {
                             SyncStatus.SYNCED -> FireballElectricLime
                             SyncStatus.SYNCING -> FireballMeteorOrange
@@ -405,33 +407,55 @@ private fun BraveSyncCard(
             )
             Spacer(modifier = Modifier.height(6.dp))
 
-            // 24 Words Grid
+            // 24 Words Grid (Clean 3-Column Chips)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(8.dp))
+                    .clip(RoundedCornerShape(12.dp))
                     .background(FireballDeepSurface)
-                    .padding(8.dp)
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                syncState.braveSyncWords.chunked(4).forEachIndexed { chunkIndex, chunk ->
+                syncState.braveSyncWords.chunked(3).forEachIndexed { chunkIndex, chunk ->
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         chunk.forEachIndexed { wordIdx, word ->
-                            val num = chunkIndex * 4 + wordIdx + 1
-                            Text(
-                                text = "$num. $word",
-                                fontSize = 10.5.sp,
-                                color = FireballPrimaryText,
-                                modifier = Modifier.weight(1f)
-                            )
+                            val num = chunkIndex * 3 + wordIdx + 1
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(FireballRaisedSurface)
+                                    .border(0.5.dp, FireballBorder, RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 6.dp, vertical = 4.dp),
+                                contentAlignment = Alignment.CenterStart
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        text = "$num.",
+                                        fontSize = 9.5.sp,
+                                        color = FireballMutedText,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = word,
+                                        fontSize = 11.sp,
+                                        color = FireballPrimaryText,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Button(
                 onClick = { onCopyWords(syncState.braveSyncWords) },

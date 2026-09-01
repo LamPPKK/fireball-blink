@@ -41,6 +41,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -58,7 +60,6 @@ import com.fireball.mini.ui.theme.FireballMeteorOrange
 import com.fireball.mini.ui.theme.FireballMutedText
 import com.fireball.mini.ui.theme.FireballPrimaryText
 import com.fireball.mini.ui.theme.FireballRaisedSurface
-import com.fireball.mini.ui.theme.FireballSecondaryText
 
 @Composable
 fun TabThumbnailCard(
@@ -79,10 +80,15 @@ fun TabThumbnailCard(
         isActive -> FireballElectricLime
         tab.section == TabSection.FAVORITE -> FireballMeteorOrange
         tab.section == TabSection.PINNED -> FireballElectricLime.copy(alpha = 0.6f)
-        else -> FireballBorder
+        else -> FireballBorder.copy(alpha = 0.7f)
     }
 
     val displayDomain = tab.url.removePrefix("https://").removePrefix("http://").substringBefore('/')
+    val titleText = when {
+        tab.title.isNotBlank() && tab.title != "about:blank" -> tab.title
+        displayDomain.isNotBlank() && displayDomain != "about:blank" -> displayDomain
+        else -> "New Tab"
+    }
 
     Box(
         modifier = modifier
@@ -111,7 +117,7 @@ fun TabThumbnailCard(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(20.dp)
+                            .size(22.dp)
                             .clip(CircleShape)
                             .background(FireballDeepSurface),
                         contentAlignment = Alignment.Center
@@ -121,36 +127,36 @@ fun TabThumbnailCard(
                                 imageVector = Icons.Default.Star,
                                 contentDescription = "Favorite",
                                 tint = FireballMeteorOrange,
-                                modifier = Modifier.size(12.dp)
+                                modifier = Modifier.size(13.dp)
                             )
                         } else if (tab.section == TabSection.PINNED) {
                             Icon(
                                 imageVector = Icons.Default.PushPin,
                                 contentDescription = "Pinned",
                                 tint = FireballElectricLime,
-                                modifier = Modifier.size(12.dp)
+                                modifier = Modifier.size(13.dp)
                             )
                         } else {
                             Icon(
                                 imageVector = Icons.Default.Language,
                                 contentDescription = "Web",
-                                tint = FireballMutedText,
-                                modifier = Modifier.size(12.dp)
+                                tint = if (isActive) FireballElectricLime else FireballMutedText,
+                                modifier = Modifier.size(13.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
                     Text(
-                        text = if (tab.title.isNotBlank()) tab.title else displayDomain,
+                        text = titleText,
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
                         ),
-                        color = if (isActive) FireballPrimaryText else FireballMutedText,
+                        color = if (isActive) FireballPrimaryText else FireballPrimaryText.copy(alpha = 0.85f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        fontSize = 11.5.sp
+                        fontSize = 12.sp
                     )
                 }
 
@@ -159,13 +165,13 @@ fun TabThumbnailCard(
                     Box {
                         IconButton(
                             onClick = { showMenu = true },
-                            modifier = Modifier.size(22.dp)
+                            modifier = Modifier.size(24.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
                                 contentDescription = "Options",
                                 tint = FireballMutedText,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(15.dp)
                             )
                         }
 
@@ -214,7 +220,11 @@ fun TabThumbnailCard(
 
                             DropdownMenuItem(
                                 text = {
-                                    Text(text = "Duplicate Tab", color = FireballPrimaryText, fontSize = 13.sp)
+                                    Text(
+                                        text = "Duplicate Tab",
+                                        color = FireballPrimaryText,
+                                        fontSize = 13.sp
+                                    )
                                 },
                                 leadingIcon = {
                                     Icon(
@@ -228,22 +238,26 @@ fun TabThumbnailCard(
                             )
 
                             if (allSpaces.size > 1) {
-                                HorizontalDivider(color = FireballBorder, thickness = 0.5.dp)
+                                HorizontalDivider(color = FireballBorder)
                                 allSpaces.filter { it.id != tab.spaceId }.forEach { space ->
                                     DropdownMenuItem(
                                         text = {
                                             Text(
                                                 text = "Move to ${space.name}",
-                                                color = FireballSecondaryText,
-                                                fontSize = 12.sp
+                                                color = FireballPrimaryText,
+                                                fontSize = 13.sp
                                             )
                                         },
                                         leadingIcon = {
                                             Icon(
                                                 imageVector = Icons.Default.DriveFileMove,
                                                 contentDescription = null,
-                                                tint = FireballElectricLime,
-                                                modifier = Modifier.size(14.dp)
+                                                tint = try {
+                                                    Color(android.graphics.Color.parseColor(space.accentColorHex))
+                                                } catch (_: Exception) {
+                                                    FireballElectricLime
+                                                },
+                                                modifier = Modifier.size(16.dp)
                                             )
                                         },
                                         onClick = { onMoveToSpace(space.id); showMenu = false }
@@ -253,58 +267,65 @@ fun TabThumbnailCard(
                         }
                     }
 
+                    // Close Tab Button (Clear Tap Target)
                     IconButton(
                         onClick = onCloseClick,
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(24.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Close,
                             contentDescription = "Close Tab",
                             tint = FireballMutedText,
-                            modifier = Modifier.size(14.dp)
+                            modifier = Modifier.size(16.dp)
                         )
                     }
                 }
             }
 
-            // Preview Stage (Center Canvas)
+            // Preview Stage (Center Canvas with Domain Emblem)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(1.35f)
-                    .background(FireballDeepSurface)
-                    .padding(horizontal = 8.dp, vertical = 12.dp),
+                    .aspectRatio(1.25f)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                FireballDeepSurface,
+                                FireballCardSurface
+                            )
+                        )
+                    )
+                    .padding(horizontal = 8.dp, vertical = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Domain emblem in center
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(FireballRaisedSurface)
-                        .border(1.dp, FireballBorder, RoundedCornerShape(8.dp))
-                        .padding(horizontal = 10.dp, vertical = 5.dp),
+                        .border(1.dp, FireballBorder.copy(alpha = 0.6f), RoundedCornerShape(10.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (displayDomain.isNotBlank()) displayDomain else "Blank Page",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-                        color = FireballPrimaryText,
-                        fontSize = 11.5.sp,
+                        text = if (displayDomain.isNotBlank() && displayDomain != "about:blank") displayDomain else "duckduckgo.com",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                        color = if (isActive) FireballElectricLime else FireballPrimaryText,
+                        fontSize = 12.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
 
-            // Bottom Status Bar (Footer: Active / Inactive / RAM Discarded indicator moved to the bottom)
+            // Bottom Status Bar (Footer: Active / Inactive / RAM Discarded indicator)
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(FireballRaisedSurface)
-                    .border(0.5.dp, FireballBorder)
-                    .padding(horizontal = 8.dp, vertical = 5.dp)
+                    .border(0.5.dp, FireballBorder.copy(alpha = 0.5f))
+                    .padding(horizontal = 8.dp, vertical = 6.dp)
             ) {
                 // Left: Audio indicator or Section name
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -326,7 +347,7 @@ fun TabThumbnailCard(
                         },
                         style = MaterialTheme.typography.labelSmall,
                         color = FireballMutedText,
-                        fontSize = 9.5.sp
+                        fontSize = 10.sp
                     )
                 }
 
@@ -336,13 +357,13 @@ fun TabThumbnailCard(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
                             .background(FireballBorder)
-                            .padding(horizontal = 5.dp, vertical = 1.5.dp)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = "💤 RAM SAVED",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                             color = FireballElectricLime,
-                            fontSize = 8.5.sp
+                            fontSize = 9.sp
                         )
                     }
                 } else if (isActive) {
@@ -351,13 +372,13 @@ fun TabThumbnailCard(
                             .clip(RoundedCornerShape(4.dp))
                             .background(FireballElectricLime.copy(alpha = 0.2f))
                             .border(0.8.dp, FireballElectricLime.copy(alpha = 0.8f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 5.dp, vertical = 1.5.dp)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = "● ACTIVE",
                             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                             color = FireballElectricLime,
-                            fontSize = 8.5.sp
+                            fontSize = 9.sp
                         )
                     }
                 } else {
@@ -365,13 +386,13 @@ fun TabThumbnailCard(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
                             .background(FireballDeepSurface)
-                            .padding(horizontal = 5.dp, vertical = 1.5.dp)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = "○ INACTIVE",
                             style = MaterialTheme.typography.labelSmall,
                             color = FireballMutedText,
-                            fontSize = 8.5.sp
+                            fontSize = 9.sp
                         )
                     }
                 }

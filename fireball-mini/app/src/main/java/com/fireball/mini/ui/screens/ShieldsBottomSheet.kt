@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -104,7 +105,9 @@ fun ShieldsBottomSheet(
     ) {
         LazyColumn(
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
         ) {
             // Drag handle pill
             item {
@@ -430,15 +433,17 @@ private fun FilterListCard(
             .clip(RoundedCornerShape(12.dp))
             .background(FireballCardSurface)
             .border(1.dp, FireballBorder, RoundedCornerShape(12.dp))
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 8.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(34.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(iconColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
@@ -447,41 +452,51 @@ private fun FilterListCard(
                     imageVector = icon,
                     contentDescription = null,
                     tint = iconColor,
-                    modifier = Modifier.size(16.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
 
             Spacer(modifier = Modifier.width(10.dp))
 
-            Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
                     Text(
                         text = filter.name,
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                         color = FireballPrimaryText,
-                        fontSize = 12.5.sp
+                        fontSize = 12.5.sp,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Box(
                         modifier = Modifier
                             .clip(RoundedCornerShape(4.dp))
                             .background(FireballRaisedSurface)
-                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = "${filter.rulesCount / 1000}k rules",
                             style = MaterialTheme.typography.labelSmall,
                             color = FireballMutedText,
-                            fontSize = 8.5.sp
+                            fontSize = 8.5.sp,
+                            maxLines = 1,
+                            softWrap = false
                         )
                     }
                 }
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = filter.description,
                     style = MaterialTheme.typography.bodySmall,
                     color = FireballMutedText,
                     fontSize = 10.5.sp,
-                    maxLines = 1
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
                 )
             }
         }
@@ -494,8 +509,7 @@ private fun FilterListCard(
                 checkedTrackColor = iconColor,
                 uncheckedThumbColor = FireballMutedText,
                 uncheckedTrackColor = FireballRaisedSurface
-            ),
-            modifier = Modifier.size(width = 38.dp, height = 24.dp)
+            )
         )
     }
 }

@@ -9,9 +9,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.Add
@@ -85,16 +89,20 @@ fun ChromiumMenuSheet(
         onDismiss = onDismiss,
         sheetState = sheetState
     ) {
+        val scrollState = rememberScrollState()
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 6.dp)
+                .navigationBarsPadding()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 12.dp, vertical = 6.dp)
         ) {
-            // Drag Handle Pill
+            // Material 3 Drag Handle Pill
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp),
+                    .padding(vertical = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
@@ -109,28 +117,31 @@ fun ChromiumMenuSheet(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(14.dp))
                     .background(FireballRaisedSurface)
-                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                    .padding(horizontal = 6.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.SpaceAround,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
                     onClick = { onBackClick(); onDismiss() },
-                    enabled = canGoBack
+                    enabled = canGoBack,
+                    modifier = Modifier.size(44.dp)
                 ) {
-                    Text(text = "←", color = if (canGoBack) FireballPrimaryText else FireballMutedText.copy(alpha = 0.4f), fontSize = 18.sp)
+                    Text(text = "←", color = if (canGoBack) FireballPrimaryText else FireballMutedText.copy(alpha = 0.4f), fontSize = 20.sp)
                 }
 
                 IconButton(
                     onClick = { onForwardClick(); onDismiss() },
-                    enabled = canGoForward
+                    enabled = canGoForward,
+                    modifier = Modifier.size(44.dp)
                 ) {
-                    Text(text = "→", color = if (canGoForward) FireballPrimaryText else FireballMutedText.copy(alpha = 0.4f), fontSize = 18.sp)
+                    Text(text = "→", color = if (canGoForward) FireballPrimaryText else FireballMutedText.copy(alpha = 0.4f), fontSize = 20.sp)
                 }
 
                 IconButton(
-                    onClick = { onBookmarkClick(); onDismiss() }
+                    onClick = { onBookmarkClick(); onDismiss() },
+                    modifier = Modifier.size(44.dp)
                 ) {
                     Icon(
                         imageVector = if (isBookmarked) Icons.Default.Star else Icons.Default.StarBorder,
@@ -140,7 +151,8 @@ fun ChromiumMenuSheet(
                 }
 
                 IconButton(
-                    onClick = { onDownloadClick(); onDismiss() }
+                    onClick = { onDownloadClick(); onDismiss() },
+                    modifier = Modifier.size(44.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Download,
@@ -150,7 +162,8 @@ fun ChromiumMenuSheet(
                 }
 
                 IconButton(
-                    onClick = { onInfoClick(); onDismiss() }
+                    onClick = { onInfoClick(); onDismiss() },
+                    modifier = Modifier.size(44.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Info,
@@ -160,8 +173,8 @@ fun ChromiumMenuSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-            HorizontalDivider(color = FireballBorder, thickness = 0.8.dp)
+            Spacer(modifier = Modifier.height(10.dp))
+            HorizontalDivider(color = FireballBorder.copy(alpha = 0.6f), thickness = 0.8.dp)
             Spacer(modifier = Modifier.height(4.dp))
 
             // Chromium Menu Items List
@@ -179,7 +192,7 @@ fun ChromiumMenuSheet(
                 onClick = { onReaderModeClick(); onDismiss() }
             )
 
-            HorizontalDivider(color = FireballBorder, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 2.dp))
+            HorizontalDivider(color = FireballBorder.copy(alpha = 0.4f), thickness = 0.5.dp, modifier = Modifier.padding(vertical = 4.dp))
 
             ChromiumMenuItem(
                 icon = Icons.Default.Add,
@@ -194,7 +207,7 @@ fun ChromiumMenuSheet(
                 onClick = { onNewIncognitoClick(); onDismiss() }
             )
 
-            HorizontalDivider(color = FireballBorder, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 2.dp))
+            HorizontalDivider(color = FireballBorder.copy(alpha = 0.4f), thickness = 0.5.dp, modifier = Modifier.padding(vertical = 4.dp))
 
             ChromiumMenuItem(
                 icon = Icons.Default.History,
@@ -214,7 +227,7 @@ fun ChromiumMenuSheet(
                 onClick = { onDownloadClick(); onDismiss() }
             )
 
-            HorizontalDivider(color = FireballBorder, thickness = 0.5.dp, modifier = Modifier.padding(vertical = 2.dp))
+            HorizontalDivider(color = FireballBorder.copy(alpha = 0.4f), thickness = 0.5.dp, modifier = Modifier.padding(vertical = 4.dp))
 
             ChromiumMenuItem(
                 icon = Icons.Default.FindInPage,
@@ -236,12 +249,14 @@ fun ChromiumMenuSheet(
                 onClick = { onSyncClick(); onDismiss() }
             )
 
-            // Desktop Site Checkbox Item
+            // Desktop Site Checkbox Item (M3 Compliant Touch Target >= 48dp)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(10.dp))
                     .clickable { onToggleDesktopMode() }
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
@@ -256,7 +271,8 @@ fun ChromiumMenuSheet(
                         text = "Desktop site",
                         style = MaterialTheme.typography.bodyMedium,
                         color = FireballPrimaryText,
-                        modifier = Modifier.padding(start = 16.dp)
+                        modifier = Modifier.padding(start = 16.dp),
+                        fontSize = 14.5.sp
                     )
                 }
 
@@ -271,11 +287,15 @@ fun ChromiumMenuSheet(
                 )
             }
 
+            HorizontalDivider(color = FireballBorder.copy(alpha = 0.4f), thickness = 0.5.dp, modifier = Modifier.padding(vertical = 4.dp))
+
             ChromiumMenuItem(
                 icon = Icons.Default.Settings,
                 title = "Settings",
                 onClick = { onSettingsClick(); onDismiss() }
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
@@ -290,8 +310,10 @@ private fun ChromiumMenuItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(10.dp))
             .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 11.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
@@ -305,7 +327,7 @@ private fun ChromiumMenuItem(
             style = MaterialTheme.typography.bodyMedium,
             color = FireballPrimaryText,
             modifier = Modifier.padding(start = 16.dp),
-            fontSize = 14.sp
+            fontSize = 14.5.sp
         )
     }
 }
