@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  fireball-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fireball-server
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    environment:
+      - PORT=9090
+      - HOST=0.0.0.0
+      - ENABLE_TOR_EGRESS=false
+      - LOG_LEVEL=INFO
+    volumes:
+      - fireball-data:/root/.fireball-server
+    security_opt:
+      - seccomp=unconfined # Needed for Chromium sandbox in headless container
+
+volumes:
+  fireball-data:
+    driver: local

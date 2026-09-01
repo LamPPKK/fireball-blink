@@ -1,0 +1,9 @@
+MIDlet-1: Fireball,/icon.png,com.fireball.j2me.FireballMIDlet
+MIDlet-Jar-Size: 45000
+MIDlet-Jar-URL: fireball.jar
+MIDlet-Name: Fireball
+MIDlet-Vendor: Fireball Project
+MIDlet-Version: 1.0.0
+MicroEdition-Configuration: CLDC-1.1
+MicroEdition-Profile: MIDP-2.0
+MIDlet-Description: Fireball Thin Streaming Client for Java ME

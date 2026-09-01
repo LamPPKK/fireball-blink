@@ -1,10 +1,20 @@
-# fireball-blink
+# Fireball Browser Ecosystem
 
-Buildable B0/B1 tooling foundation for the Chromium-based Fireball Browser, featuring the desktop Chromium engine, the native **Fireball Mini for Android** mobile browser, and the **WebExtension Companion**.
+A privacy-centric, multi-tier browser ecosystem structured into 3 distinct pillars:
 
-<img src="Brand/FireballMeteorMark.png" width="104" alt="Fireball meteor brand mark">
+| Pillar | Product | Target Platforms | Engine & Stack | Key Highlights |
+|---|---|---|---|---|
+| **Pillar 1** | [**🔥 Fireball Server**](fireball-server/) | **Windows, macOS, Linux, Docker** | Python, CDP, XVFB, Docker | Headless streaming daemon (`FBEAM`), BIP-39 sync hub, Tor/WARP egress, 1-click Docker Compose |
+| **Pillar 2** | [**⚡ Fireball Mini Browser**](fireball-mini/) | **Android & Windows** | Native OS WebViews (Android WebView / MS Edge WebView2) | Sub-5MB binary, <60MB RAM, <100ms startup, Multi-Space isolation, Shields, Zero-Knowledge Vault |
+| **Pillar 3** | [**🌐 Fireball Browser**](fireball/) | **Android, Windows, macOS, Linux** | Full Chromium / Blink Engine Overlay (GN/Ninja) | Hardened default-deny network policy, `adblock-rust` FFI, HLS/DASH aria2 transfers, Orbital Command Deck |
 
-The detached meteor mark is the shared Fireball identity: an obsidian core, ember-orange flight surfaces and one electric-lime trail. Blink applies it to an **orbital command deck**—dense desktop chrome, explicit Profile/Space boundaries and visible provenance—without pretending this preview is a browser.
+<div align="center">
+  <img src="Brand/FireballMeteorMark.png" width="96" alt="Fireball Meteor Brand Mark">
+</div>
+
+The detached meteor mark is the shared Fireball identity: an obsidian core, ember-orange flight surfaces and one electric-lime trail.
+
+---
 
 <a href="docs/assets/fireball-blink-layout-showcase.png">
   <img src="docs/assets/fireball-blink-layout-showcase.png" width="100%" alt="Fireball Blink Classic and Tab Grid macOS model previews">
